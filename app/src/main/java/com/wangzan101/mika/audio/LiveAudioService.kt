@@ -9,11 +9,14 @@ import android.media.*
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.*
+import android.util.Log
 import com.wangzan101.mika.R
+import com.wangzan101.mika.core.cap.phone.LiveListenPolicy
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import java.io.ByteArrayOutputStream
 import kotlin.math.abs
+import kotlin.math.sqrt
 
 /** Capture and transcription run independently so model/network latency doesn't pause recording. */
 class LiveAudioService : Service() {
@@ -21,13 +24,19 @@ class LiveAudioService : Service() {
     private var projection: MediaProjection? = null
     private val recorderLock = Any()
     @Volatile private var recorder: AudioRecord? = null
-    private var started = false
     @Volatile private var destroying = false
+    /** True while a new listen is replacing the recorder, so the old loop must not stop the service. */
+    @Volatile private var replacing = false
+    private val jobs = mutableListOf<Job>()
     override fun onBind(intent: Intent?) = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == "stop") { stopSelf(); return START_NOT_STICKY }
-        if (started || intent == null) return START_NOT_STICKY
-        started = true
+        if (intent?.action == "stop") {
+            releaseHardware()
+            if (LiveAudioSession.running) LiveAudioSession.end("你已停止监听", LiveAudioWatch.USER_STOPPED)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        if (intent == null) return START_NOT_STICKY
         val mic = intent.getBooleanExtra("microphone", false)
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("live-audio", "直播监听", NotificationManager.IMPORTANCE_LOW))
@@ -49,49 +58,65 @@ class LiveAudioService : Service() {
                 }
             }
             check(checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) { "未授权录音" }
+            replacing = true
+            releaseHardware(stopProjection = true)
             val settings = LiveAudioSettings(this)
             val transcriber = LiveTranscriber(settings.endpoint, settings.key, settings.model)
             val minimum = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             check(minimum > 0) { "设备不支持 16kHz 录音" }
             val record = if (mic) openMicrophone() else openPlayback(intent)
             recorder = record
-            LiveAudioSession.begin(mic)
+            val sessionId = LiveAudioSession.begin(mic)
+            Log.d(LiveListenPolicy.LOG_TAG, "session=$sessionId source=${if (mic) "mic" else "internal"} decision=start reason=new listen")
+            replacing = false
             // Four short chunks bound memory and latency; never send old speech as a live reply.
             val queue = Channel<Pair<Long, ByteArray>>(4)
-            scope.launch {
+            jobs += scope.launch {
                 try {
                     for ((time, pcm) in queue) {
                         if (System.currentTimeMillis() - time > 30_000) { LiveAudioSession.gap(); continue }
                         try { LiveAudioSession.add(time, transcriber.transcribe(pcm)) }
                         catch (e: CancellationException) { throw e }
-                        catch (e: Exception) { LiveAudioSession.end(e.message ?: "语音识别失败", LiveAudioWatch.ASR_ERROR); stopSelf(); break }
+                        catch (e: Exception) {
+                            if (replacing || LiveAudioSession.generation != sessionId) break
+                            LiveAudioSession.end(e.message ?: "语音识别失败", LiveAudioWatch.ASR_ERROR); stopSelf(); break
+                        }
                     }
                 } finally { queue.cancel() }
             }
-            scope.launch {
+            jobs += scope.launch {
                 val buffer = ShortArray(1600)
-                var policy = LiveAudioFallback.State(if (mic) LiveAudioFallback.Source.Microphone else LiveAudioFallback.Source.Internal)
+                var policy = LiveListenPolicy.State(if (mic) LiveListenPolicy.Source.Microphone else LiveListenPolicy.Source.Internal)
                 var active = record
                 try {
-                    while (isActive) {
+                    while (isActive && LiveAudioSession.generation == sessionId) {
                         val time = System.currentTimeMillis()
                         val bytes = ByteArrayOutputStream(256000)
                         var peak = 0
-                        while (bytes.size() < 256000 && isActive) {
+                        var sumSquares = 0.0
+                        var samples = 0
+                        while (bytes.size() < 256000 && isActive && LiveAudioSession.generation == sessionId) {
                             val count = active.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
                             check(count > 0) { "音频读取失败 ($count)" }
                             for (i in 0 until count) {
                                 val value = buffer[i].toInt(); peak = maxOf(peak, abs(value))
+                                sumSquares += value.toDouble() * value.toDouble()
+                                samples++
                                 bytes.write(value and 255); bytes.write((value shr 8) and 255)
                             }
                         }
-                        when (val decision = LiveAudioFallback.onSegment(policy, peak)) {
-                            is LiveAudioFallback.Decision.Keep -> policy = decision.state
-                            is LiveAudioFallback.Decision.Hear -> {
+                        if (LiveAudioSession.generation != sessionId) break
+                        val rms = if (samples == 0) 0 else sqrt(sumSquares / samples).toInt()
+                        val decision = LiveAudioFallback.onSegment(policy, peak)
+                        Log.d(LiveListenPolicy.LOG_TAG, LiveListenPolicy.segmentLog(sessionId, policy.source, peak, rms, decision))
+                        LiveAudioSession.noteLevel(peak, rms)
+                        when (decision) {
+                            is LiveListenPolicy.Decision.Keep -> policy = decision.state
+                            is LiveListenPolicy.Decision.Hear -> {
                                 policy = decision.state
                                 if (queue.trySend(time to bytes.toByteArray()).isFailure) LiveAudioSession.gap()
                             }
-                            is LiveAudioFallback.Decision.UseMicrophone -> {
+                            is LiveListenPolicy.Decision.UseMicrophone -> {
                                 if (!micForeground) {
                                     try {
                                         startForeground(7821, listeningNotification(decision.status), projectionType or micType)
@@ -108,24 +133,27 @@ class LiveAudioService : Service() {
                                     LiveAudioSession.end(LiveAudioFallback.INTERNAL_SILENCE, LiveAudioWatch.CAPTURE_ERROR)
                                     stopSelf(); break
                                 }
-                                // Pref matches the source now in use. A later explicit internal start is tried again.
-                                runCatching { settings.microphone = true }
+                                // This listen only. The saved switch stays what the user chose, so the next listen retries internal capture.
                                 runCatching { manager.notify(7821, listeningNotification(decision.status)) }
                                 LiveAudioSession.adoptMicrophone(decision.status)
                                 policy = decision.state
                             }
-                            is LiveAudioFallback.Decision.ReportSilence -> {
+                            is LiveListenPolicy.Decision.ReportSilence -> {
                                 policy = decision.state
                                 LiveAudioSession.error(decision.message)
                             }
                         }
                     }
                 } catch (e: CancellationException) { throw e }
-                catch (e: Exception) { LiveAudioSession.end(e.message ?: "音频采集失败", LiveAudioWatch.CAPTURE_ERROR); stopSelf() }
+                catch (e: Exception) {
+                    if (!replacing && LiveAudioSession.generation == sessionId) {
+                        LiveAudioSession.end(e.message ?: "音频采集失败", LiveAudioWatch.CAPTURE_ERROR); stopSelf()
+                    }
+                }
                 finally { queue.close() }
             }
-            scope.launch {
-                while (isActive) {
+            jobs += scope.launch {
+                while (isActive && LiveAudioSession.generation == sessionId) {
                     delay(5000)
                     if (LiveAudioSession.applyWatch(System.currentTimeMillis())) { stopSelf(); break }
                 }
@@ -202,14 +230,21 @@ class LiveAudioService : Service() {
         recorder = next
         next
     }
-    override fun onDestroy() {
-        destroying = true
-        scope.cancel()
+    private fun releaseHardware(stopProjection: Boolean = false) {
+        jobs.forEach { it.cancel() }
+        jobs.clear()
         synchronized(recorderLock) {
             recorder?.let { runCatching { it.stop() }; it.release() }
             recorder = null
         }
-        projection?.stop(); projection = null
+        if (stopProjection) {
+            projection?.stop(); projection = null
+        }
+    }
+    override fun onDestroy() {
+        destroying = true
+        releaseHardware(stopProjection = true)
+        scope.cancel()
         if (LiveAudioSession.running) {
             val message = if (LiveAudioSession.status == "正在监听") "你已停止监听" else LiveAudioSession.status
             LiveAudioSession.end(message, LiveAudioWatch.USER_STOPPED)

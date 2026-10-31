@@ -3,6 +3,7 @@ package com.wangzan101.mika.audio
 import android.content.Context
 import android.content.Intent
 import com.wangzan101.mika.core.cap.phone.LiveAudioPort
+import com.wangzan101.mika.core.cap.phone.LiveListenCursor
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.*
 
@@ -10,9 +11,13 @@ import kotlinx.serialization.json.*
 object LiveAudioSession {
     data class Segment(val id: Long, val time: Long, val text: String)
     private val segments = ArrayDeque<Segment>()
-    private var next = 0L
+    private val cursor = LiveListenCursor()
     private var owner: String? = null
-    internal var generation = 0L; private set
+    internal val generation: Long get() = cursor.sessionId
+    @Volatile var lastPeak: Int = 0
+        private set
+    @Volatile var lastRms: Int = 0
+        private set
     private var gapAt = 0L
     @Volatile var running = false; private set
     @Volatile var status = "尚未开始监听"; private set
@@ -24,12 +29,19 @@ object LiveAudioSession {
     private var blankNoted = false
     private var reason = LiveAudioWatch.NEVER_STARTED
 
-    @Synchronized fun begin(microphone: Boolean) {
-        segments.clear(); next = 0; owner = null; generation++
+    @Synchronized fun begin(microphone: Boolean): Long {
+        segments.clear(); owner = null; cursor.begin()
         dropped = 0; gapAt = 0; lastError = null; blankNoted = false
+        lastPeak = 0; lastRms = 0
         source = if (microphone) "microphone" else "internal"
         running = true; status = "正在监听"
         startedAt = System.currentTimeMillis(); lastRead = startedAt
+        return cursor.sessionId
+    }
+
+    @Synchronized fun noteLevel(peak: Int, rms: Int) {
+        lastPeak = peak
+        lastRms = rms
     }
     /** Same session after internal capture stayed silent. Does not bump generation or clear the cursor. */
     @Synchronized fun adoptMicrophone(message: String) {
@@ -40,7 +52,7 @@ object LiveAudioSession {
     }
     @Synchronized fun preview(): String = segments.lastOrNull()?.text.orEmpty()
     @Synchronized fun end(message: String = "监听已停止", why: String = LiveAudioWatch.USER_STOPPED) {
-        running = false; owner = null; status = message; reason = why; segments.clear()
+        running = false; owner = null; status = message; reason = why; segments.clear(); cursor.end()
     }
     /** False while capture should continue. Stops on the one-hour cap, or on two minutes without a read after a task has claimed the session. */
     @Synchronized fun applyWatch(now: Long): Boolean {
@@ -50,7 +62,7 @@ object LiveAudioSession {
         return true
     }
     @Synchronized fun error(message: String) { lastError = message; status = message }
-    @Synchronized fun gap() { dropped++; gapAt = next + 1; lastError = "识别积压，部分音频已丢弃" }
+    @Synchronized fun gap() { dropped++; gapAt = cursor.nextSegment + 1; lastError = "识别积压，部分音频已丢弃" }
     @Synchronized fun add(time: Long, text: String) {
         if (!running) return
         if (text.isBlank()) {
@@ -65,7 +77,7 @@ object LiveAudioSession {
         lastError = null
         blankNoted = false
         status = "正在监听"
-        segments.addLast(Segment(++next, time, text.take(6000)))
+        segments.addLast(Segment(cursor.allocateSegment(), time, text.take(6000)))
         while (segments.size > 60) segments.removeFirst()
     }
     @Synchronized internal fun snapshot(task: String, after: Long, expected: Long): JsonObject = buildJsonObject {
@@ -82,9 +94,10 @@ object LiveAudioSession {
         put("status", if (!running) "not_listening" else if (lastError != null) "error" else "listening")
         put("message", status); put("source", source); put("dropped", dropped)
         if (!running) put("reason", reason)
-        val first = segments.firstOrNull()?.id ?: (next + 1)
+        val first = segments.firstOrNull()?.id ?: (cursor.nextSegment + 1)
         put("gap", after < gapAt || after < first - 1)
-        put("cursor", next)
+        put("cursor", cursor.nextSegment)
+        put("sessionId", cursor.sessionId)
         put("now", System.currentTimeMillis())
         putJsonArray("segments") {
             if (running) segments.filter { it.id > after && System.currentTimeMillis() - it.time < 45_000 }.forEach {
