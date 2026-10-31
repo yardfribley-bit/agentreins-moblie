@@ -25,7 +25,10 @@
     <string name="about_group_sub">加作者微信，拉你进 agentreins-moblie 内测体验群</string>
     <string name="about_group_sheet_title">加入 agentreins-moblie 内测体验群</string>
     <string name="about_group_sheet_sub">扫码加作者微信，备注「agentreins-moblie」，拉你进群</string>
+    <string name="about_group_sheet_sub_id">搜索这个微信号加作者，备注「agentreins-moblie」，拉你进群</string>
     <string name="about_group_hint">长按图片保存 · 或在微信里扫一扫</string>
+    <string name="about_group_id">微信号 %1$s</string>
+    <string name="about_group_id_hint">打开微信，点顶部搜索，输入这个微信号</string>
     <string name="about_save_qr">保存二维码</string>
     <string name="about_qr_saved">二维码已保存到相册</string>
     <string name="about_qr_save_failed">没能保存，可以截屏保存</string>
@@ -37,7 +40,7 @@
     <string name="about_guide_sub">上手指南；不会写代码也能补充 App 知识</string>
     <string name="about_data_note">你发给 agentreins-moblie 的话、屏幕内容和截图，只发给你自己设置的模型服务商。agentreins-moblie 没有自己的服务器，不收集你的数据；检查更新时只访问 GitHub。</string>
     <string name="about_license_link">Apache-2.0 开源许可</string>
-    <string name="about_author">由 王赞 开发 · © 2026</string>
+    <string name="about_author">由 AgentReins 开发 · © 2026</string>
     <string name="about_license_title">Apache-2.0 许可证</string>
     <string name="about_update_download">从 GitHub 下载</string>
     <string name="about_update_mirror">国内备用下载</string>
@@ -59,7 +62,7 @@
     <string name="about_group_gap_phone">先完成设置：手机操作还没配好</string>
     <string name="about_group_gap_too_old">这台手机的安卓版本太低，用不了手机操作</string>
     <string name="group_request">你好，我是 agentreins-moblie 的用户，想加入 agentreins-moblie 内测体验群，麻烦拉我一下，谢谢！</string>
-    <string name="group_task">打开微信，在顶部搜索里输入微信号 %1$s，找到这个联系人（作者王赞），给他发这条消息：「%2$s」\n如果搜不到这个联系人，说明我还没加他的微信：不要添加好友，也不要发给别人，直接告诉我先在「关于 agentreins-moblie」里扫码加作者微信。</string>
+    <string name="group_task">打开微信，在顶部搜索里输入微信号 %1$s，找到这个联系人（作者），给作者发这条消息：「%2$s」\n如果搜不到这个联系人，说明我还没加作者的微信：不要添加好友，也不要发给别人，直接告诉我先在「关于 agentreins-moblie」里搜索微信号 %1$s 加作者。</string>
     <string name="diagnostics_copy">复制诊断信息</string>
     <string name="diagnostics_copy_sub">版本、机型和设置状态，复制后发给作者</string>
     <string name="diagnostics_title">诊断信息</string>

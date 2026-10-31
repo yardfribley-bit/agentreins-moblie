@@ -2,6 +2,7 @@ package com.wangzan101.mika.ui
 
 import com.wangzan101.mika.ChineseUi
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -138,33 +139,37 @@ class AboutScreenTest {
         assertEquals(sampleDiagnostics, clip)
     }
 
+    /** 加作者微信走微信号,不展示、也不保存还没换成 sjtdyt 的二维码。 */
     @Test
-    fun feedbackWeChatOpensQrSheet() {
+    fun feedbackWeChatOpensIdSheet() {
         val calls = about()
         compose.onNodeWithText("反馈问题").performClick()
         compose.awaitOne(AboutCopy.FEEDBACK_WECHAT).performClick()
         compose.awaitOne(AboutCopy.GROUP_SHEET_TITLE)
-        compose.onNodeWithTag("wechat-qr").assertExists()
-        compose.onNodeWithText(AboutCopy.SAVE_QR).performClick()
-        assertEquals(1, calls.saves)
+        compose.onNodeWithTag("wechat-qr").assertDoesNotExist()
+        compose.onNodeWithText(AboutCopy.SAVE_QR).assertDoesNotExist()
+        compose.onNodeWithTag("wechat-id").assertIsDisplayed()
+        compose.onNodeWithText(AboutCopy.GROUP_ID).assertIsDisplayed()
+        assertEquals(0, calls.saves)
     }
 
     @Test
-    fun groupRowOpensQrSheet() {
+    fun groupRowOpensIdSheet() {
         about()
         compose.onNodeWithText("加入内测群").performClick()
-        compose.awaitOne(AboutCopy.GROUP_SHEET_SUB).assertIsDisplayed()
-        compose.onNodeWithTag("wechat-qr").assertExists()
-        compose.onNodeWithText(AboutCopy.GROUP_HINT).assertExists()
+        compose.awaitOne(AboutCopy.GROUP_SHEET_SUB_ID).assertIsDisplayed()
+        compose.onNodeWithTag("wechat-qr").assertDoesNotExist()
+        compose.onNodeWithText(AboutCopy.GROUP_ID).assertIsDisplayed()
+        compose.onNodeWithText(AboutCopy.GROUP_ID_HINT).assertExists()
     }
 
-    /** 二维码下面:已经加过作者微信的,点一下让 Mika 去发消息;连点只算一次。 */
+    /** 微信号下面:已经加过作者微信的,点一下让助手去发消息;连点只算一次。 */
     @Test
     fun groupSheetAsksMikaOnce() {
         val calls = about()
         compose.onNodeWithText("加入内测群").performClick()
-        compose.awaitOne(AboutCopy.GROUP_SHEET_SUB)
-        compose.onNodeWithText(AboutCopy.SAVE_QR).assertExists()
+        compose.awaitOne(AboutCopy.GROUP_SHEET_SUB_ID)
+        compose.onNodeWithText(AboutCopy.SAVE_QR).assertDoesNotExist()
         compose.onNodeWithText(AboutCopy.GROUP_ALREADY_ADDED).performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("group-ask-mika").performScrollTo().assertIsDisplayed().performClick()
         compose.waitForIdle()
