@@ -152,6 +152,10 @@ class AgentLoop(
     private val reviewFinalAnswer: Boolean = true,
     /** 同一网站、App 里连着做对外动作(发送、提交)时两次之间的间隔;默认不等。 */
     private val outwardPacing: OutwardPacing = OutwardPacing.Off,
+    /** 以前办过的同类任务,短摘要。 */
+    private val recalledTasks: String? = null,
+    /** 以前走通过的做法,开局当推荐计划。 */
+    private val experiencePlan: String? = null,
 ) {
     init {
         require(maxSteps > 0) { "maxSteps must be positive" }
@@ -391,7 +395,8 @@ class AgentLoop(
         val recommended = if (skills != null && recommendSkills) GuideRecommender.recommend(skills, task) else null
         val start = ctx.start(
             task, priorTurns = context?.let { (it.parts.single() as Part.Text).text },
-            memory = listOfNotNull(ProfileContext.render(profileSnapshot), block?.message).takeIf { it.isNotEmpty() }?.joinToString("\n\n"),
+            memory = listOfNotNull(ProfileContext.render(profileSnapshot), block?.message, recalledTasks, experiencePlan)
+                .filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }?.joinToString("\n\n"),
             channel = if (knowledge != null) channelLine(matched) else null,
             knowledge = matched, knowledgeNote = toolsNote(tools.scriptsOffered()), withLinks = flags.deepLinks,
             skillsIndex = recommended?.index, indexedSkills = recommended?.ids.orEmpty(), skill = recommended?.personal,

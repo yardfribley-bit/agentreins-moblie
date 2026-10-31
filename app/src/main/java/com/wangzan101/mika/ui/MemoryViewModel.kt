@@ -2,6 +2,7 @@ package com.wangzan101.mika.ui
 
 import com.wangzan101.mika.R
 import com.wangzan101.mika.i18n.tr
+import com.wangzan101.mika.core.experience.ExperienceBook
 import com.wangzan101.mika.core.memory.MemoryIndex
 import com.wangzan101.mika.core.memory.MemoryItem
 import com.wangzan101.mika.core.memory.MemoryKind
@@ -36,6 +37,9 @@ import com.wangzan101.mika.core.tool.Verb
 /** 页面三段:已记下的、个人技能、等你确认的(待批准的做法 + 技能与 App 知识草稿)。 */
 enum class Segment { Memories, Skills, Pending }
 
+/** 学到的做法,在记忆页里能改意图、能删。 */
+data class ExperienceRow(val id: String, val title: String, val detail: String)
+
 /** 列表里的一条记忆;[source] 是「你在 10 月 23 日说:『…』」或「你手写的」。 */
 data class Row(
     val id: String, val kind: MemoryKind, val content: String, val keywords: List<String>, val source: String,
@@ -53,6 +57,7 @@ data class MemoryUi(
     val message: String? = null,
     val clearStage: Int = 0,
     val skills: SkillsUi = SkillsUi(),
+    val experiences: List<ExperienceRow> = emptyList(),
 ) {
     /** 「待确认」段的条数:待批准的记忆 + 技能草稿 + 还没收下的 App 知识草稿。 */
     val pendingCount: Int get() = pending.size + skills.drafts.size + skills.appKnowledge.count { it.stage == AppKnowledgeStage.Draft }
@@ -80,6 +85,7 @@ class MemoryViewModel(
     /** 收下改过的技能时:提到跑脚本的工具的,脚本得是清单里标为可运行的。 */
     private val runnableScripts: Set<String> = emptySet(),
     private val appDrafts: AppKnowledgeDraftStore? = null,
+    private val experienceBook: ExperienceBook? = null,
 ) {
     private val local = MutableStateFlow(MemoryUi())
     private val skillsVersion = MutableStateFlow(0)
@@ -91,6 +97,7 @@ class MemoryViewModel(
             rows = all.filter { it.status == MemoryStatus.active }.map(::row),
             brokenNotice = broken, switches = sw,
             skills = skillsUi(),
+            experiences = experienceRows(l.query),
         )
     }.stateIn(scope, SharingStarted.Eagerly, MemoryUi())
 
@@ -171,6 +178,22 @@ class MemoryViewModel(
     }
 
     fun deleteSkill(name: String) { skills?.remove(name); skillsChanged() }
+
+    fun deleteExperience(id: String) { experienceBook?.delete(id); skillsChanged() }
+
+    fun editExperience(id: String, intent: String) {
+        val text = intent.trim()
+        if (text.isEmpty()) return
+        experienceBook?.update(id) { it.copy(intent = text) }
+        skillsChanged()
+    }
+
+    private fun experienceRows(query: String): List<ExperienceRow> = experienceBook?.all().orEmpty()
+        .filter { e -> query.isBlank() || query in e.intent || e.steps.any { s -> query in (s.target ?: "") || query in s.action } }
+        .map { e ->
+            val detail = e.steps.joinToString(" → ") { s -> s.target?.let { "${s.action} $it" } ?: s.action }
+            ExperienceRow(e.id, e.intent, detail.ifBlank { e.appLabel ?: e.appPackage.orEmpty() })
+        }
 
     fun restorePreviousSkill(name: String) {
         val p = skills ?: return

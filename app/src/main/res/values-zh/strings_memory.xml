@@ -8,6 +8,7 @@
     <string name="memory_about_you">关于你</string>
     <string name="memory_preferences">偏好</string>
     <string name="memory_procedures">做法</string>
+    <string name="memory_experiences">学到的做法</string>
     <string name="memory_fact">事实</string>
     <string name="search">搜索</string>
     <string name="memory_unreadable">之前的记忆读不出来,已另存,现在从空开始。</string>
