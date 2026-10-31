@@ -73,6 +73,8 @@ import com.wangzan101.mika.core.knowledge.KnowledgeStore
 import com.wangzan101.mika.core.knowledge.AppKnowledgeDrafter
 import com.wangzan101.mika.core.knowledge.GuideCatalog
 import com.wangzan101.mika.core.record.RunSink
+import com.wangzan101.mika.core.run.RunEventBus
+import com.wangzan101.mika.relay.RelayRun
 import com.wangzan101.mika.core.resource.ResourceScope
 import com.wangzan101.mika.core.tool.HandBack
 import com.wangzan101.mika.core.tool.ToolDispatcher
@@ -385,6 +387,7 @@ class TaskRun(
         var shellBinder: IBinder? = null
         var record: RunHandle? = null
         var runStore: RunStore? = null
+        var relayRun: RelayRun? = null
         // 这次运行里经计量的模型请求(含旁路调用),收尾时记进运行记录
         val tally = RunUsageTally()
         // 第一次打开网址时才建;没建过就不用关
@@ -490,13 +493,19 @@ class TaskRun(
             gate = taskGate
             // 用户在「干活时」关掉了常亮就不拿唤醒锁
             awake = if (FeatureFlags.get(service).keepScreenOn()) KeepAwake(service.wakeLock.lease(), side) else null
-            // 记录开不起来就不记,任务照跑
+            // 记录开不起来就不记,任务照跑。Hub 镜像订在同一条总线上:本地照写,发出去失败也不打断任务。
             val sink: RunSink = withContext(Dispatchers.IO) {
-                runCatching {
+                val handle = runCatching {
                     val runs = RunStore(service).also { runStore = it }
                     runs.open(goal).also { record = it; _runId.value = it.runId }
                 }.onFailure { Log.w(TAG, "run record unavailable, running without it", it) }.getOrNull()
-            } ?: RunSink.NONE
+                val bus = RunEventBus()
+                if (handle != null) bus.subscribe(handle)
+                relayRun = runCatching { (service.application as MikaApp).hubRelay.open(handle?.runId ?: key) }
+                    .onFailure { Log.w(TAG, "hub relay unavailable", it) }.getOrNull()
+                relayRun?.let { bus.subscribe(it) }
+                if (handle == null && relayRun == null) RunSink.NONE else bus
+            }
             // 装了哪些 App:每个任务读一次,读不到就当没有;参考资料用
             val apps = try { phoneScreen.listApps() } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
             val speed = FeatureFlags.get(service).speedFlags()
@@ -767,6 +776,8 @@ class TaskRun(
                     try { mute?.restoreAll() } finally { recovery.endRun(key) }
                     watcher?.close()
                 } finally {
+                    relayRun?.close()
+                    relayRun = null
                     resources.close()
                 }
             }
@@ -867,7 +878,10 @@ class TaskRun(
         val judged = OutcomeJudge(k.light ?: k.model, k.model).judge(k.agent.taskText ?: goal, end.answer, k.priorTurns)
         val runId = _runId.value
         if (runId != null) withContext(Dispatchers.IO) {
-            k.runStore?.append(runId, judged.event(System.currentTimeMillis()))
+            val judgedEvent = judged.event(System.currentTimeMillis())
+            k.runStore?.append(runId, judgedEvent)
+            runCatching { (service.application as MikaApp).hubRelay.submit(runId, judgedEvent) }
+                .onFailure { Log.w(TAG, "hub relay outcome failed", it) }
             if (BuildConfig.DEBUG) k.runStore?.mirrorToExternal(runId)
             runCatching { conversations.updateTurn(conversationId, runId) { it.copy(result = judged.outcome.wire) } }
                 .onFailure { Log.w(TAG, "could not save run outcome", it) }
