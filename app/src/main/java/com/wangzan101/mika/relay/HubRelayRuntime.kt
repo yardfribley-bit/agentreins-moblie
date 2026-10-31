@@ -5,7 +5,10 @@ import android.os.Build
 import android.util.Log
 import com.wangzan101.mika.core.record.RunEvent
 import com.wangzan101.mika.core.record.RunSink
-import com.wangzan101.mika.core.relay.HubRelayClient
+import com.wangzan101.mika.core.relay.HubClaimDecision
+import com.wangzan101.mika.core.relay.HubMcpClient
+import com.wangzan101.mika.core.relay.HubRemoteInstruction
+import com.wangzan101.mika.core.relay.HubTaskClaim
 import com.wangzan101.mika.core.relay.HubRelayMirror
 import com.wangzan101.mika.core.relay.RelayEnvironment
 import com.wangzan101.mika.core.relay.RelayTransport
@@ -20,7 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class HubRelayRuntime(
     private val settings: HubRelaySettings,
     environment: () -> RelayEnvironment,
-    transport: RelayTransport = HubRelayClient(),
+    transport: RelayTransport = HubMcpClient(),
     startWorker: Boolean = true,
     private val log: (String) -> Unit = { Log.w(TAG, it) },
 ) {
@@ -33,7 +36,12 @@ class HubRelayRuntime(
         environment = environment,
         log = log,
         onSession = { settings.setSessionId(it); settings.setLastError(null); bump() },
-        onToken = { settings.setToken(it).also { bump() } },
+        onIdentity = { identity ->
+            val ok = settings.setToken(identity.token)
+            identity.agentId?.takeIf { it.isNotBlank() }?.let { settings.setAgentId(it) }
+            bump()
+            ok
+        },
         onError = { settings.setLastError(it); bump() },
         onSeq = { settings.setLastSeq(it); settings.setLastError(null); bump() },
         startWorker = startWorker,
@@ -42,19 +50,27 @@ class HubRelayRuntime(
     fun snapshot(): HubRelaySnapshot = settings.snapshot()
 
     fun setEnabled(on: Boolean) { settings.setEnabled(on); bump() }
-    fun setBaseUrl(url: String) { settings.setBaseUrl(url) }
+    fun setMcpUrl(url: String) { settings.setMcpUrl(url) }
     fun setToken(token: String): Boolean = settings.setToken(token).also { bump() }
     fun clearToken() { settings.setToken(""); bump() }
     fun setJoinCode(code: String) { settings.setJoinCode(code) }
     fun setAlias(alias: String) { settings.setAlias(alias) }
     fun setAgentType(agentType: String) { settings.setAgentType(agentType) }
     fun setUploadScreenshots(on: Boolean) { settings.setUploadScreenshots(on); bump() }
+    fun setClaimTasks(on: Boolean) { settings.setClaimTasks(on); bump() }
 
     fun open(runId: String): RelayRun = RelayRun(mirror, runId, mirror.retain())
 
     fun submit(runId: String, event: RunEvent) = mirror.submit(runId, event)
 
     fun joinNow() { mirror.joinNow(); bump() }
+
+    /**
+     * 认领开关关上时直接拒绝。打开了也只返回 [HubClaimDecision.NotImplemented] 或确认要求,
+     * 不会启动任务。付款一类动作即使以后实现,也要先在手机上确认。
+     */
+    fun consider(instruction: HubRemoteInstruction): HubClaimDecision =
+        HubTaskClaim.decide(settings.config().claimTasks, instruction)
 
     private fun bump() { _revision.value++ }
 

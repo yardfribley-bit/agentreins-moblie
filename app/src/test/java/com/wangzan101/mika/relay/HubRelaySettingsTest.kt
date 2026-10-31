@@ -1,7 +1,7 @@
 package com.wangzan101.mika.relay
 
 import android.content.SharedPreferences
-import com.wangzan101.mika.core.relay.DEFAULT_HUB_BASE
+import com.wangzan101.mika.core.relay.DEFAULT_MCP_URL
 import com.wangzan101.mika.core.relay.DEFAULT_RELAY_ALIAS
 import com.wangzan101.mika.settings.KeyCipher
 import org.junit.Assert.assertEquals
@@ -16,7 +16,9 @@ class HubRelaySettingsTest {
         val config = settings.config()
         assertFalse(config.enabled)
         assertFalse(config.uploadScreenshots)
-        assertEquals(DEFAULT_HUB_BASE, config.baseUrl)
+        assertFalse(config.claimTasks)
+        assertEquals(DEFAULT_MCP_URL, config.mcpUrl)
+        assertEquals("", settings.snapshot().agentId)
         assertEquals(DEFAULT_RELAY_ALIAS, config.alias)
         assertEquals("", config.token)
         assertEquals("", config.sessionId)

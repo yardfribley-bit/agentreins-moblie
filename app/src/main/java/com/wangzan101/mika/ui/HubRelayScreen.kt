@@ -47,7 +47,7 @@ fun HubRelayScreen(onBack: () -> Unit) {
     val rev by runtime.revision.collectAsState()
     val live = remember(rev) { runtime.snapshot() }
     val initial = remember { runtime.snapshot() }
-    var baseUrl by remember { mutableStateOf(initial.baseUrl) }
+    var mcpUrl by remember { mutableStateOf(initial.mcpUrl) }
     var tokenDraft by remember { mutableStateOf("") }
     var joinCode by remember { mutableStateOf(initial.joinCode) }
     var alias by remember { mutableStateOf(initial.alias) }
@@ -71,9 +71,9 @@ fun HubRelayScreen(onBack: () -> Unit) {
 
         GroupLabel(stringResource(R.string.hub_connection))
         GroupCard {
-            InputRow(stringResource(R.string.hub_base_url), baseUrl, {
-                baseUrl = it
-                runtime.setBaseUrl(it)
+            InputRow(stringResource(R.string.hub_base_url), mcpUrl, {
+                mcpUrl = it
+                runtime.setMcpUrl(it)
             }, stringResource(R.string.hub_base_hint), first = true, keyboard = KeyboardType.Uri, labelWidth = 96.dp)
             InputRow(
                 stringResource(R.string.hub_token), tokenDraft,
@@ -108,6 +108,9 @@ fun HubRelayScreen(onBack: () -> Unit) {
             ListRow(null, stringResource(R.string.hub_shots), stringResource(R.string.hub_shots_sub), first = true) {
                 MikaSwitch(live.uploadScreenshots, { runtime.setUploadScreenshots(it) }, Modifier.testTag("hub-shots"))
             }
+            ListRow(null, stringResource(R.string.hub_claim), stringResource(R.string.hub_claim_sub)) {
+                MikaSwitch(live.claimTasks, { runtime.setClaimTasks(it) }, Modifier.testTag("hub-claim"))
+            }
         }
         MikaButton(
             if (busy) stringResource(R.string.hub_joining) else stringResource(R.string.hub_join),
@@ -133,6 +136,9 @@ fun HubRelayScreen(onBack: () -> Unit) {
                 first = true,
             ) { RowValue(statusLabel(live)) }
             live.lastError?.let { ListRow(null, stringResource(R.string.hub_last_error), errorLabel(it)) }
+            ListRow(null, stringResource(R.string.hub_agent_id)) {
+                RowValue(live.agentId.ifBlank { stringResource(R.string.hub_agent_unknown) })
+            }
             ListRow(null, stringResource(R.string.hub_last_seq)) {
                 RowValue(if (live.lastSeq > 0) live.lastSeq.toString() else stringResource(R.string.hub_seq_none))
             }

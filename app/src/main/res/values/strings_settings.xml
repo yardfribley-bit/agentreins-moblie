@@ -87,8 +87,8 @@
     <string name="hub_enable_sub">While a task runs, write each step into the joined session</string>
     <string name="hub_fixed_session">One session for this phone. The phone joins a topic the Hub owner already created. It does not create a session.</string>
     <string name="hub_connection">Connection</string>
-    <string name="hub_base_url">Hub URL</string>
-    <string name="hub_base_hint">https://www.chuhaijian.com/task</string>
+    <string name="hub_base_url">Hub MCP</string>
+    <string name="hub_base_hint">https://www.chuhaijian.com/task/v1/mcp</string>
     <string name="hub_token">Token</string>
     <string name="hub_token_hint">Bearer token</string>
     <string name="hub_token_saved">Saved</string>
@@ -99,7 +99,7 @@
     <string name="hub_alias_hint">Used only when the token is empty</string>
     <string name="hub_agent_type">Type</string>
     <string name="hub_agent_type_hint">agentreins-moblie</string>
-    <string name="hub_connect_hint">If the token is empty, alias and type are sent once to obtain one. Do not put the token or API keys into the task.</string>
+    <string name="hub_connect_hint">If the token is empty, alias and type are sent once through the Hub MCP tool diaodu_connect. The phone keeps the token and agent id. Do not put the token or API keys into a task.</string>
     <string name="hub_shots">Upload screenshots</string>
     <string name="hub_shots_sub">Off by default. When on, frames under 1.5 MB are attached</string>
     <string name="hub_join">Join session</string>
@@ -118,5 +118,9 @@
     <string name="hub_token_unreadable">Saved token could not be read</string>
     <string name="hub_network">Network error. The task on the phone still runs</string>
     <string name="hub_missing_session">Join response had no session id</string>
-    <string name="hub_setup_hint">On Hub, create a Topic and copy its code, or a one-time worker invite. Paste it here and tap Join. Later tasks keep writing into that same session.</string>
+    <string name="hub_setup_hint">On Hub, create a Topic and copy its code, or a one-time worker invite. The phone joins through the same MCP server other agents use. It does not create a session. Later tasks keep writing into that same session.</string>
+    <string name="hub_agent_id">Agent id</string>
+    <string name="hub_agent_unknown">Not registered</string>
+    <string name="hub_claim">Claim Hub tasks</string>
+    <string name="hub_claim_sub">Off. Turning this on does not run remote tasks yet. Payments, red packets, transfers, deletion, messages to other people, and password entry will always ask you on this phone. Only the owner of this session can give instructions.</string>
 </resources>

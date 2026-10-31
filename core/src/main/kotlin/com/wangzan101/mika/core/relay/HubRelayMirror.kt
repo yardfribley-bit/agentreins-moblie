@@ -16,7 +16,7 @@ class HubRelayMirror(
     private val environment: () -> RelayEnvironment,
     private val log: (String) -> Unit = {},
     private val onSession: (String) -> Unit = {},
-    private val onToken: (String) -> Boolean = { true },
+    private val onIdentity: (RelayIdentity) -> Boolean = { true },
     private val onError: (String?) -> Unit = {},
     private val onSeq: (Long) -> Unit = {},
     private val now: () -> Long = System::currentTimeMillis,
@@ -86,7 +86,7 @@ class HubRelayMirror(
                 onError("off")
                 return
             }
-            val token = resolveToken(cfg)
+            val token = resolveToken(cfg).token
             if (cfg.joinCode.isBlank()) {
                 onError(if (cfg.sessionId.isBlank()) "need join code" else null)
                 return
@@ -185,7 +185,7 @@ class HubRelayMirror(
             return Outcome.Drop
         }
         return try {
-            val token = resolveToken(cfg)
+            val token = resolveToken(cfg).token
             var session = cfg.sessionId.ifBlank { join(cfg, token) }
             var rejoined = false
             while (true) {
@@ -219,10 +219,10 @@ class HubRelayMirror(
 
     private fun post(cfg: RelayConfig, token: String, session: String, item: Outbound) {
         if (item.bytes != null && item.fileId == null) {
-            item.fileId = transport.upload(cfg.baseUrl, token, session, item.fileName ?: "screen.png", item.bytes)
+            item.fileId = transport.upload(cfg.mcpUrl, token, session, item.fileName ?: "screen.png", item.bytes)
         }
         val seq = transport.send(
-            cfg.baseUrl, token, session, item.kind, item.text, item.requestId,
+            cfg.mcpUrl, token, session, item.kind, item.text, item.requestId,
             attachments = listOfNotNull(item.fileId),
         )
         lastBeat = now()
@@ -233,7 +233,7 @@ class HubRelayMirror(
         val cfg = config()
         if (!cfg.enabled || cfg.token.isBlank() || cfg.sessionId.isBlank() || cfg.tokenUnreadable) return
         try {
-            transport.heartbeat(cfg.baseUrl, cfg.token, cfg.sessionId)
+            transport.heartbeat(cfg.mcpUrl, cfg.token, cfg.sessionId, environment())
             lastBeat = now()
         } catch (e: RelayException) {
             lastBeat = now()
@@ -252,18 +252,18 @@ class HubRelayMirror(
             now() - lastBeat >= heartbeatEveryMs
     }
 
-    private fun resolveToken(cfg: RelayConfig): String {
+    private fun resolveToken(cfg: RelayConfig): RelayIdentity {
         if (cfg.tokenUnreadable) throw RelayException(0, false, "token unreadable")
-        if (cfg.token.isNotBlank()) return cfg.token
+        if (cfg.token.isNotBlank()) return RelayIdentity(cfg.token, null)
         if (cfg.alias.isBlank() || cfg.agentType.isBlank()) throw RelayException(0, false, "need token")
-        val token = transport.connect(cfg.baseUrl, cfg.alias, cfg.agentType)
-        if (!onToken(token)) throw RelayException(0, false, "token unreadable")
-        return token
+        val identity = transport.connect(cfg.mcpUrl, cfg.alias, cfg.agentType)
+        if (!onIdentity(identity)) throw RelayException(0, false, "token unreadable")
+        return identity
     }
 
     private fun join(cfg: RelayConfig, token: String): String {
         if (cfg.joinCode.isBlank()) throw RelayException(0, false, "need join code")
-        val id = transport.join(cfg.baseUrl, token, cfg.joinCode, environment())
+        val id = transport.join(cfg.mcpUrl, token, cfg.joinCode, environment())
         onSession(id)
         return id
     }

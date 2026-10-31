@@ -86,7 +86,7 @@ class HubRelayMirrorTest {
             config = {
                 RelayConfig(enabled = true, token = token, alias = "phone", agentType = "agentreins-moblie", joinCode = "TOPIC", sessionId = session)
             },
-            onToken = { token = it; true },
+            onIdentity = { token = it.token; true },
             onSession = { session = it },
         )
         mirror.joinNow()
@@ -151,8 +151,8 @@ class HubRelayMirrorTest {
         sleep: (Long) -> Unit = {},
         onError: (String?) -> Unit = {},
         onSession: (String) -> Unit = {},
-        onToken: (String) -> Boolean = { true },
-    ) = mirror(fake, { config }, maxAttempts, maxQueue, maxShot, heartbeatEveryMs, sleep, onError, onSession, onToken)
+        onIdentity: (RelayIdentity) -> Boolean = { true },
+    ) = mirror(fake, { config }, maxAttempts, maxQueue, maxShot, heartbeatEveryMs, sleep, onError, onSession, onIdentity)
 
     private fun mirror(
         fake: FakeRelay,
@@ -164,13 +164,13 @@ class HubRelayMirrorTest {
         sleep: (Long) -> Unit = {},
         onError: (String?) -> Unit = {},
         onSession: (String) -> Unit = {},
-        onToken: (String) -> Boolean = { true },
+        onIdentity: (RelayIdentity) -> Boolean = { true },
     ) = HubRelayMirror(
         transport = fake,
         config = config,
         environment = { env },
         onSession = onSession,
-        onToken = onToken,
+        onIdentity = onIdentity,
         onError = onError,
         sleep = sleep,
         heartbeatEveryMs = heartbeatEveryMs,
@@ -190,18 +190,18 @@ class HubRelayMirrorTest {
 
         data class Sent(val requestId: String, val kind: String, val text: String, val attachments: List<String>, val sessionId: String)
 
-        override fun connect(baseUrl: String, alias: String, agentType: String): String {
+        override fun connect(mcpUrl: String, alias: String, agentType: String): RelayIdentity {
             calls += "connect"
-            return "da_new"
+            return RelayIdentity("da_new", "ag_test")
         }
 
-        override fun join(baseUrl: String, token: String, code: String, environment: RelayEnvironment): String {
+        override fun join(mcpUrl: String, token: String, code: String, environment: RelayEnvironment): String {
             calls += "join:$code:${environment.osName}"
             return "ses_new"
         }
 
         override fun send(
-            baseUrl: String, token: String, sessionId: String, kind: String, text: String, requestId: String, attachments: List<String>,
+            mcpUrl: String, token: String, sessionId: String, kind: String, text: String, requestId: String, attachments: List<String>,
         ): Long? {
             sent += Sent(requestId, kind, text, attachments, sessionId)
             if (failForever) throw IOException("down")
@@ -218,12 +218,12 @@ class HubRelayMirrorTest {
             return 11
         }
 
-        override fun upload(baseUrl: String, token: String, sessionId: String, name: String, bytes: ByteArray): String {
+        override fun upload(mcpUrl: String, token: String, sessionId: String, name: String, bytes: ByteArray): String {
             calls += "upload:$name:${bytes.size}"
             return "fl_1"
         }
 
-        override fun heartbeat(baseUrl: String, token: String, sessionId: String) {
+        override fun heartbeat(mcpUrl: String, token: String, sessionId: String, environment: RelayEnvironment) {
             calls += "beat"
         }
     }
