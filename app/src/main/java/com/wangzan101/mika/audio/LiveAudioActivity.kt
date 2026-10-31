@@ -106,7 +106,7 @@ class LiveAudioActivity : Activity() {
             layout.addView(this)
         }
         Button(this).apply { text = "停止监听"; setOnClickListener { stopService(Intent(this@LiveAudioActivity, LiveAudioService::class.java)) }; layout.addView(this) }
-        text("开始后回到聊天，说：进入指定直播间，持续听主播讲话，有合适的话题再回复；不要重复，每条至少间隔 15 秒，直到我停止。\n通知栏可随时停止监听。单次最长一小时，两分钟无任务读取会自动停止。")
+        text("开始后回到聊天，说：进入指定直播间，持续听主播讲话，有合适的话题再回复；不要重复，每条至少间隔 15 秒，直到我停止。\n通知栏可随时停止监听。单次最长一小时。聊天任务还没接上时，不会因两分钟空闲停止；接上后两分钟没有读取会自动停止。在本页重新开始后，回到原来的聊天再让它听即可。")
         Button(this).apply { text = "返回"; setOnClickListener { finish() }; layout.addView(this) }
         setContentView(ScrollView(this).apply { addView(layout) })
     }

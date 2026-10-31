@@ -1,5 +1,6 @@
 package com.wangzan101.mika.audio
 
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
 import org.junit.Assert.*
 import org.junit.Test
@@ -77,5 +78,126 @@ class LiveAudioSessionTest {
         LiveAudioSession.add(System.currentTimeMillis(), "")
         assertTrue(LiveAudioSession.snapshot("task", 0, generation)["message"]!!.jsonPrimitive.content.contains("没有识别出文字"))
         LiveAudioSession.end()
+    }
+    @Test fun unclaimedListeningSurvivesTheTwoMinuteIdle() {
+        LiveAudioSession.begin(true)
+        try {
+            val start = LiveAudioSession.lastRead
+            assertFalse(LiveAudioSession.applyWatch(start + LiveAudioWatch.IDLE_MS + 1))
+            assertTrue(LiveAudioSession.running)
+            val snap = LiveAudioSession.snapshot("task", 0, LiveAudioSession.generation)
+            assertEquals("listening", snap["status"]!!.jsonPrimitive.content)
+            assertFalse(snap.containsKey("reason"))
+        } finally {
+            LiveAudioSession.end()
+        }
+    }
+    @Test fun claimedIdleEndsAsNotListeningWithReason() {
+        LiveAudioSession.begin(false)
+        try {
+            val generation = LiveAudioSession.generation
+            assertEquals("listening", LiveAudioSession.snapshot("task", 0, generation)["status"]!!.jsonPrimitive.content)
+            val readAt = LiveAudioSession.lastRead
+            // Speech arriving is not a task read. The idle clock stays on the last snapshot.
+            LiveAudioSession.add(readAt + 60_000, "打招呼")
+            assertFalse(LiveAudioSession.applyWatch(readAt + LiveAudioWatch.IDLE_MS))
+            assertTrue(LiveAudioSession.applyWatch(readAt + LiveAudioWatch.IDLE_MS + 1))
+            assertFalse(LiveAudioSession.running)
+            val ended = LiveAudioSession.snapshot("task", 0, generation)
+            assertEquals("not_listening", ended["status"]!!.jsonPrimitive.content)
+            assertEquals(LiveAudioWatch.IDLE_TIMEOUT, ended["reason"]!!.jsonPrimitive.content)
+            assertTrue(ended["message"]!!.jsonPrimitive.content.contains("两分钟"))
+            assertFalse(ended["ok"]!!.jsonPrimitive.boolean)
+        } finally {
+            LiveAudioSession.end()
+        }
+    }
+    @Test fun unclaimedListeningStillStopsAtOneHour() {
+        LiveAudioSession.begin(false)
+        try {
+            val start = LiveAudioSession.lastRead
+            val generation = LiveAudioSession.generation
+            assertFalse(LiveAudioSession.applyWatch(start + LiveAudioWatch.MAX_MS))
+            assertTrue(LiveAudioSession.applyWatch(start + LiveAudioWatch.MAX_MS + 1))
+            val ended = LiveAudioSession.snapshot("task", 0, generation)
+            assertEquals("not_listening", ended["status"]!!.jsonPrimitive.content)
+            assertEquals(LiveAudioWatch.MAX_DURATION, ended["reason"]!!.jsonPrimitive.content)
+            assertTrue(ended["message"]!!.jsonPrimitive.content.contains("一小时"))
+        } finally {
+            LiveAudioSession.end()
+        }
+    }
+    @Test fun notListeningNamesUserStopAndAsr() {
+        LiveAudioSession.end("尚未开始监听", LiveAudioWatch.NEVER_STARTED)
+        val never = LiveAudioSession.snapshot("task", 0, LiveAudioSession.generation)
+        assertEquals("not_listening", never["status"]!!.jsonPrimitive.content)
+        assertEquals(LiveAudioWatch.NEVER_STARTED, never["reason"]!!.jsonPrimitive.content)
+        assertTrue(never["message"]!!.jsonPrimitive.content.contains("尚未开始"))
+
+        LiveAudioSession.begin(false)
+        val generation = LiveAudioSession.generation
+        LiveAudioSession.end("你已停止监听", LiveAudioWatch.USER_STOPPED)
+        val user = LiveAudioSession.snapshot("task", 0, generation)
+        assertEquals(LiveAudioWatch.USER_STOPPED, user["reason"]!!.jsonPrimitive.content)
+        assertTrue(user["message"]!!.jsonPrimitive.content.contains("停止"))
+
+        LiveAudioSession.begin(false)
+        val next = LiveAudioSession.generation
+        LiveAudioSession.end("语音识别失败", LiveAudioWatch.ASR_ERROR)
+        val asr = LiveAudioSession.snapshot("task", 0, next)
+        assertEquals("not_listening", asr["status"]!!.jsonPrimitive.content)
+        assertEquals(LiveAudioWatch.ASR_ERROR, asr["reason"]!!.jsonPrimitive.content)
+        assertEquals("语音识别失败", asr["message"]!!.jsonPrimitive.content)
+    }
+    @Test fun sameReaderAttachesAfterSettingsRestart() = runBlocking {
+        val reader = LiveAudioSession.openReader("task") { true }
+        try {
+            LiveAudioSession.end()
+            val idle = reader.read(0, 0)
+            assertEquals("not_listening", idle["status"]!!.jsonPrimitive.content)
+
+            LiveAudioSession.begin(false)
+            val first = reader.read(0, 0)
+            assertEquals("listening", first["status"]!!.jsonPrimitive.content)
+            assertTrue(first["ok"]!!.jsonPrimitive.boolean)
+            val stale = first["cursor"]!!.jsonPrimitive.long + 50
+            LiveAudioSession.end()
+            LiveAudioSession.begin(true)
+            LiveAudioSession.add(System.currentTimeMillis(), "打招呼")
+            var cursor = stale
+            var sawSpeech = false
+            repeat(3) {
+                val result = reader.read(cursor, 0)
+                assertEquals("listening", result["status"]!!.jsonPrimitive.content)
+                assertTrue(result["ok"]!!.jsonPrimitive.boolean)
+                assertEquals("microphone", result["source"]!!.jsonPrimitive.content)
+                val segments = result["segments"]!!.jsonArray
+                if (segments.isNotEmpty()) {
+                    sawSpeech = true
+                    assertTrue(segments[0].jsonObject["text"]!!.jsonPrimitive.content.contains("打招呼"))
+                }
+                cursor = result["cursor"]!!.jsonPrimitive.long
+            }
+            assertTrue(sawSpeech)
+        } finally {
+            LiveAudioSession.end()
+        }
+    }
+    @Test fun readerReportsTheNewStopInsteadOfSessionChanged() = runBlocking {
+        val reader = LiveAudioSession.openReader("task") { true }
+        try {
+            LiveAudioSession.begin(false)
+            reader.read(0, 0)
+            LiveAudioSession.end()
+            LiveAudioSession.begin(true)
+            LiveAudioSession.end("语音识别失败", LiveAudioWatch.ASR_ERROR)
+            val result = reader.read(9, 0)
+            assertEquals("not_listening", result["status"]!!.jsonPrimitive.content)
+            assertEquals(LiveAudioWatch.ASR_ERROR, result["reason"]!!.jsonPrimitive.content)
+            assertEquals("语音识别失败", result["message"]!!.jsonPrimitive.content)
+            assertFalse(result["ok"]!!.jsonPrimitive.boolean)
+        } finally {
+            LiveAudioSession.end()
+        }
     }
 }

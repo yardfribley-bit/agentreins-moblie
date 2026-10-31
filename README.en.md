@@ -81,7 +81,7 @@ Presets for DeepSeek, 通义千问, Kimi, 智谱, 硅基流动, 火山方舟, Mi
 
 Internal capture only targets the standard Douyin Android package com.ss.android.ugc.aweme. App or system policy may produce silence; cloned apps, Douyin Lite and internal browser audio are not included. Huawei and some other OEMs can block internal playback capture even while Douyin is audible. If internal capture stays silent for about 24 seconds, that session switches to the microphone, remembers the choice, and needs speaker playback. Turn the microphone switch off and start again to retry internal capture; silence switches back once. Microphone mode may capture nearby people as well. It does not flip back to internal capture on its own.
 
-Stop capture from the notification or listening page. Ending a task also stops a session it has claimed. Stopping capture does not retract sent messages; stop the phone task too if it is still running. Sessions end after one hour or two minutes without task reads.
+Stop capture from the notification or listening page. Ending a task also stops a session it has claimed. Stopping capture does not retract sent messages; stop the phone task too if it is still running. Sessions last up to one hour. Before a chat task claims listening, the two-minute idle stop does not apply. After it claims the session, two minutes without a read stops capture. Restarting from Settings starts a new session; the same chat attaches on its next listen.
 
 Fixed chunks can split sentences. Reply timing, deduplication and a suggested 15-second interval depend on model instructions and are not enforced by the send layer. See [live-audio details](docs/live-audio.md).
 

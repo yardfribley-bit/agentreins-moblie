@@ -64,7 +64,7 @@ class LiveAudioService : Service() {
                         if (System.currentTimeMillis() - time > 30_000) { LiveAudioSession.gap(); continue }
                         try { LiveAudioSession.add(time, transcriber.transcribe(pcm)) }
                         catch (e: CancellationException) { throw e }
-                        catch (e: Exception) { LiveAudioSession.error(e.message ?: "语音识别失败"); stopSelf(); break }
+                        catch (e: Exception) { LiveAudioSession.end(e.message ?: "语音识别失败", LiveAudioWatch.ASR_ERROR); stopSelf(); break }
                     }
                 } finally { queue.cancel() }
             }
@@ -98,14 +98,14 @@ class LiveAudioService : Service() {
                                         micForeground = true
                                     } catch (e: CancellationException) { throw e }
                                     catch (_: Exception) {
-                                        LiveAudioSession.error(LiveAudioFallback.INTERNAL_SILENCE)
+                                        LiveAudioSession.end(LiveAudioFallback.INTERNAL_SILENCE, LiveAudioWatch.CAPTURE_ERROR)
                                         stopSelf(); break
                                     }
                                 }
                                 try { active = replaceWithMicrophone(active) }
                                 catch (e: CancellationException) { throw e }
                                 catch (_: Exception) {
-                                    LiveAudioSession.error(LiveAudioFallback.INTERNAL_SILENCE)
+                                    LiveAudioSession.end(LiveAudioFallback.INTERNAL_SILENCE, LiveAudioWatch.CAPTURE_ERROR)
                                     stopSelf(); break
                                 }
                                 // Pref matches the source now in use. A later explicit internal start is tried again.
@@ -121,21 +121,17 @@ class LiveAudioService : Service() {
                         }
                     }
                 } catch (e: CancellationException) { throw e }
-                catch (e: Exception) { LiveAudioSession.error(e.message ?: "音频采集失败"); stopSelf() }
+                catch (e: Exception) { LiveAudioSession.end(e.message ?: "音频采集失败", LiveAudioWatch.CAPTURE_ERROR); stopSelf() }
                 finally { queue.close() }
             }
             scope.launch {
-                val start = System.currentTimeMillis()
                 while (isActive) {
                     delay(5000)
-                    val now = System.currentTimeMillis()
-                    if (now - start > 3_600_000 || now - LiveAudioSession.lastRead > 120_000) {
-                        LiveAudioSession.end("监听已结束：达到一小时或两分钟无任务读取"); stopSelf(); break
-                    }
+                    if (LiveAudioSession.applyWatch(System.currentTimeMillis())) { stopSelf(); break }
                 }
             }
         } catch (e: Exception) {
-            LiveAudioSession.end("监听启动失败：${e.message ?: e.javaClass.simpleName}"); stopSelf()
+            LiveAudioSession.end("监听启动失败：${e.message ?: e.javaClass.simpleName}", LiveAudioWatch.START_FAILED); stopSelf()
         }
         return START_NOT_STICKY
     }
@@ -173,7 +169,7 @@ class LiveAudioService : Service() {
         val media = requireNotNull(getSystemService(MediaProjectionManager::class.java).getMediaProjection(Activity.RESULT_OK, grant)) { "音频采集授权已失效" }
         projection = media
         media.registerCallback(object : MediaProjection.Callback() {
-            override fun onStop() { if (!destroying) { LiveAudioSession.end("系统已撤销采集授权"); stopSelf() } }
+            override fun onStop() { if (!destroying) { LiveAudioSession.end("系统已撤销采集授权", LiveAudioWatch.CAPTURE_REVOKED); stopSelf() } }
         }, Handler(Looper.getMainLooper()))
         val uid = packageManager.getApplicationInfo("com.ss.android.ugc.aweme", 0).uid
         val record = AudioRecord.Builder().setAudioFormat(pcmFormat()).setBufferSizeInBytes(pcmBufferBytes())
@@ -214,7 +210,10 @@ class LiveAudioService : Service() {
             recorder = null
         }
         projection?.stop(); projection = null
-        if (LiveAudioSession.running) LiveAudioSession.end(if (LiveAudioSession.status == "正在监听") "监听已停止" else LiveAudioSession.status)
+        if (LiveAudioSession.running) {
+            val message = if (LiveAudioSession.status == "正在监听") "你已停止监听" else LiveAudioSession.status
+            LiveAudioSession.end(message, LiveAudioWatch.USER_STOPPED)
+        }
         super.onDestroy()
     }
 }
