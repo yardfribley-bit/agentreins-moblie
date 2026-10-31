@@ -53,6 +53,7 @@ data class RelayConfig(
     val agentId: String = "",
     val uploadScreenshots: Boolean = false,
     val claimTasks: Boolean = false,
+    val runOwnerInstructions: Boolean = true,
 )
 
 /** `diaodu_connect` 只返回一次令牌。[agentId] 有就记下;协议里不一定带。 */
@@ -89,10 +90,15 @@ interface RelayTransport {
     fun send(
         mcpUrl: String, token: String, sessionId: String, kind: String, text: String, requestId: String,
         attachments: List<String> = emptyList(),
+        replyTo: Long? = null,
     ): Long?
 
     fun upload(mcpUrl: String, token: String, sessionId: String, name: String, bytes: ByteArray): String
     fun heartbeat(mcpUrl: String, token: String, sessionId: String, environment: RelayEnvironment)
+    fun read(mcpUrl: String, token: String, sessionId: String, after: Long, waitSeconds: Int): HubRelayPage
+
+    /** `diaodu_relay_ack`:已收到直到 [seq]。待确认计数靠它,不代表已经做完。 */
+    fun ack(mcpUrl: String, token: String, sessionId: String, seq: Long)
 
     /** 用已有 Bearer 找回 agent_id,不签发新令牌。 */
     fun whoami(mcpUrl: String, token: String): String?

@@ -115,6 +115,8 @@
     <string name="hub_setup_hint">在 Hub 上创建 Topic，复制 Topic 码或一次性执行端邀请码。手机和其他智能体一样走 MCP 加入，不会自己新建会话。之后的任务都写进这同一个会话。</string>
     <string name="hub_agent_id">Agent 编号</string>
     <string name="hub_agent_unknown">还没登记</string>
+    <string name="hub_run_owner">执行会话里的老板指令</string>
+    <string name="hub_run_owner_sub">加入后默认打开。只执行这个会话里老板下的指令，走和聊天一样的任务。付款、转账、删除、给别人发消息、输入密码仍会在手机上问你。</string>
     <string name="hub_claim">认领 Hub 任务</string>
     <string name="hub_claim_sub">默认关闭。打开也不会自动执行远程任务。付款、红包、转账、删除、给别人发消息、输入密码，以后也一律要你在这台手机上确认。只接受这个会话的所有者下的指令。</string>
 </resources>

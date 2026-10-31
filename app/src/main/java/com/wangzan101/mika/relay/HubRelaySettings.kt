@@ -4,6 +4,8 @@ import android.content.SharedPreferences
 import com.wangzan101.mika.core.relay.DEFAULT_MCP_URL
 import com.wangzan101.mika.core.relay.DEFAULT_RELAY_AGENT_TYPE
 import com.wangzan101.mika.core.relay.DEFAULT_RELAY_ALIAS
+import com.wangzan101.mika.core.relay.HubInstruction
+import com.wangzan101.mika.core.relay.HubInbound
 import com.wangzan101.mika.core.relay.RelayConfig
 import com.wangzan101.mika.settings.KeyCipher
 import java.util.Base64
@@ -19,6 +21,7 @@ data class HubRelaySnapshot(
     val agentType: String,
     val uploadScreenshots: Boolean,
     val claimTasks: Boolean,
+    val runOwnerInstructions: Boolean,
     val agentId: String,
     val sessionId: String,
     val lastError: String?,
@@ -42,6 +45,7 @@ class HubRelaySettings(private val prefs: SharedPreferences, private val cipher:
             agentType = text(AGENT_TYPE, DEFAULT_RELAY_AGENT_TYPE),
             uploadScreenshots = prefs.getBoolean(UPLOAD, false),
             claimTasks = prefs.getBoolean(CLAIM, false),
+            runOwnerInstructions = prefs.getBoolean(RUN_OWNER, true),
             agentId = prefs.getString(AGENT, "").orEmpty(),
             sessionId = prefs.getString(SESSION, "").orEmpty(),
             lastError = prefs.getString(LAST_ERROR, null)?.takeIf { it.isNotBlank() },
@@ -63,6 +67,7 @@ class HubRelaySettings(private val prefs: SharedPreferences, private val cipher:
             agentId = snap.agentId,
             uploadScreenshots = snap.uploadScreenshots,
             claimTasks = snap.claimTasks,
+            runOwnerInstructions = snap.runOwnerInstructions,
         )
     }
 
@@ -79,6 +84,29 @@ class HubRelaySettings(private val prefs: SharedPreferences, private val cipher:
     fun setUploadScreenshots(on: Boolean) = prefs.edit().putBoolean(UPLOAD, on).commit()
 
     fun setClaimTasks(on: Boolean) = prefs.edit().putBoolean(CLAIM, on).commit()
+
+    fun setRunOwnerInstructions(on: Boolean) = prefs.edit().putBoolean(RUN_OWNER, on).commit()
+
+    fun readCursor(): Long = prefs.getLong(READ_CURSOR, 0L)
+
+    fun setReadCursor(seq: Long) = prefs.edit().putLong(READ_CURSOR, seq).commit()
+
+    fun handledSeq(): Long = prefs.getLong(HANDLED_SEQ, 0L)
+
+    fun setHandledSeq(seq: Long) = prefs.edit().putLong(HANDLED_SEQ, seq).commit()
+
+    fun instructionQueue(): List<HubInstruction> = HubInbound.decodeQueue(prefs.getString(QUEUE, "").orEmpty())
+
+    fun setInstructionQueue(items: List<HubInstruction>) = prefs.edit().putString(QUEUE, HubInbound.encodeQueue(items)).commit()
+
+    /** 老板指令走和聊天一样的任务管线,固定落在这一个对话里。 */
+    fun hubConversationId(): String {
+        val existing = prefs.getString(HUB_THREAD, null)
+        if (!existing.isNullOrBlank()) return existing
+        val id = java.util.UUID.randomUUID().toString()
+        prefs.edit().putString(HUB_THREAD, id).commit()
+        return id
+    }
 
     fun setAgentId(id: String) = prefs.edit().putString(AGENT, id.trim()).commit()
 
@@ -133,6 +161,11 @@ class HubRelaySettings(private val prefs: SharedPreferences, private val cipher:
         const val AGENT_TYPE = "agent_type"
         const val UPLOAD = "upload_screenshots"
         const val CLAIM = "claim_tasks"
+        const val RUN_OWNER = "run_owner_instructions"
+        const val READ_CURSOR = "read_cursor"
+        const val HANDLED_SEQ = "handled_seq"
+        const val QUEUE = "instruction_queue"
+        const val HUB_THREAD = "hub_thread"
         const val AGENT = "agent_id"
         const val SESSION = "session_id"
         const val LAST_ERROR = "last_error"

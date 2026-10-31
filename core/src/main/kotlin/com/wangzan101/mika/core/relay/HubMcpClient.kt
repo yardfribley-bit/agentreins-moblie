@@ -63,8 +63,15 @@ class HubMcpClient(
         return sessions.any { (it as? JsonObject).str("id") == sessionId }
     }
 
-    /** 读取一页事件。`wait` 不超过 20 秒。认领开关关着时调用方不应拿去执行。 */
-    fun read(mcpUrl: String, token: String, sessionId: String, after: Long, waitSeconds: Int): HubRelayPage {
+    override fun ack(mcpUrl: String, token: String, sessionId: String, seq: Long) {
+        call(mcpUrl, token, "diaodu_relay_ack", buildJsonObject {
+            put("session", sessionId)
+            put("seq", seq)
+        }, secret = token)
+    }
+
+    /** 读取一页事件。`wait` 不超过 20 秒。 */
+    override fun read(mcpUrl: String, token: String, sessionId: String, after: Long, waitSeconds: Int): HubRelayPage {
         val body = call(mcpUrl, token, "diaodu_relay_read", buildJsonObject {
             put("session", sessionId)
             put("after", after)
@@ -86,6 +93,7 @@ class HubMcpClient(
     override fun send(
         mcpUrl: String, token: String, sessionId: String, kind: String, text: String, requestId: String,
         attachments: List<String>,
+        replyTo: Long?,
     ): Long? {
         if (kind != RelayKind.PROGRESS && kind != RelayKind.RESULT) {
             throw RelayException(0, false, "worker kind only")
@@ -97,6 +105,7 @@ class HubMcpClient(
             put("kind", kind)
             put("text", clipped)
             put("request_id", requestId)
+            if (replyTo != null && replyTo > 0) put("reply_to", replyTo)
             if (attachments.isNotEmpty()) put("attachments", JsonArray(attachments.map { JsonPrimitive(it) }))
         }, secret = token).obj()
         return seqOf(body)

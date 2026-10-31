@@ -51,6 +51,9 @@ data class HubRelayEvent(
     val envelopeKind: String,
     val fromOwner: Boolean,
     val messageKind: String? = null,
+    val text: String? = null,
+    /** 授权代发时 Hub 会带 `delegated_by`。代发的指令也算所有者的。 */
+    val delegated: Boolean = false,
 )
 
 data class HubRelayPage(
@@ -64,9 +67,13 @@ object HubInstructionFilter {
 
     fun waitSeconds(requested: Int): Int = requested.coerceIn(0, MAX_WAIT_SECONDS)
 
-    /** 只收创建者下的指令。进度、结果、别人的话都丢掉。 */
+    /**
+     * 只收所有者的指令: `from_owner` 为真,或带了 `delegated_by`(授权代发,Hub 里也算所有者)。
+     * 正文留下。进度、结果、别人的话都丢掉。
+     */
     fun accept(event: HubRelayEvent): Boolean =
-        event.envelopeKind == "message" && event.messageKind == "instruction" && event.fromOwner
+        event.envelopeKind == "message" && event.messageKind == "instruction" && !event.text.isNullOrBlank() &&
+            (event.fromOwner || event.delegated)
 
     /** 开关关着时一页都不收,避免把远程任务跑起来。 */
     fun take(claimEnabled: Boolean, page: HubRelayPage): List<HubRelayEvent> {
@@ -80,8 +87,11 @@ object HubInstructionFilter {
             val seq = (row["seq"] as? JsonPrimitive)?.longOrNull ?: return@mapNotNull null
             val kind = (row["kind"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
             val fromOwner = (row["from_owner"] as? JsonPrimitive)?.booleanOrNull == true
-            val messageKind = ((row["message"] as? JsonObject)?.get("kind") as? JsonPrimitive)?.contentOrNull
-            HubRelayEvent(seq, kind, fromOwner, messageKind)
+            val message = row["message"] as? JsonObject
+            val messageKind = (message?.get("kind") as? JsonPrimitive)?.contentOrNull
+            val text = (message?.get("text") as? JsonPrimitive)?.contentOrNull
+            val delegated = row["delegated_by"] is JsonObject
+            HubRelayEvent(seq, kind, fromOwner, messageKind, text, delegated)
         }
         val cursor = (obj["next_cursor"] as? JsonPrimitive)?.longOrNull ?: events.lastOrNull()?.seq ?: 0L
         val more = (obj["has_more"] as? JsonPrimitive)?.booleanOrNull == true

@@ -40,7 +40,7 @@ class HubTaskClaimTest {
             listOf(
                 HubRelayEvent(1, "message", fromOwner = false, messageKind = "instruction"),
                 HubRelayEvent(2, "message", fromOwner = true, messageKind = "progress"),
-                HubRelayEvent(3, "message", fromOwner = true, messageKind = "instruction"),
+                HubRelayEvent(3, "message", fromOwner = true, messageKind = "instruction", text = "查一下 内存"),
                 HubRelayEvent(4, "joined", fromOwner = true, messageKind = null),
             ),
             nextCursor = 4,

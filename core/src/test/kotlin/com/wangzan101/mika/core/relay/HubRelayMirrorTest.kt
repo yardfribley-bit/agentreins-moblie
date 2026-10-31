@@ -218,7 +218,8 @@ class HubRelayMirrorTest {
         }
 
         override fun send(
-            mcpUrl: String, token: String, sessionId: String, kind: String, text: String, requestId: String, attachments: List<String>,
+            mcpUrl: String, token: String, sessionId: String, kind: String, text: String, requestId: String,
+            attachments: List<String>, replyTo: Long?,
         ): Long? {
             sent += Sent(requestId, kind, text, attachments, sessionId)
             if (failForever) throw IOException("down")
@@ -253,6 +254,13 @@ class HubRelayMirrorTest {
         override fun memberOf(mcpUrl: String, token: String, sessionId: String): Boolean {
             calls += "member:$sessionId"
             return member
+        }
+
+        override fun read(mcpUrl: String, token: String, sessionId: String, after: Long, waitSeconds: Int): HubRelayPage =
+            HubRelayPage(emptyList(), after, false)
+
+        override fun ack(mcpUrl: String, token: String, sessionId: String, seq: Long) {
+            calls += "ack:$seq"
         }
     }
 }

@@ -56,6 +56,9 @@ class HubMcpClientTest {
                 if (body.contains("diaodu_relay_upload")) {
                     return json("""{"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"{\"file_id\":\"fl_9\"}"}]}}""")
                 }
+                if (body.contains("diaodu_relay_ack")) {
+                    return json("""{"jsonrpc":"2.0","id":9,"result":{"structuredContent":{"acknowledged":2},"content":[{"type":"text","text":"{\"acknowledged\":2}"}]}}""")
+                }
                 if (body.contains("diaodu_relay_send")) {
                     if (expireSession) {
                         expireSession = false
@@ -210,6 +213,14 @@ class HubMcpClientTest {
         assertEquals("Bearer da_test", raw.getHeader("Authorization"))
         assertEquals(4, raw.body.peek().readByteArray().size)
         assertFalse(raw.body.peek().readUtf8().contains("content_base64"))
+    }
+
+    @Test fun ackPostsTheInstructionSeq() {
+        client.ack(mcp(), "da_test", "ses_fixed", 2)
+        val call = seen.first { it.body.peek().readUtf8().contains("diaodu_relay_ack") }
+        assertTrue(call.body.peek().readUtf8().contains("\"seq\":2"))
+        assertTrue(seen.none { it.body.peek().readUtf8().contains("diaodu_relay_create") })
+        assertTrue(seen.none { it.body.peek().readUtf8().contains("\"kind\":\"instruction\"") })
     }
 
     @Test fun workerRejectsInstructionWithoutCallingHub() {

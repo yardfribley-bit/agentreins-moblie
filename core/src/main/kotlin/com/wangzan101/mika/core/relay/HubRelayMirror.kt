@@ -31,6 +31,8 @@ class HubRelayMirror(
     private val lock = Object()
     private val queue = ArrayDeque<Outbound>()
     private val counters = ConcurrentHashMap<String, AtomicInteger>()
+    private val replies = HashMap<String, Long>()
+    private var pendingReply: Long? = null
     private var checkedSession: String? = null
     private var whoamiTried = false
     @Volatile private var activeRuns = 0
@@ -38,6 +40,18 @@ class HubRelayMirror(
 
     init {
         if (startWorker) Thread(::loop, "mika-hub-relay").apply { isDaemon = true }.start()
+    }
+
+    /** 下一次打开的运行,其最终 result 要回复这条指令。 */
+    fun armReply(seq: Long) { synchronized(lock) { pendingReply = seq } }
+
+    /** 运行记录开张时把挂起的回复号记到这次 [runId] 上。 */
+    fun claimReply(runId: String) {
+        synchronized(lock) {
+            val seq = pendingReply ?: return
+            pendingReply = null
+            replies[runId] = seq
+        }
     }
 
     /** 有任务在跑时才心跳。关掉只是不再心跳,队列里的消息仍会发出。 */
@@ -59,7 +73,8 @@ class HubRelayMirror(
             if (!config().enabled) return
             val index = counters.getOrPut(runId) { AtomicInteger(0) }.getAndIncrement()
             val message = RelayEventText.map(runId, index, event) ?: return
-            enqueue(message)
+            val reply = if (message.kind == RelayKind.RESULT) synchronized(lock) { replies[runId] } else null
+            enqueue(message, replyTo = reply)
         } catch (t: Throwable) {
             log("drop")
         }
@@ -118,11 +133,11 @@ class HubRelayMirror(
 
     internal fun pending(): Int = synchronized(lock) { queue.size }
 
-    private fun enqueue(message: RelayMessage, bytes: ByteArray? = null, fileName: String? = null) {
+    private fun enqueue(message: RelayMessage, bytes: ByteArray? = null, fileName: String? = null, replyTo: Long? = null) {
         synchronized(lock) {
             if (!config().enabled) return
             while (queue.size >= maxQueue) queue.removeFirst()
-            queue.addLast(Outbound(message.requestId, message.kind, message.text, bytes, fileName))
+            queue.addLast(Outbound(message.requestId, message.kind, message.text, bytes, fileName, replyTo = replyTo))
             lock.notifyAll()
         }
     }
@@ -227,6 +242,7 @@ class HubRelayMirror(
         val seq = transport.send(
             cfg.mcpUrl, token, session, item.kind, item.text, item.requestId,
             attachments = listOfNotNull(item.fileId),
+            replyTo = item.replyTo,
         )
         lastBeat = now()
         if (seq != null) onSeq(seq) else onError(null)
@@ -313,6 +329,7 @@ class HubRelayMirror(
         val text: String,
         val bytes: ByteArray?,
         val fileName: String?,
+        val replyTo: Long? = null,
         var fileId: String? = null,
         var attempts: Int = 0,
     )

@@ -108,6 +108,9 @@ fun HubRelayScreen(onBack: () -> Unit) {
             ListRow(null, stringResource(R.string.hub_shots), stringResource(R.string.hub_shots_sub), first = true) {
                 MikaSwitch(live.uploadScreenshots, { runtime.setUploadScreenshots(it) }, Modifier.testTag("hub-shots"))
             }
+            ListRow(null, stringResource(R.string.hub_run_owner), stringResource(R.string.hub_run_owner_sub)) {
+                MikaSwitch(live.runOwnerInstructions, { runtime.setRunOwnerInstructions(it) }, Modifier.testTag("hub-run-owner"))
+            }
             ListRow(null, stringResource(R.string.hub_claim), stringResource(R.string.hub_claim_sub)) {
                 MikaSwitch(live.claimTasks, { runtime.setClaimTasks(it) }, Modifier.testTag("hub-claim"))
             }
