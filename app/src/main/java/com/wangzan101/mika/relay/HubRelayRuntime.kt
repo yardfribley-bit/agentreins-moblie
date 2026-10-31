@@ -135,6 +135,7 @@ class HubRelayRuntime(
         }
         val after = settings.readCursor()
         val page = transport.read(cfg.mcpUrl, cfg.token, cfg.sessionId, after, readWait)
+        Log.i("HubMcp", inboundReadLog(after, page.nextCursor, page.events.size))
         backoffMs = 1_000L
         val plan = HubInbound.plan(page, settings.handledSeq())
         val ack = plan.ackSeq
@@ -156,6 +157,10 @@ class HubRelayRuntime(
     companion object {
         private const val TAG = "HubRelay"
         private const val PREFS = "hub_relay"
+
+        /** 一次长轮询顺利返回时打一行,方便在设备上确认收指令循环还在走。不含令牌和正文。 */
+        internal fun inboundReadLog(after: Long, next: Long, events: Int): String =
+            "inbound read start after=$after next=$next events=$events"
 
         fun create(context: Context): HubRelayRuntime {
             val app = context.applicationContext

@@ -261,7 +261,9 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
         scope.launch { runCatching { ShareExporter(this@MikaApp).cleanPending() } }
         // 上次进程留下的网页上传副本
         scope.launch { runCatching { WebFiles.clearStale(this@MikaApp, SandboxDirs(this@MikaApp).gate) } }
-        // 已经加入 Hub 时马上开始收老板指令,不等打开设置或先跑一次任务
+        // 已经加入 Hub 时马上开始收老板指令。冷启动时界面还没到前台,系统可能拒绝前台服务;
+        // 任一界面 resume 之后再提升一次,通知才会留在状态栏。
+        registerActivityLifecycleCallbacks(HubRelayService.promoteWhenResumed())
         HubRelayService.sync(this)
         // 运行环境没准备好(首次启动、Mika 升级后)就在后台准备,不联网、对用户不可见
         RuntimePreparer.ensure(this)

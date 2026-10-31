@@ -46,6 +46,41 @@ class HubRelaySettingsTest {
         assertEquals("", config.token)
     }
 
+    @Test fun inboundBlockerNamesEachReasonAndClaimStaysOff() {
+        val settings = HubRelaySettings(MemoryPrefs(), XorCipher)
+        assertEquals("relay disabled, no session, no token", settings.inboundBlocker())
+        assertFalse(settings.wantsInbound())
+        settings.setEnabled(true)
+        settings.setRunOwnerInstructions(false)
+        assertEquals("owner instructions off, no session, no token", settings.inboundBlocker())
+        settings.setRunOwnerInstructions(true)
+        settings.setSessionId("ses_fixed")
+        settings.setToken("da_token")
+        assertNull(settings.inboundBlocker())
+        assertTrue(settings.wantsInbound())
+        assertFalse(settings.config().claimTasks)
+    }
+
+    @Test fun unreadableTokenBlocksTheListener() {
+        val prefs = MemoryPrefs()
+        prefs.edit().putString("token", "@@@").commit()
+        val settings = HubRelaySettings(prefs, XorCipher)
+        settings.setEnabled(true)
+        settings.setSessionId("ses_fixed")
+        assertEquals("token unreadable", settings.inboundBlocker())
+        assertFalse(settings.wantsInbound())
+    }
+
+    @Test fun foregroundFailureAndInboundReadLogAreOneLine() {
+        assertEquals(
+            "startForeground failed: java.lang.SecurityException: Starting FGS with type dataSync requires permissions: android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+            HubRelayService.foregroundFailure(
+                SecurityException("Starting FGS with type dataSync requires permissions: android.permission.FOREGROUND_SERVICE_DATA_SYNC"),
+            ),
+        )
+        assertEquals("inbound read start after=4 next=9 events=1", HubRelayRuntime.inboundReadLog(4, 9, 1))
+    }
+
     @Test fun sessionAndStatusStick() {
         val settings = HubRelaySettings(MemoryPrefs(), XorCipher)
         settings.setEnabled(true)
