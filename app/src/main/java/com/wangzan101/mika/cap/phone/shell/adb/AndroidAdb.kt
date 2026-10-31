@@ -29,7 +29,12 @@ object AndroidAdb {
     fun keyStore(context: Context): AdbKeyStore =
         WrappedKeyFile(File(context.applicationContext.noBackupFilesDir, "adb/adbkey.bin")) { wrappingKey() }
 
-    fun identity(context: Context): AdbIdentity = AdbIdentity.loadOrCreate(keyStore(context), "mika@${Build.MODEL}")
+    /**
+     * 已配对设备列表里的名字。钥匙存在 [keyStore] 里，跟这个名字分开；
+     * TLS 证书的 CN 仍是原来的，设备只核对公钥，所以改名字不会让已经配好的连接失效。
+     * 系统里已经记下的旧名字要重新配对才会换成新的。
+     */
+    fun identity(context: Context): AdbIdentity = AdbIdentity.loadOrCreate(keyStore(context), "AgentReins@${Build.MODEL}")
 
     fun tls(identity: AdbIdentity) = AdbTls(identity, exporter)
 

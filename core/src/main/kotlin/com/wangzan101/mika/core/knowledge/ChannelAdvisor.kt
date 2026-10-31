@@ -43,7 +43,7 @@ object ChannelAdvisor {
             val challenged = ofSite(facts.challengedSites)
             val notes = listOfNotNull(
                 "known way to do it on the web".takeIf { skills?.hasRoute(name, "browser") == true },
-                loggedIn?.let { "signed in within Mika ($it)" },
+                loggedIn?.let { "signed in within AgentReins ($it)" },
                 challenged?.let { "recently hit a verification or block here ($it); the user can clear this site's data in settings" },
             )
             (listOf("web: $d") + notes).joinToString(", ")

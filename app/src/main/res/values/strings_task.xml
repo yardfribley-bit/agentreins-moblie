@@ -2,7 +2,7 @@
 <resources>
     <string name="notif_channel_prepare">Background setup</string>
     <string name="notif_preparing">agentreins-moblie is getting ready</string>
-    <string name="notif_result_title">agentreins-moblie task result</string>
+    <string name="notif_result_title">AgentReins task result</string>
     <string name="parallel_second_display_failed">Couldn’t create a second virtual screen, so only one task runs at a time for now</string>
     <string name="parallel_needs_14">Running several tasks at once needs Android 14 or later</string>
     <string name="parallel_low_ram">This phone has little memory, so one task runs at a time</string>

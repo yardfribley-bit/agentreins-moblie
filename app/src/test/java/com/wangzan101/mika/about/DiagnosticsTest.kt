@@ -10,12 +10,16 @@ import com.wangzan101.mika.core.shell.RecoveryConsent
 import com.wangzan101.mika.core.shell.SetupStep
 import com.wangzan101.mika.settings.AccessibilityState
 import com.wangzan101.mika.settings.SystemStatus
+import com.wangzan101.mika.i18n.ChineseTexts
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 
 class DiagnosticsTest {
+    @get:Rule val texts = ChineseTexts()
+
     private val now = 1_790_000_000_000L
     private val skKey = "sk-" + "live1234567890abcdefABCDEF"
     private val googleKey = "AIza" + "SyA1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6"

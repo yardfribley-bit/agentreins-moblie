@@ -8,7 +8,7 @@ This is a customized fork of [Mika](https://github.com/wangzan101/Mika). Origina
 
 ## Version and installation
 
-Current version: **0.1.14, build 15**. The application label and assistant identity are agentreins-moblie. The internal package remains com.wangzan101.mika for compatibility with existing configuration and data.
+Current version: **0.1.14, build 15**. The product name and assistant identity are AgentReins. The Android application label (app_name) remains agentreins-moblie. The internal package remains com.wangzan101.mika for compatibility with existing configuration and data.
 
 APK filenames are generated automatically:
 

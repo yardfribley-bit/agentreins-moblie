@@ -41,16 +41,16 @@ class ShareExporterDeviceTest {
         val card = export(f.name, name)
         exported += card.uri
         val saved = card.savedAs
-        assertTrue(saved, saved.startsWith("Download/Mika/"))
+        assertTrue(saved, saved.startsWith("Download/AgentReins/"))
         assertEquals(f.length(), card.size)
         context.contentResolver.query(
             MediaStore.Downloads.EXTERNAL_CONTENT_URI,
             arrayOf(MediaStore.Downloads.SIZE, MediaStore.Downloads.RELATIVE_PATH),
-            "${MediaStore.Downloads.DISPLAY_NAME} = ?", arrayOf(saved.removePrefix("Download/Mika/")), null,
+            "${MediaStore.Downloads.DISPLAY_NAME} = ?", arrayOf(saved.removePrefix("Download/AgentReins/")), null,
         )!!.use { c ->
             assertTrue("not found in MediaStore", c.moveToFirst())
             assertEquals(f.length(), c.getLong(0))
-            assertTrue(c.getString(1), c.getString(1).trimEnd('/').endsWith("Download/Mika"))
+            assertTrue(c.getString(1), c.getString(1).trimEnd('/').endsWith("Download/AgentReins"))
         }
     }
 

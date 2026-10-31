@@ -200,7 +200,7 @@ class WorkspaceFileGate(private val sys: FdSys) {
         if (!inside(real, rootReal) || real != dir.realPath().trimEnd('/') + "/" + name) throw outside()
         val st = f.stat()
         if (st.kind != FdStat.Kind.FILE) throw notAFile()
-        if (st.nlink != 1L) throw SandboxError(LINKED_FILE, "The file has more than one hard link, so Mika does not use it; copy it (cp) and use the copy.", recoverable = true)
+        if (st.nlink != 1L) throw SandboxError(LINKED_FILE, "The file has more than one hard link, so AgentReins does not use it; copy it (cp) and use the copy.", recoverable = true)
         return st
     }
 
@@ -209,7 +209,7 @@ class WorkspaceFileGate(private val sys: FdSys) {
         FdSysException.Kind.EXISTS -> SandboxError(FILE_EXISTS, "A file with this name already exists.", recoverable = true)
         FdSysException.Kind.NOT_DIR -> SandboxError(FILE_NOT_FOUND, "A folder on this path is not a folder.", recoverable = true)
         FdSysException.Kind.LINK ->
-            if (dirStep) SandboxError(NOT_A_FILE, "A folder on this path is a link; Mika's file tools do not follow links. Use the real path.", recoverable = true)
+            if (dirStep) SandboxError(NOT_A_FILE, "A folder on this path is a link; AgentReins's file tools do not follow links. Use the real path.", recoverable = true)
             else notAFile()
         FdSysException.Kind.NOT_FILE -> notAFile()
     }

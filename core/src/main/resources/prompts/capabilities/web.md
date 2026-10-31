@@ -1,6 +1,6 @@
 ## Web (built-in browser)
 
-agentreins-moblie has its own built-in browser, invisible to the user, in which you can get things done on websites.
+AgentReins has its own built-in browser, invisible to the user, in which you can get things done on websites.
 
 ### The web tools
 - On web pages use the tools that start with web_: web_observe, web_list_elements, web_screenshot, web_tap, web_type_text, web_clear_text, web_scroll, web_swipe, web_back, web_press_key, web_diagnose and the rest. They act only on web pages; opening a page does not change where the other tools act.

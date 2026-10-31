@@ -6,14 +6,15 @@ import java.net.URLEncoder
 
 /** Mika 对外的地址都在这里:仓库、问题、作者、检查更新用的两个来源。换地址只改这一处。 */
 object MikaLinks {
-    const val REPO = "https://github.com/wangzan101/Mika"
-    const val REPO_LABEL = "github.com/wangzan101/Mika"
+    const val SITE = "https://www.agentreins.info"
+    const val REPO = "https://github.com/yardfribley-bit/agentreins-moblie"
+    const val REPO_LABEL = "github.com/yardfribley-bit/agentreins-moblie"
     const val README = "$REPO#readme"
     const val RELEASES = "$REPO/releases"
     const val NEW_ISSUE = "$REPO/issues/new"
-    const val X = "https://x.com/wangzan101"
-    const val X_HANDLE = "@wangzan101"
-    const val AUTHOR_WECHAT_ID = "wangzan101"
+    const val X = "https://x.com/agentreins"
+    const val X_HANDLE = "@agentreins"
+    const val AUTHOR_WECHAT_ID = "sjtdyt"
 
     /** 让 Mika 替用户发给作者的那句话。 */
     val GROUP_REQUEST: String get() = tr(R.string.group_request)
@@ -22,7 +23,7 @@ object MikaLinks {
     val GROUP_TASK: String get() = tr(R.string.group_task, AUTHOR_WECHAT_ID, GROUP_REQUEST)
 
     /** 检查更新只问 GitHub 发布页(不登录,每小时有次数限制)。 */
-    const val LATEST_RELEASE_API = "https://api.github.com/repos/wangzan101/Mika/releases/latest"
+    const val LATEST_RELEASE_API = "https://api.github.com/repos/yardfribley-bit/agentreins-moblie/releases/latest"
 
     /** 反馈时预先填进问题模板的设备与版本信息。 */
     data class Device(

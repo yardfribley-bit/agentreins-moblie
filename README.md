@@ -8,7 +8,7 @@
 
 ## 当前版本与安装包
 
-当前版本为 **0.1.14，构建号 15**。应用显示名称和 AI 身份为 agentreins-moblie；内部包名仍为 com.wangzan101.mika，以兼容已有配置和数据。
+当前版本为 **0.1.14，构建号 15**。产品名和助手身份是 AgentReins；安卓应用标签（app_name）仍是 agentreins-moblie。内部包名仍为 com.wangzan101.mika，以兼容已有配置和数据。
 
 APK 文件名自动采用以下格式：
 

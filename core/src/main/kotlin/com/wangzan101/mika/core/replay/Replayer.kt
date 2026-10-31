@@ -94,7 +94,7 @@ class Replayer(
                         return ReplayOutcome.StoppedForConfirmation(i)
                     }
                     "target_unresolved" -> return diverged("cannot tell which element the tap would hit", seen)
-                    "own_app" -> return diverged("it acts on Mika itself", seen)
+                    "own_app" -> return diverged("it acts on AgentReins itself", seen)
                     else -> error("unexpected refusal ${o.code}")
                 }
                 is ActionOutcome.Cancelled -> return diverged("cancelled", seen)

@@ -60,7 +60,7 @@ private class Check(private val timeoutSec: Long, private val modelArg: String?,
     private val results = mutableListOf<Pair<String, Boolean>>()
 
     suspend fun run(): Boolean {
-        println("== Mika:用 ChatGPT 登录 · 桌面检查 ==")
+        println("== AgentReins:用 ChatGPT 登录 · 桌面检查 ==")
         println("工作目录:${dir.absolutePath}(令牌不打印;${if (keep) "--keep:结束时保存登录" else "默认不保存令牌"})")
         prepareDir()
         val (hostId, savedClient) = registration()
@@ -151,7 +151,7 @@ private class Check(private val timeoutSec: Long, private val modelArg: String?,
 
     private fun callbackPage(params: Map<String, String>): String {
         val text = if (params.containsKey("error")) "已取消登录,可以关掉这个页面。" else "登录完成,可以关掉这个页面,回到终端看结果。"
-        return "<!doctype html><html><head><meta charset=\"utf-8\"><title>Mika</title></head>" +
+        return "<!doctype html><html><head><meta charset=\"utf-8\"><title>AgentReins</title></head>" +
             "<body style=\"font-family:system-ui;margin:3em\"><p>$text</p></body></html>"
     }
 
