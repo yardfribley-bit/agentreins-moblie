@@ -12,6 +12,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -31,6 +32,7 @@ class HubMcpClient(
         .readTimeout(40, TimeUnit.SECONDS)
         .writeTimeout(40, TimeUnit.SECONDS)
         .build(),
+    private val mcpUploadMaxBytes: Int = MCP_UPLOAD_MAX,
 ) : RelayTransport {
     private val json = Json { ignoreUnknownKeys = true }
     private val ids = AtomicInteger(0)
@@ -38,24 +40,45 @@ class HubMcpClient(
     private var mcpSession: String? = null
 
     override fun connect(mcpUrl: String, alias: String, agentType: String): RelayIdentity {
-        val text = call(mcpUrl, token = null, "diaodu_connect", buildJsonObject {
+        val got = call(mcpUrl, token = null, "diaodu_connect", buildJsonObject {
             put("alias", alias)
             put("agent_type", agentType)
         })
-        val body = payload(text)
+        val body = got.obj()
         val token = body.str("token") ?: throw RelayException(200, false, "missing token")
         val agentId = body.str("agent_id")
         synchronized(sessionLock) { mcpSession = null }
         return RelayIdentity(token, agentId)
     }
 
+    override fun whoami(mcpUrl: String, token: String): String? =
+        call(mcpUrl, token, "diaodu_whoami", buildJsonObject {}, secret = token).obj().str("agent_id")
+
+    override fun memberOf(mcpUrl: String, token: String, sessionId: String): Boolean {
+        val body = call(mcpUrl, token, "diaodu_relay_list", buildJsonObject {
+            put("session", sessionId)
+        }, secret = token).obj() ?: return false
+        body["member"]?.bool()?.let { return it }
+        val sessions = body["sessions"] as? JsonArray ?: return false
+        return sessions.any { (it as? JsonObject).str("id") == sessionId }
+    }
+
+    /** 读取一页事件。`wait` 不超过 20 秒。认领开关关着时调用方不应拿去执行。 */
+    fun read(mcpUrl: String, token: String, sessionId: String, after: Long, waitSeconds: Int): HubRelayPage {
+        val body = call(mcpUrl, token, "diaodu_relay_read", buildJsonObject {
+            put("session", sessionId)
+            put("after", after)
+            put("wait", HubInstructionFilter.waitSeconds(waitSeconds))
+        }, secret = token).obj() ?: return HubRelayPage(emptyList(), after, false)
+        return HubInstructionFilter.parse(body)
+    }
+
     override fun join(mcpUrl: String, token: String, code: String, environment: RelayEnvironment): String {
-        val text = call(mcpUrl, token, "diaodu_relay_join", buildJsonObject {
+        val body = call(mcpUrl, token, "diaodu_relay_join", buildJsonObject {
             put("code", code)
             put("role", "worker")
             put("environment", environmentJson(environment))
-        }, secret = token)
-        val body = payload(text)
+        }, secret = token).obj()
         val id = body?.get("session").obj()?.str("id") ?: body.str("session_id")
         return id?.takeIf { it.isNotBlank() } ?: throw RelayException(200, false, "missing session id")
     }
@@ -69,23 +92,37 @@ class HubMcpClient(
         }
         val clipped = RelayEventText.clip(text)
         if (clipped.isBlank() || requestId.isBlank()) throw RelayException(0, false, "empty message")
-        val raw = call(mcpUrl, token, "diaodu_relay_send", buildJsonObject {
+        val body = call(mcpUrl, token, "diaodu_relay_send", buildJsonObject {
             put("session", sessionId)
             put("kind", kind)
             put("text", clipped)
             put("request_id", requestId)
             if (attachments.isNotEmpty()) put("attachments", JsonArray(attachments.map { JsonPrimitive(it) }))
-        }, secret = token)
-        return seqOf(payload(raw))
+        }, secret = token).obj()
+        return seqOf(body)
     }
 
     override fun upload(mcpUrl: String, token: String, sessionId: String, name: String, bytes: ByteArray): String {
-        val text = call(mcpUrl, token, "diaodu_relay_upload", buildJsonObject {
+        if (bytes.size > mcpUploadMaxBytes) return uploadRest(mcpUrl, token, sessionId, name, bytes)
+        val body = call(mcpUrl, token, "diaodu_relay_upload", buildJsonObject {
             put("session", sessionId)
             put("name", name)
             put("content_base64", Base64.getEncoder().encodeToString(bytes))
-        }, secret = token)
-        val body = payload(text)
+        }, secret = token).obj()
+        return body.str("file_id") ?: body.str("id") ?: throw RelayException(200, false, "missing file id")
+    }
+
+    private fun uploadRest(mcpUrl: String, token: String, sessionId: String, name: String, bytes: ByteArray): String {
+        val url = relayFilesUrl(mcpUrl, sessionId, name)
+        val request = Request.Builder().url(url).header("Authorization", "Bearer $token")
+            .post(bytes.toRequestBody(BYTES)).build()
+        val response = http.newCall(request).execute()
+        val raw = response.use { resp ->
+            val text = resp.body?.string().orEmpty()
+            if (!resp.isSuccessful) throw httpError(resp.code, token)
+            text
+        }
+        val body = payload(raw)
         return body.str("file_id") ?: body.str("id") ?: throw RelayException(200, false, "missing file id")
     }
 
@@ -104,7 +141,7 @@ class HubMcpClient(
         return tools.mapNotNull { (it as? JsonObject).str("name") }
     }
 
-    private fun call(mcpUrl: String, token: String?, tool: String, arguments: JsonObject, secret: String? = token): String {
+    private fun call(mcpUrl: String, token: String?, tool: String, arguments: JsonObject, secret: String? = token): ToolPayload {
         val raw = rpc(mcpUrl, token, rpc("tools/call", buildJsonObject {
             put("name", tool)
             put("arguments", arguments)
@@ -114,7 +151,8 @@ class HubMcpClient(
             (item as? JsonObject)?.get("text").str()
         }.joinToString("\n")
         if (result["isError"]?.bool() == true) throw toolError(text, secret)
-        return text
+        val structured = result["structuredContent"] as? JsonObject
+        return ToolPayload(structured, text)
     }
 
     private fun rpc(mcpUrl: String, token: String?, body: String, secret: String?): String {
@@ -208,7 +246,8 @@ class HubMcpClient(
         if (error != null) {
             val code = error["code"].int() ?: 0
             val message = redact(error.str("message") ?: "rpc error", secret)
-            throw RelayException(code, code == 429 || code >= 500, message)
+            val sessionGone = message.contains("session", ignoreCase = true)
+            throw RelayException(if (sessionGone) 404 else code, code == 429 || code >= 500, message)
         }
         return root["result"] as? JsonObject
     }
@@ -234,6 +273,11 @@ class HubMcpClient(
 
     private fun rememberSession(sid: String?) {
         if (!sid.isNullOrBlank()) synchronized(sessionLock) { mcpSession = sid }
+    }
+
+    private inner class ToolPayload(val structured: JsonObject?, val text: String) {
+        /** 优先用 structuredContent,没有再解析文本里的 JSON。 */
+        fun obj(): JsonObject? = structured ?: payload(text)
     }
 
     private fun payload(text: String): JsonObject? {
@@ -269,8 +313,16 @@ class HubMcpClient(
 
     companion object {
         const val PROTOCOL = "2025-03-26"
+        const val MCP_UPLOAD_MAX = 10 * 1024 * 1024
         private const val ACCEPT = "application/json, text/event-stream"
         private val JSON = "application/json; charset=utf-8".toMediaType()
+        private val BYTES = "application/octet-stream".toMediaType()
+
+        fun relayFilesUrl(mcpUrl: String, sessionId: String, name: String): okhttp3.HttpUrl {
+            val root = mcpEndpoint(mcpUrl).removeSuffix("/mcp").trimEnd('/')
+            return "$root/relay/sessions/$sessionId/files".toHttpUrl().newBuilder()
+                .addQueryParameter("name", name).build()
+        }
 
         /** 取 SSE 里最后一条 `data:` JSON;普通 JSON 原样返回。 */
         fun messageBody(contentType: String?, raw: String): String {

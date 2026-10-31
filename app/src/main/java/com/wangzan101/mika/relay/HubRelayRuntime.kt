@@ -42,6 +42,7 @@ class HubRelayRuntime(
             bump()
             ok
         },
+        onAgentId = { settings.setAgentId(it); bump() },
         onError = { settings.setLastError(it); bump() },
         onSeq = { settings.setLastSeq(it); settings.setLastError(null); bump() },
         startWorker = startWorker,

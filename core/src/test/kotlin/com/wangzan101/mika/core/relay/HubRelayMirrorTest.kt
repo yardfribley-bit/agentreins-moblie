@@ -129,6 +129,23 @@ class HubRelayMirrorTest {
         assertEquals(listOf("3", "4", "5", "6", "7"), fake.sent.map { it.text.substringAfterLast(' ') })
     }
 
+    @Test fun lostMembershipRejoinsWithTheSameCode() {
+        val fake = FakeRelay()
+        fake.member = false
+        var session = "ses_old"
+        val mirror = mirror(
+            fake,
+            config = { RelayConfig(enabled = true, token = "da_test", sessionId = session, joinCode = "CODE", agentId = "ag_x") },
+            onSession = { session = it },
+        )
+        mirror.submit("run-1", RunEvent.State(1, "s", "1"))
+        mirror.drain()
+        assertEquals(listOf("member:ses_old"), fake.calls.filter { it.startsWith("member") })
+        assertEquals(listOf("join:CODE:Android"), fake.calls.filter { it.startsWith("join") })
+        assertEquals("ses_new", fake.sent.single().sessionId)
+        assertEquals("ses_new", session)
+    }
+
     @Test fun heartbeatWhileRunIsActive() {
         val fake = FakeRelay()
         val mirror = mirror(fake, RelayConfig(enabled = true, token = "da_test", sessionId = "ses_fixed"), heartbeatEveryMs = 0)
@@ -225,6 +242,17 @@ class HubRelayMirrorTest {
 
         override fun heartbeat(mcpUrl: String, token: String, sessionId: String, environment: RelayEnvironment) {
             calls += "beat"
+        }
+
+        var member = true
+        override fun whoami(mcpUrl: String, token: String): String? {
+            calls += "whoami"
+            return "ag_saved"
+        }
+
+        override fun memberOf(mcpUrl: String, token: String, sessionId: String): Boolean {
+            calls += "member:$sessionId"
+            return member
         }
     }
 }

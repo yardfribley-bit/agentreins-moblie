@@ -19,12 +19,14 @@ class HubMcpClientTest {
     private val client = HubMcpClient()
     private val env = RelayEnvironment("Android", "14 / API 34", "arm64-v8a")
     private val seen = mutableListOf<RecordedRequest>()
+    private var expireSession = false
 
     @Before fun start() {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 val body = request.body.peek().readUtf8()
                 seen += request
+                if (request.path?.contains("/files") == true) return json("""{"file_id":"fl_rest","id":"fl_rest"}""")
                 val method = request.method
                 if (method != "POST") return MockResponse().setResponseCode(405)
                 if (body.contains("\"method\":\"initialize\"") || body.contains("\"method\": \"initialize\"")) {
@@ -35,16 +37,30 @@ class HubMcpClientTest {
                 if (body.contains("\"method\":\"tools/list\"") || body.contains("\"method\": \"tools/list\"")) {
                     return json("""{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"diaodu_connect"},{"name":"diaodu_relay_send"},{"name":"diaodu_relay_join"}]}}""")
                 }
+                if (body.contains("diaodu_whoami")) {
+                    return json("""{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\"agent_id\":\"ag_text\"}"}],"structuredContent":{"kind":"agent","agent_id":"ag_saved","user_id":"us_1"}}}""")
+                }
                 if (body.contains("diaodu_connect")) {
-                    return json("""{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\"token\":\"da_once\",\"agent_id\":\"ag_phone\"}"}]}}""")
+                    return json("""{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"{\"token\":\"da_once\",\"agent_id\":\"ag_text\"}"}],"structuredContent":{"agent_id":"ag_phone","user_id":"us_1","token":"da_once"}}}""")
+                }
+                if (body.contains("diaodu_relay_list")) {
+                    val member = !body.contains("rl_gone")
+                    return json("""{"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"{\"member\":true}"}],"structuredContent":{"sessions":${if (member) """[{"id":"ses_fixed","role":"worker"}]""" else "[]"},"member":$member}}}""")
+                }
+                if (body.contains("diaodu_relay_read")) {
+                    return json("""{"jsonrpc":"2.0","id":4,"result":{"structuredContent":{"events":[{"seq":3,"kind":"message","from_owner":true,"sender":{"role":"owner","name":"o"},"message":{"kind":"instruction","text":"do"}},{"seq":4,"kind":"message","from_owner":false,"sender":{"role":"mentor","name":"m"},"message":{"kind":"instruction","text":"no"}}],"next_cursor":4,"has_more":false},"content":[{"type":"text","text":"{}"}]}}""")
                 }
                 if (body.contains("diaodu_relay_join")) {
-                    return json("""{"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"{\"session\":{\"id\":\"ses_fixed\"}}"}]}}""")
+                    return json("""{"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"{\"session\":{\"id\":\"ses_text\"}}"}],"structuredContent":{"session":{"id":"ses_structured","role":"worker"}}}}""")
                 }
                 if (body.contains("diaodu_relay_upload")) {
                     return json("""{"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"{\"file_id\":\"fl_9\"}"}]}}""")
                 }
                 if (body.contains("diaodu_relay_send")) {
+                    if (expireSession) {
+                        expireSession = false
+                        return MockResponse().setResponseCode(404)
+                    }
                     if (body.contains("\"request_id\":\"retry-me\"") && seen.count { it.body.peek().readUtf8().contains("diaodu_relay_send") } == 1) {
                         return MockResponse().setResponseCode(503)
                     }
@@ -52,6 +68,9 @@ class HubMcpClientTest {
                         return MockResponse().setResponseCode(200)
                             .setHeader("content-type", "text/event-stream")
                             .setBody("event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":6,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"event\\\":{\\\"seq\\\":9}}\"}]}}\n\n")
+                    }
+                    if (body.contains("structured-seq")) {
+                        return json("""{"jsonrpc":"2.0","id":8,"result":{"content":[{"type":"text","text":"{\"event\":{\"seq\":1}}"}],"structuredContent":{"event":{"seq":15,"kind":"message","from_owner":false,"sender":{"role":"worker","name":"p"}},"duplicate":false}}}""")
                     }
                     if (body.contains("bad-token")) {
                         return json("""{"jsonrpc":"2.0","id":7,"result":{"isError":true,"content":[{"type":"text","text":"{\"code\":401,\"message\":\"rejected da_test and sk-abcdefghijklmnopqrstuvwxyz\"}"}]}}""")
@@ -86,7 +105,7 @@ class HubMcpClientTest {
     }
 
     @Test fun joinAndSendUseRelayToolsNotRest() {
-        assertEquals("ses_fixed", client.join(mcp(), "da_test", "TOPIC1", env))
+        assertEquals("ses_structured", client.join(mcp(), "da_test", "TOPIC1", env))
         val seq = client.send(mcp(), "da_test", "ses_fixed", RelayKind.PROGRESS, "第 1 步 phone_observe", "run:1")
         assertEquals(15L, seq)
         val again = client.send(mcp(), "da_test", "ses_fixed", RelayKind.PROGRESS, "第 1 步 phone_observe", "run:1")
@@ -104,7 +123,10 @@ class HubMcpClientTest {
         val join = seen.first { it.body.peek().readUtf8().contains("diaodu_relay_join") }
         val joinArgs = kotlinx.serialization.json.Json.parseToJsonElement(join.body.peek().readUtf8()).jsonObject["params"]!!.jsonObject["arguments"]!!.jsonObject
         assertEquals("worker", joinArgs["role"]!!.jsonPrimitive.content)
-        assertEquals("Android", joinArgs["environment"]!!.jsonObject["os_name"]!!.jsonPrimitive.content)
+        val environment = joinArgs["environment"]!!.jsonObject
+        assertEquals("Android", environment["os_name"]!!.jsonPrimitive.content)
+        assertEquals("14 / API 34", environment["os_version"]!!.jsonPrimitive.content)
+        assertEquals("arm64-v8a", environment["architecture"]!!.jsonPrimitive.content)
         assertTrue(seen.none { it.path!!.contains("/v1/relay") })
     }
 
@@ -137,6 +159,57 @@ class HubMcpClientTest {
         assertFalse(error.message!!.contains("da_test"))
         assertFalse(error.message!!.contains("sk-abcdefghijklmnopqrstuvwxyz"))
         assertTrue(error.message!!.contains("***"))
+    }
+
+    @Test fun whoamiUsesBearerAndStructuredAgentId() {
+        assertEquals("ag_saved", client.whoami(mcp(), "da_test"))
+        val call = seen.first { it.body.peek().readUtf8().contains("diaodu_whoami") }
+        assertEquals("Bearer da_test", call.getHeader("Authorization"))
+        assertFalse(call.body.peek().readUtf8().contains("diaodu_connect"))
+        assertFalse(seen.any { it.body.peek().readUtf8().contains("\"token\"") && it.body.peek().readUtf8().contains("diaodu_whoami") && it.body.peek().readUtf8().contains("da_once") })
+    }
+
+    @Test fun structuredSeqBeatsTextAndTextIsCapped() {
+        assertEquals(15L, client.send(mcp(), "da_test", "ses_fixed", RelayKind.PROGRESS, "x", "structured-seq"))
+        val long = "字".repeat(9000)
+        client.send(mcp(), "da_test", "ses_fixed", RelayKind.PROGRESS, long, "capped")
+        val text = arguments(seen.first { it.body.peek().readUtf8().contains("capped") })["text"]!!.jsonPrimitive.content
+        assertTrue(text.length <= RELAY_MAX_TEXT)
+    }
+
+    @Test fun lostSessionReinitializesWithTheSameBearer() {
+        expireSession = true
+        assertEquals(15L, client.send(mcp(), "da_test", "ses_fixed", RelayKind.PROGRESS, "again", "after-restart"))
+        val inits = seen.filter { it.body.peek().readUtf8().contains("\"method\":\"initialize\"") }
+        assertEquals(2, inits.size)
+        assertTrue(inits.all { it.getHeader("Authorization") == "Bearer da_test" })
+        assertTrue(seen.none { it.body.peek().readUtf8().contains("diaodu_connect") })
+    }
+
+    @Test fun listSaysWhenTheStoredSessionIsGone() {
+        assertFalse(client.memberOf(mcp(), "da_test", "rl_gone"))
+        assertTrue(client.memberOf(mcp(), "da_test", "ses_fixed"))
+        val gone = seen.first { it.body.peek().readUtf8().contains("rl_gone") }
+        assertTrue(gone.body.peek().readUtf8().contains("diaodu_relay_list"))
+    }
+
+    @Test fun readCapsWaitAndParsesOwnerInstruction() {
+        val page = client.read(mcp(), "da_test", "ses_fixed", after = 0, waitSeconds = 99)
+        assertEquals(4L, page.nextCursor)
+        assertEquals(listOf(3L), HubInstructionFilter.take(true, page).map { it.seq })
+        val wait = arguments(seen.first { it.body.peek().readUtf8().contains("diaodu_relay_read") })["wait"]!!.jsonPrimitive.content
+        assertEquals("20", wait)
+    }
+
+    @Test fun oversizedUploadUsesRelayRest() {
+        val rest = HubMcpClient(mcpUploadMaxBytes = 3)
+        assertEquals("fl_9", rest.upload(mcp(), "da_test", "ses_fixed", "small.png", byteArrayOf(1, 2)))
+        assertEquals("fl_rest", rest.upload(mcp(), "da_test", "ses_fixed", "big.png", byteArrayOf(1, 2, 3, 4)))
+        val raw = seen.first { it.path?.contains("/files") == true }
+        assertTrue(raw.path!!.contains("/v1/relay/sessions/ses_fixed/files"))
+        assertEquals("Bearer da_test", raw.getHeader("Authorization"))
+        assertEquals(4, raw.body.peek().readByteArray().size)
+        assertFalse(raw.body.peek().readUtf8().contains("content_base64"))
     }
 
     @Test fun workerRejectsInstructionWithoutCallingHub() {

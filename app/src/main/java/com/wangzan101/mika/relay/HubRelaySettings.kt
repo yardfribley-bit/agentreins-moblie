@@ -60,6 +60,7 @@ class HubRelaySettings(private val prefs: SharedPreferences, private val cipher:
             agentType = snap.agentType,
             joinCode = snap.joinCode.trim(),
             sessionId = snap.sessionId.trim(),
+            agentId = snap.agentId,
             uploadScreenshots = snap.uploadScreenshots,
             claimTasks = snap.claimTasks,
         )

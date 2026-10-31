@@ -17,6 +17,7 @@ class HubRelayMirror(
     private val log: (String) -> Unit = {},
     private val onSession: (String) -> Unit = {},
     private val onIdentity: (RelayIdentity) -> Boolean = { true },
+    private val onAgentId: (String) -> Unit = {},
     private val onError: (String?) -> Unit = {},
     private val onSeq: (Long) -> Unit = {},
     private val now: () -> Long = System::currentTimeMillis,
@@ -30,6 +31,8 @@ class HubRelayMirror(
     private val lock = Object()
     private val queue = ArrayDeque<Outbound>()
     private val counters = ConcurrentHashMap<String, AtomicInteger>()
+    private var checkedSession: String? = null
+    private var whoamiTried = false
     @Volatile private var activeRuns = 0
     @Volatile private var lastBeat = now()
 
@@ -186,7 +189,7 @@ class HubRelayMirror(
         }
         return try {
             val token = resolveToken(cfg).token
-            var session = cfg.sessionId.ifBlank { join(cfg, token) }
+            var session = sessionFor(cfg, token)
             var rejoined = false
             while (true) {
                 try {
@@ -254,17 +257,48 @@ class HubRelayMirror(
 
     private fun resolveToken(cfg: RelayConfig): RelayIdentity {
         if (cfg.tokenUnreadable) throw RelayException(0, false, "token unreadable")
-        if (cfg.token.isNotBlank()) return RelayIdentity(cfg.token, null)
+        if (cfg.token.isNotBlank()) {
+            if (cfg.agentId.isBlank() && !whoamiTried) {
+                whoamiTried = true
+                recoverAgentId(cfg)
+            }
+            return RelayIdentity(cfg.token, cfg.agentId.ifBlank { null })
+        }
         if (cfg.alias.isBlank() || cfg.agentType.isBlank()) throw RelayException(0, false, "need token")
         val identity = transport.connect(cfg.mcpUrl, cfg.alias, cfg.agentType)
         if (!onIdentity(identity)) throw RelayException(0, false, "token unreadable")
         return identity
     }
 
+    private fun recoverAgentId(cfg: RelayConfig) {
+        val id = try {
+            transport.whoami(cfg.mcpUrl, cfg.token)
+        } catch (e: IOException) {
+            log("whoami")
+            null
+        }
+        if (!id.isNullOrBlank()) onAgentId(id)
+    }
+
+    /** 存着的会话若已不是成员,用加入码再进一次。 */
+    private fun sessionFor(cfg: RelayConfig, token: String): String {
+        val stored = cfg.sessionId
+        if (stored.isBlank()) return join(cfg, token)
+        if (checkedSession == stored) return stored
+        val member = transport.memberOf(cfg.mcpUrl, token, stored)
+        if (!member) {
+            checkedSession = null
+            return join(cfg, token).also { checkedSession = it }
+        }
+        checkedSession = stored
+        return stored
+    }
+
     private fun join(cfg: RelayConfig, token: String): String {
         if (cfg.joinCode.isBlank()) throw RelayException(0, false, "need join code")
         val id = transport.join(cfg.mcpUrl, token, cfg.joinCode, environment())
         onSession(id)
+        checkedSession = id
         return id
     }
 

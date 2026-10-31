@@ -50,6 +50,7 @@ data class RelayConfig(
     val agentType: String = DEFAULT_RELAY_AGENT_TYPE,
     val joinCode: String = "",
     val sessionId: String = "",
+    val agentId: String = "",
     val uploadScreenshots: Boolean = false,
     val claimTasks: Boolean = false,
 )
@@ -92,4 +93,10 @@ interface RelayTransport {
 
     fun upload(mcpUrl: String, token: String, sessionId: String, name: String, bytes: ByteArray): String
     fun heartbeat(mcpUrl: String, token: String, sessionId: String, environment: RelayEnvironment)
+
+    /** 用已有 Bearer 找回 agent_id,不签发新令牌。 */
+    fun whoami(mcpUrl: String, token: String): String?
+
+    /** 传入 session 时:仍是成员为 true。`member=false` 要重新加入。 */
+    fun memberOf(mcpUrl: String, token: String, sessionId: String): Boolean
 }
