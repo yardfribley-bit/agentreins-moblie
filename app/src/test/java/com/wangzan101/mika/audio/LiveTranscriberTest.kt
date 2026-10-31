@@ -1,0 +1,39 @@
+package com.wangzan101.mika.audio
+
+import kotlinx.coroutines.runBlocking
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import org.junit.Assert.*
+import org.junit.Test
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
+class LiveTranscriberTest {
+    @Test fun wavHeaderMatchesMono16kPcm() {
+        val wav = LiveTranscriber.wav(byteArrayOf(1, 0, 2, 0))
+        val b = ByteBuffer.wrap(wav).order(ByteOrder.LITTLE_ENDIAN)
+        assertEquals("RIFF", String(wav.copyOfRange(0, 4)))
+        assertEquals(40, b.getInt(4)); assertEquals(16000, b.getInt(24))
+        assertEquals(32000, b.getInt(28)); assertEquals(4, b.getInt(40))
+        assertArrayEquals(byteArrayOf(1, 0, 2, 0), wav.copyOfRange(44, wav.size))
+    }
+    @Test fun transcribesShortJsonResponseAndUsesMultipart() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setBody("{\"text\":\"主播讲话\"}"))
+            val client = LiveTranscriber(server.url("/audio/transcriptions").toString(), "test-key", "test-asr")
+            assertEquals("主播讲话", client.transcribe(byteArrayOf(1, 0)))
+            val request = server.takeRequest()
+            assertEquals("Bearer test-key", request.getHeader("Authorization"))
+            val body = request.body.readUtf8()
+            assertTrue(body.contains("speech.wav")); assertTrue(body.contains("test-asr"))
+        }
+    }
+    @Test fun doesNotFollowRedirectsOrExposeResponseBody() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setResponseCode(302).setHeader("Location", "/secret").setBody("sensitive-server-message"))
+            val error = runCatching { LiveTranscriber(server.url("/asr").toString(), "test-key", "asr").transcribe(byteArrayOf(0, 0)) }.exceptionOrNull()
+            assertNotNull(error); assertTrue(error!!.message!!.contains("302"))
+            assertFalse(error.message!!.contains("sensitive")); assertEquals(1, server.requestCount)
+        }
+    }
+}

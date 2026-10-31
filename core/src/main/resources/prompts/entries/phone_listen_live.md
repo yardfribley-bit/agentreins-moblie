@@ -1,0 +1,1 @@
+Read new speech from the user-authorized continuous live-audio session, or stop it. Use repeatedly when asked to listen and reply to a live stream. User must first enable Live listening in Settings > During work.
