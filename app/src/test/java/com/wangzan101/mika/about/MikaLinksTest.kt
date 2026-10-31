@@ -38,7 +38,7 @@ class MikaLinksTest {
     @Test
     fun issueUrlIsEncoded() {
         val url = MikaLinks.issueUrl(device)
-        assertTrue(url.startsWith("https://github.com/wangzan101/Mika/issues/new?title=&body="))
+        assertTrue(url.startsWith("https://github.com/yardfribley-bit/agentreins-moblie/issues/new?title=&body="))
         val query = url.substringAfter('?')
         assertFalse("no raw spaces or newlines", query.any { it == ' ' || it == '\n' || it == '+' })
         assertFalse("no raw non-ASCII", query.any { it.code > 127 })
@@ -50,9 +50,14 @@ class MikaLinksTest {
 
     @Test
     fun linksPointAtTheRepo() {
-        assertEquals("https://github.com/wangzan101/Mika#readme", MikaLinks.README)
-        assertEquals("https://x.com/wangzan101", MikaLinks.X)
-        assertTrue(MikaLinks.LATEST_RELEASE_API.endsWith("/repos/wangzan101/Mika/releases/latest"))
+        assertEquals("https://github.com/yardfribley-bit/agentreins-moblie", MikaLinks.REPO)
+        assertEquals("github.com/yardfribley-bit/agentreins-moblie", MikaLinks.REPO_LABEL)
+        assertEquals("https://github.com/yardfribley-bit/agentreins-moblie#readme", MikaLinks.README)
+        assertEquals("https://github.com/yardfribley-bit/agentreins-moblie/releases", MikaLinks.RELEASES)
+        assertEquals("https://x.com/agentreins", MikaLinks.X)
+        assertEquals("@agentreins", MikaLinks.X_HANDLE)
+        assertTrue(MikaLinks.LATEST_RELEASE_API.endsWith("/repos/yardfribley-bit/agentreins-moblie/releases/latest"))
+        assertFalse(MikaLinks.LATEST_RELEASE_API.contains("wangzan101"))
     }
 
     /** 交给 Mika 的原话:按微信号找作者、发那句话;找不到时不加好友、不发给别人。 */
@@ -60,14 +65,16 @@ class MikaLinksTest {
     fun groupTaskText() {
         val t = MikaLinks.GROUP_TASK
         assertTrue(t.contains("微信号 ${MikaLinks.AUTHOR_WECHAT_ID}"))
-        assertEquals("wangzan101", MikaLinks.AUTHOR_WECHAT_ID)
+        assertEquals("sjtdyt", MikaLinks.AUTHOR_WECHAT_ID)
         assertTrue(t.contains("「你好，我是 agentreins-moblie 的用户，想加入 agentreins-moblie 内测体验群，麻烦拉我一下，谢谢！」"))
         assertTrue(t.contains("不要添加好友，也不要发给别人"))
-        assertTrue(t.contains("先在「关于 agentreins-moblie」里扫码加作者微信"))
+        assertTrue(t.contains("先在「关于 agentreins-moblie」里搜索微信号 sjtdyt 加作者"))
+        assertFalse(t.contains("王赞"))
+        assertFalse(t.contains("扫码"))
         assertEquals(2, t.lines().size)
         assertEquals(
-            "打开微信，在顶部搜索里输入微信号 wangzan101，找到这个联系人（作者王赞），给他发这条消息：「你好，我是 agentreins-moblie 的用户，想加入 agentreins-moblie 内测体验群，麻烦拉我一下，谢谢！」\n" +
-                "如果搜不到这个联系人，说明我还没加他的微信：不要添加好友，也不要发给别人，直接告诉我先在「关于 agentreins-moblie」里扫码加作者微信。",
+            "打开微信，在顶部搜索里输入微信号 sjtdyt，找到这个联系人（作者），给作者发这条消息：「你好，我是 agentreins-moblie 的用户，想加入 agentreins-moblie 内测体验群，麻烦拉我一下，谢谢！」\n" +
+                "如果搜不到这个联系人，说明我还没加作者的微信：不要添加好友，也不要发给别人，直接告诉我先在「关于 agentreins-moblie」里搜索微信号 sjtdyt 加作者。",
             t,
         )
     }
@@ -77,11 +84,21 @@ class MikaLinksTest {
     fun groupTaskTextInEnglish() {
         com.wangzan101.mika.i18n.UiText.source = com.wangzan101.mika.i18n.ResFileTexts.english
         val t = MikaLinks.GROUP_TASK
-        assertTrue(t.contains("WeChat ID wangzan101"))
+        assertTrue(t.contains("WeChat ID sjtdyt"))
         assertTrue(t.contains("“${MikaLinks.GROUP_REQUEST}”"))
         assertTrue(MikaLinks.GROUP_REQUEST.startsWith("Hi, I’m a agentreins-moblie user"))
-        assertTrue(t.contains("don’t add him as a friend and don’t send it to anyone else"))
-        assertTrue(t.contains("scan the QR code in “About agentreins-moblie”"))
+        assertTrue(t.contains("don’t add them as a friend and don’t send it to anyone else"))
+        assertTrue(t.contains("search WeChat ID sjtdyt in “About agentreins-moblie”"))
+        assertFalse(t.contains("Wang Zan"))
+        assertFalse(t.contains("QR"))
         assertEquals(2, t.lines().size)
+        assertEquals("AgentReins · © 2026", com.wangzan101.mika.ui.AboutCopy.AUTHOR)
+    }
+
+    @Test
+    fun authorCreditNamesTheFork() {
+        assertEquals("由 AgentReins 开发 · © 2026", com.wangzan101.mika.ui.AboutCopy.AUTHOR)
+        assertFalse(com.wangzan101.mika.ui.AboutCopy.AUTHOR.contains("王赞"))
+        assertFalse(QrImage.SHOW_QR)
     }
 }

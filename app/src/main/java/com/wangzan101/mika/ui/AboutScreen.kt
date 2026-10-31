@@ -328,20 +328,15 @@ private fun GroupSheet(onSave: () -> Unit, onAskMika: () -> Unit, onDismiss: () 
     val c = MikaTheme.colors
     // 点一次就够:连点不会开出第二个一样的任务
     var asked by remember { mutableStateOf(false) }
-    // 二维码最高占屏幕约三分之一,常见手机上不用滚就能看到底下的按钮
-    val qrHeight = (LocalConfiguration.current.screenHeightDp * 0.34f).coerceAtMost(280f).dp
-    val qr = painterResource(QrImage.RES)
-    AboutSheetFrame(AboutCopy.GROUP_SHEET_TITLE, AboutCopy.GROUP_SHEET_SUB, "group-sheet", onDismiss) {
-        Image(
-            qr, contentDescription = AboutCopy.GROUP_SHEET_TITLE,
-            Modifier.padding(top = 12.dp, bottom = 6.dp).align(Alignment.CenterHorizontally)
-                .height(qrHeight).aspectRatio(qr.intrinsicSize.width / qr.intrinsicSize.height)
-                .clip(RoundedCornerShape(12.dp))
-                .pointerInput(Unit) { detectTapGestures(onLongPress = { onSave() }) }
-                .testTag("wechat-qr"),
-        )
-        Text(AboutCopy.GROUP_HINT, Modifier.fillMaxWidth(), style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center)
-        MikaButton(AboutCopy.SAVE_QR, onSave, Modifier.fillMaxWidth().padding(top = 14.dp), kind = ButtonKind.Tonal)
+    // 没有 sjtdyt 自己的二维码时只展示微信号,扫码和保存都关掉(见 QrImage)。
+    val showQr = QrImage.SHOW_QR
+    AboutSheetFrame(
+        AboutCopy.GROUP_SHEET_TITLE,
+        if (showQr) AboutCopy.GROUP_SHEET_SUB else AboutCopy.GROUP_SHEET_SUB_ID,
+        "group-sheet",
+        onDismiss,
+    ) {
+        if (showQr) WeChatQr(onSave) else WeChatId()
         HorizontalDivider(Modifier.padding(top = 16.dp), color = c.hair)
         Text(AboutCopy.GROUP_ALREADY_ADDED, Modifier.fillMaxWidth().padding(top = 12.dp), style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center)
         MikaButton(
@@ -349,4 +344,39 @@ private fun GroupSheet(onSave: () -> Unit, onAskMika: () -> Unit, onDismiss: () 
             Modifier.fillMaxWidth().padding(top = 8.dp).testTag("group-ask-mika"), enabled = !asked,
         )
     }
+}
+
+/** 微信号,给还没换上作者二维码时用:用户自己在微信里搜,或让助手按这个号去发。 */
+@Composable
+private fun ColumnScope.WeChatId() {
+    val c = MikaTheme.colors
+    Text(
+        AboutCopy.GROUP_ID,
+        Modifier.fillMaxWidth().padding(top = 16.dp).testTag("wechat-id"),
+        style = MikaType.Title, color = c.ink, textAlign = TextAlign.Center,
+    )
+    Text(
+        AboutCopy.GROUP_ID_HINT,
+        Modifier.fillMaxWidth().padding(top = 6.dp),
+        style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center,
+    )
+}
+
+/** 作者微信二维码。只有 [QrImage.SHOW_QR] 时才画,避免把别人的码展示或存进相册。 */
+@Composable
+private fun ColumnScope.WeChatQr(onSave: () -> Unit) {
+    val c = MikaTheme.colors
+    // 二维码最高占屏幕约三分之一,常见手机上不用滚就能看到底下的按钮
+    val qrHeight = (LocalConfiguration.current.screenHeightDp * 0.34f).coerceAtMost(280f).dp
+    val qr = painterResource(QrImage.RES)
+    Image(
+        qr, contentDescription = AboutCopy.GROUP_SHEET_TITLE,
+        Modifier.padding(top = 12.dp, bottom = 6.dp).align(Alignment.CenterHorizontally)
+            .height(qrHeight).aspectRatio(qr.intrinsicSize.width / qr.intrinsicSize.height)
+            .clip(RoundedCornerShape(12.dp))
+            .pointerInput(Unit) { detectTapGestures(onLongPress = { onSave() }) }
+            .testTag("wechat-qr"),
+    )
+    Text(AboutCopy.GROUP_HINT, Modifier.fillMaxWidth(), style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center)
+    MikaButton(AboutCopy.SAVE_QR, onSave, Modifier.fillMaxWidth().padding(top = 14.dp), kind = ButtonKind.Tonal)
 }
