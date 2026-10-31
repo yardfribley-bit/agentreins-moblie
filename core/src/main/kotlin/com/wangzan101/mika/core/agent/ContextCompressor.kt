@@ -174,7 +174,7 @@ class ContextCompressor(
             }
         }
         closeBlock()
-        steps?.let { out.add(stepsAt, notice(it.render(HEADER))) }
+        steps?.let { out.add(stepsAt, notice(it.render(HEADER, SUMMARY_REMINDER))) }
         out += pruned.subList(cut, pruned.size)
         return Compressed(out, folded)
     }
@@ -227,7 +227,9 @@ class ContextCompressor(
         // 写操作结果带的屏幕(screen)也有截图编号;没带屏幕时动作后附的画面编号在结果顶层
         val shot = result?.let { parse(it.content) }?.let { o -> if (tools.verb(call.name) in OBSERVATIONS) o["screenshotId"] else (o["screen"] as? JsonObject)?.get("screenshotId") ?: o["screenshotId"] }
             ?.let { it as? JsonPrimitive }?.contentOrNull?.let { " #$it" }.orEmpty()
-        return "Step $step ${clip(call.name)}$target$shot → ${outcome(result)}"
+        val quoted = result?.let { parse(it.content) }?.let { TurnFacts.quote(it, 64) }
+            ?.let { " · \"${it.replace("\"", "'")}\"" }.orEmpty()
+        return "Step $step ${clip(call.name)}$target$shot → ${outcome(result)}$quoted"
     }
 
     private fun outcome(r: Part.ToolResult?): String {
@@ -268,7 +270,7 @@ class ContextCompressor(
 
     companion object {
         const val HEADER = "Earlier steps (compressed):"
-        const val SUMMARY_REMINDER = "Only the latest user message is the current task, and the tools are still available; earlier user messages are for reference only."
+        const val SUMMARY_REMINDER = "The latest user message is the current instruction. Earlier steps, facts and tool results still apply: resolve 这个, 刚才, 继续, this, that and continue from them, and do not invent a limit the user did not state. A fresh read wins if it conflicts."
         private const val SUMMARY_SOURCE = "earlier steps"
         const val AGGRESSIVE_KEEP = 6
         /** 估算越过上下文的这个比例时压缩一次。 */
