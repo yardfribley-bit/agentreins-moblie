@@ -25,6 +25,15 @@ class ConversationStoreTest {
         assertNotEquals(id, b.newConversation())
     }
 
+    /** 工具原文跟着这一轮存下,下一轮追问还能用;没有时不写这个字段。 */
+    @Test fun persistsFindings() {
+        val dir = tmp.newFolder("c")
+        val id = ConversationStore(dir).let { s ->
+            s.newConversation().also { s.append(it, Turn("听直播", "没听到", "succeeded", findings = listOf("phone_listen_live: 价格是 39 元"))) }
+        }
+        assertEquals(listOf("phone_listen_live: 价格是 39 元"), ConversationStore(dir).turns(id).single().findings)
+    }
+
     /** 这一轮用过的能力组跟着存下(下一轮开局据此预先展开);没用过的不写这个字段。 */
     @Test fun persistsUsedGroups() {
         val dir = tmp.newFolder("c")

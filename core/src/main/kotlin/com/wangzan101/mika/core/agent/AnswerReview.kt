@@ -58,14 +58,16 @@ internal class AnswerReview(
 
     /** 核第 [step] 步给出的回答 [answer]。[media]:每一步存下的画面编号;[verifying]:要请核查模型时先调它(界面上显示「正在核实」)。 */
     suspend fun review(
-        goal: String, answer: String, step: Int, facts: ReviewFacts, earlierGoals: List<String>, media: Map<Int, List<Int>>, verifying: () -> Unit,
+        goal: String, answer: String, step: Int, facts: ReviewFacts, earlierGoals: List<String>, media: Map<Int, List<Int>>,
+        earlier: List<String> = emptyList(), verifying: () -> Unit,
     ): Review {
         if (!facts.acted) return Review(reviewed = false, verified = false)
         val v = verifier
-        // 字面核对只看账本(最近一次读取已在里面),不重新读;要请核查模型时才重新读此刻的界面
+        // 字面核对只看账本(最近一次读取已在里面),不重新读;要请核查模型时才重新读此刻的界面。
+        // 之前几轮带过来的原文也算读到过,追问引用它们不算无据。
         val read = tools.evidence(fresh = false)
         val sources = AnswerSources.of(read.ledger, goal, answer, media)
-        val g = Grounding.check(goal, answer, read.sources(read.ledger.forAnswer(goal, answer)), read.today)
+        val g = Grounding.check(goal, answer, read.sources(read.ledger.forAnswer(goal, answer)) + earlier, read.today)
         val gaps = g.unmatched.map { it.text }.distinct()
         val risky = facts.outward || facts.unreadChange
         emit(RunEvent.AnswerCheck(now(), step, g.claims.size, gaps.map(::detail), risky))

@@ -187,6 +187,14 @@ class AgentLoop(
     /** 本次任务真的用过的能力组(记进这一轮,下一轮开局预先展开);任务结束后读取。 */
     val usedGroups: Set<String> get() = tools.used
 
+    /** 本轮完整历史;结束后从里面抽出要带去下一轮的工具原文。 */
+    private var runHistory: List<Message> = emptyList()
+    @Volatile private var factsCarried: List<String> = emptyList()
+    /** 这一轮工具结果里下一轮还用得着的原文;任务结束后读取。 */
+    val carriedFacts: List<String> get() = factsCarried
+    /** 之前几轮里用户说的、答过的、工具留下的原文,核对这一轮的回答时算读到过。 */
+    private var earlierRead: List<String> = emptyList()
+
     /** 用户本次说的话(memory_save 的引文校验用);记忆关着时不收集。 */
     private val utterances get() = if (memory != null) tools.utterances else null
 
@@ -235,6 +243,8 @@ class AgentLoop(
         replay?.reset()
         lastVerdict = null
         lastEnd = null
+        runHistory = emptyList()
+        factsCarried = emptyList()
         try {
             end = runLoop(task, priorTurns, inbox)
             lastEnd = end
@@ -243,6 +253,7 @@ class AgentLoop(
             end = TaskState.Cancelled
             throw e
         } finally {
+            factsCarried = TurnFacts.fromHistory(runHistory)
             emit(ended(end))
             inbox?.close()
         }
@@ -319,8 +330,9 @@ class AgentLoop(
         taskText = task
         val priorTurns = shots.collapse(rawPrior)
         earlierGoals = priorTurns.map { it.userText }
-        // 之前的轮次只作参考,放在本次任务之前
-        val context = Conversation.context(priorTurns)
+        earlierRead = Conversation.evidence(priorTurns)
+        // 之前的轮次和工具原文放在本次任务之前;「继续 / 刚才」标明是接着上一轮做
+        val context = Conversation.context(priorTurns, next = task)
         utterances?.add(opening?.words ?: task)
         // 记忆块:对话上文之后、任务原文之前;用到的条目由代码记下
         usedMemory = emptyList()
@@ -386,6 +398,7 @@ class AgentLoop(
             taskImages = opening?.images.orEmpty(), screens = opening?.details.orEmpty(),
         )
         val history = start.messages.toMutableList()
+        runHistory = history
         start.knowledge.filter { it.trial }.forEach { emit(RunEvent.State(now(), "knowledge_trial_used", it.name)) }
         // 链接只在 open_link 可用时给,且只放行真的给了模型的那几份
         if (flags.deepLinks) start.knowledge.forEach { if (it.links.isNotEmpty()) tools.allowLinks(it.links) }
@@ -838,7 +851,7 @@ class AgentLoop(
             if (sources.isNotEmpty()) emit(RunEvent.Sources(now(), sources))
             return TaskState.Succeeded(answer, verified = false, sources = sources, reviewed = false)
         }
-        val r = review.review(task, answer, step, facts, earlierGoals, media) {
+        val r = review.review(task, answer, step, facts, earlierGoals, media, earlierRead) {
             _state.value = TaskState.Running(step, VERIFYING_NOTE, reason = VERIFYING_NOTE,
                 preview = (_state.value as? TaskState.Running)?.preview)
         }

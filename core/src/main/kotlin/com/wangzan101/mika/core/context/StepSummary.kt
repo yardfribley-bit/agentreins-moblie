@@ -38,9 +38,9 @@ data class StepSummary(
         return StepSummary(goal, f, p, e, said?.let(::clip)?.takeIf { it.isNotEmpty() } ?: intent)
     }
 
-    fun render(header: String): String = buildString {
+    fun render(header: String, reminder: String): String = buildString {
         appendLine(header)
-        appendLine("Only the latest user message is the current task, and the tools are still available; earlier user messages are for reference only.")
+        appendLine(reminder)
         appendLine("Goal: $goal")
         appendLine("Confirmed facts:")
         if (facts.isEmpty()) appendLine("- (none yet)")

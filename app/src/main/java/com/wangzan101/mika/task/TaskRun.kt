@@ -311,6 +311,10 @@ class TaskRun(
     @Volatile var usedGroups: List<String> = emptyList()
         private set
 
+    /** 这一轮工具结果里下一轮还用得着的原文;记进对话,追问才能接着用。 */
+    @Volatile var carriedFacts: List<String> = emptyList()
+        private set
+
     fun joinedSteers(): List<String> = _steers.value.filter { it.state == SteerState.Joined }.map { it.text }
 
     /** 把 [ids] 这几句改成 [to];给了 [from] 时只改还在那个状态的(收下和交给模型可能先后颠倒,不往回改)。 */
@@ -723,6 +727,7 @@ class TaskRun(
             }
             return withContext(tally) { agent.run(runSpec, inbox) }.also { usedGroups = agent.usedGroups.toList() }
         } finally {
+            loop?.let { carriedFacts = it.carriedFacts }
             com.wangzan101.mika.audio.LiveAudioSession.release(service, key)
             handoffUnconsumed()
             side.cancel()
