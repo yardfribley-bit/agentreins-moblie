@@ -86,7 +86,7 @@ class LiveAudioService : Service() {
             }
             jobs += scope.launch {
                 val buffer = ShortArray(1600)
-                var policy = LiveAudioFallback.State(if (mic) LiveAudioFallback.Source.Microphone else LiveAudioFallback.Source.Internal)
+                var policy = LiveListenPolicy.State(if (mic) LiveListenPolicy.Source.Microphone else LiveListenPolicy.Source.Internal)
                 var active = record
                 try {
                     while (isActive && LiveAudioSession.generation == sessionId) {
@@ -111,12 +111,12 @@ class LiveAudioService : Service() {
                         Log.d(LiveListenPolicy.LOG_TAG, LiveListenPolicy.segmentLog(sessionId, policy.source, peak, rms, decision))
                         LiveAudioSession.noteLevel(peak, rms)
                         when (decision) {
-                            is LiveAudioFallback.Decision.Keep -> policy = decision.state
-                            is LiveAudioFallback.Decision.Hear -> {
+                            is LiveListenPolicy.Decision.Keep -> policy = decision.state
+                            is LiveListenPolicy.Decision.Hear -> {
                                 policy = decision.state
                                 if (queue.trySend(time to bytes.toByteArray()).isFailure) LiveAudioSession.gap()
                             }
-                            is LiveAudioFallback.Decision.UseMicrophone -> {
+                            is LiveListenPolicy.Decision.UseMicrophone -> {
                                 if (!micForeground) {
                                     try {
                                         startForeground(7821, listeningNotification(decision.status), projectionType or micType)
@@ -138,7 +138,7 @@ class LiveAudioService : Service() {
                                 LiveAudioSession.adoptMicrophone(decision.status)
                                 policy = decision.state
                             }
-                            is LiveAudioFallback.Decision.ReportSilence -> {
+                            is LiveListenPolicy.Decision.ReportSilence -> {
                                 policy = decision.state
                                 LiveAudioSession.error(decision.message)
                             }
