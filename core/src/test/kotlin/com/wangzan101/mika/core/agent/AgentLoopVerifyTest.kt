@@ -100,18 +100,16 @@ class AgentLoopVerifyTest {
         assertTrue("$read", read is TaskState.Succeeded && !read.reviewed)
     }
 
-    @Test fun productAnswerReadsLastChangeAndOnlyCollectsSources() = runTest {
+    @Test fun productAnswerStopsWithoutAnotherRead() = runTest {
         val checker = FakeModel(text(PASS))
-        val main = FakeModel(tools(call("phone_tap", """{"x":1,"y":1}""")), text("点好了"), observe(), text("点好了"))
+        val main = FakeModel(tools(call("phone_tap", """{"x":1,"y":1}""")), text("点好了"))
         val sink = ListSink()
         val result = AgentLoop(main, toolDispatcher(FakeScreen()), "BASE", sink = sink,
             verifier = Verifier(checker, null), reviewFinalAnswer = false).run("点一下") as TaskState.Succeeded
         assertEquals("点好了", result.answer)
         assertFalse(result.reviewed)
         assertTrue(checker.requests.isEmpty())
-        assertEquals(4, main.requests.size)
-        assertTrue(main.lastNotice(2).contains("Look at the current screen"))
-        assertTrue(sink.events.any { it is RunEvent.Sources })
+        assertEquals(2, main.requests.size)
         assertFalse(sink.events.any { it is RunEvent.AnswerCheck || it is RunEvent.Verifier })
     }
 

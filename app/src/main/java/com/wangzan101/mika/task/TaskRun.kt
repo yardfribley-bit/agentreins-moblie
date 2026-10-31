@@ -635,6 +635,7 @@ class TaskRun(
                 streamReplies = true,
                 recalledTasks = recalledTasks,
                 experiencePlan = experiencePlan,
+                debugLog = { tag, message -> Log.d(tag, message) },
                 userScreens = userScreens,
                 // 同一网站、App 里连着联系别人、提交:两次之间隔一段随机的时间
                 outwardPacing = OutwardPacing.human(),
@@ -901,11 +902,22 @@ class TaskRun(
             runCatching {
                 val events = k.runStore?.events(runId).orEmpty()
                 val said = k.utterances?.all.orEmpty()
-                com.wangzan101.mika.core.experience.ExperienceDistiller.distill(k.agent.taskText ?: goal, events, k.dispatcher.index, said)
-                    ?.let { memoryRuntime.experiences().apply(it) }
+                val earlier = k.priorTurns.mapNotNull { turn ->
+                    val id = turn.runId ?: return@mapNotNull null
+                    val prior = k.runStore?.events(id).orEmpty()
+                    if (prior.isEmpty()) null else turn.userText to prior
+                }
+                com.wangzan101.mika.core.experience.ExperienceDistiller.fromConversation(
+                    k.agent.taskText ?: goal, events, k.dispatcher.index, said, earlier,
+                )?.let { memoryRuntime.experiences().apply(it) }
                 memoryRuntime.taskNotes().add(com.wangzan101.mika.core.memory.TaskRecall.summarize(runId, k.agent.taskText ?: goal, events, System.currentTimeMillis()))
                 if (k.switches.autoRemember) {
-                    val apps = events.filterIsInstance<com.wangzan101.mika.core.record.RunEvent.Observed>().mapNotNull { it.place?.name }
+                    val packageName = Regex("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+$")
+                    val apps = events.filterIsInstance<com.wangzan101.mika.core.record.RunEvent.Observed>().mapNotNull { observed ->
+                        val name = observed.place?.name ?: return@mapNotNull null
+                        val label = if (packageName.matches(name)) ConfirmationNotifier.appLabel(service, name) else name
+                        label.takeUnless { packageName.matches(it) }
+                    }.distinct()
                     com.wangzan101.mika.core.memory.PreferenceLearner.remember(memory, k.agent.taskText ?: goal, said, apps, System.currentTimeMillis(), conversationId)
                 }
             }.onFailure { Log.w(TAG, "could not save experience", it) }

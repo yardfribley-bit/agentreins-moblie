@@ -159,14 +159,13 @@ class ExperienceBook(
         return s
     }
 
-    private fun terms(text: String) = Tokenize.terms(text).filter { it !in STOP && it.length >= 2 }
+    private fun terms(text: String) = Tokenize.keywords(text)
 
     companion object {
         const val MIN_SCORE = 0.34
         private const val MATCH_OVERLAP = 0.45
         private const val MAX_CONFIDENCE = 5
         private const val MAX_AVOID = 6
-        private val STOP = setOf("帮我", "给我", "一下", "我的", "这个", "那个", "可以", "一个", "今天", "现在", "什么", "怎么", "看看", "please")
     }
 }
 
