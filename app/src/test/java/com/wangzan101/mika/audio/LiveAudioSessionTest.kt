@@ -60,6 +60,21 @@ class LiveAudioSessionTest {
         assertEquals(LiveAudioFallback.FALLBACK_STATUS, LiveAudioSession.snapshot("task", 0, generation)["message"]!!.jsonPrimitive.content)
         LiveAudioSession.end()
     }
+    @Test fun newListenRestartsSegmentIds() {
+        LiveAudioSession.begin(false)
+        val first = LiveAudioSession.generation
+        repeat(92) { LiveAudioSession.add(System.currentTimeMillis(), "第${it}句") }
+        assertEquals(92, LiveAudioSession.snapshot("task", 0, first)["cursor"]!!.jsonPrimitive.long)
+        LiveAudioSession.end()
+        val second = LiveAudioSession.begin(false)
+        assertTrue(second > first)
+        LiveAudioSession.add(System.currentTimeMillis(), "新的一场")
+        val snap = LiveAudioSession.snapshot("task", 0, second)
+        assertEquals(second, snap["sessionId"]!!.jsonPrimitive.long)
+        assertEquals(1, snap["cursor"]!!.jsonPrimitive.long)
+        assertEquals(1, snap["segments"]!!.jsonArray[0].jsonObject["id"]!!.jsonPrimitive.long)
+        LiveAudioSession.end()
+    }
     @Test fun blankTranscriptIsNotedOnceThenClearedBySpeech() {
         LiveAudioSession.begin(false)
         val generation = LiveAudioSession.generation
