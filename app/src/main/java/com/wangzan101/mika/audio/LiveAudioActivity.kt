@@ -26,8 +26,19 @@ class LiveAudioActivity : Activity() {
     private lateinit var status: TextView
     private val diagnostics = MainScope()
     private val handler = Handler(Looper.getMainLooper())
+    private var sawInternal = false
+    private var mirroredFallback = false
     private val refresh = object : Runnable {
-        override fun run() { status.text = listOf(LiveAudioSession.status, LiveAudioSession.preview()).filter { it.isNotBlank() }.joinToString("\n"); handler.postDelayed(this, 1000) }
+        override fun run() {
+            status.text = listOf(LiveAudioSession.status, LiveAudioSession.preview()).filter { it.isNotBlank() }.joinToString("\n")
+            // Mirror an automatic mic fallback once. A later manual toggle is left alone.
+            if (LiveAudioSession.running && LiveAudioSession.source == "internal") sawInternal = true
+            if (!mirroredFallback && sawInternal && LiveAudioSession.running && LiveAudioSession.source == "microphone") {
+                mic.isChecked = true
+                mirroredFallback = true
+            }
+            handler.postDelayed(this, 1000)
+        }
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,7 +52,7 @@ class LiveAudioActivity : Activity() {
         model = field("语音识别模型", settings.model)
         key = field("语音识别 API Key", settings.key).apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
         mic = Switch(this).apply { text = "使用麦克风（需要直播外放，会收录周围声音）"; isChecked = settings.microphone; layout.addView(this) }
-        text("默认仅采集抖音 App 内部音频。若抖音或系统禁止采集，可能只能录到静音，可停止后尝试麦克风外放。监听期间请关闭「被操作的 App 静音」。内部采集不录制屏幕画面。")
+        text("默认采集抖音内部音频。连续约 24 秒无声时会自动改用麦克风外放，并打开上面的开关。可改回内部采集后再开始；再次无声仍会自动改用麦克风。麦克风也无声则只提示检查外放，不会来回切换。监听期间请关闭「被操作的 App 静音」。华为等机型可能拦截内部采集。内部采集不录制屏幕画面。")
         status = text(LiveAudioSession.status)
         val diagnosis = text("可先测试接口，再开启录音。测试会发送内置短语音，按语音服务计费，不使用麦克风。")
         diagnosis.setTextIsSelectable(true)

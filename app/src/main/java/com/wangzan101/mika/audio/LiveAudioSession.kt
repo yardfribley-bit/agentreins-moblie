@@ -20,12 +20,20 @@ object LiveAudioSession {
     @Volatile var lastRead = 0L; private set
     private var dropped = 0
     private var lastError: String? = null
+    private var blankNoted = false
 
     @Synchronized fun begin(microphone: Boolean) {
         segments.clear(); next = 0; owner = null; generation++
-        dropped = 0; gapAt = 0; lastError = null
+        dropped = 0; gapAt = 0; lastError = null; blankNoted = false
         source = if (microphone) "microphone" else "internal"
         running = true; status = "正在监听"; lastRead = System.currentTimeMillis()
+    }
+    /** Same session after internal capture stayed silent. Does not bump generation or clear the cursor. */
+    @Synchronized fun adoptMicrophone(message: String) {
+        if (!running) return
+        source = "microphone"
+        lastError = null
+        status = message
     }
     @Synchronized fun preview(): String = segments.lastOrNull()?.text.orEmpty()
     @Synchronized fun end(message: String = "监听已停止") { running = false; status = message; segments.clear() }
@@ -33,8 +41,18 @@ object LiveAudioSession {
     @Synchronized fun gap() { dropped++; gapAt = next + 1; lastError = "识别积压，部分音频已丢弃" }
     @Synchronized fun add(time: Long, text: String) {
         if (!running) return
-        lastError = null; status = "正在监听"
-        if (text.isBlank()) return
+        if (text.isBlank()) {
+            lastError = null
+            // Once per quiet streak. Leave the auto-mic status up so the switch stays visible.
+            if (!blankNoted && status != LiveAudioFallback.FALLBACK_STATUS) {
+                blankNoted = true
+                status = "已采集到声音，但这次没有识别出文字"
+            }
+            return
+        }
+        lastError = null
+        blankNoted = false
+        status = "正在监听"
         segments.addLast(Segment(++next, time, text.take(6000)))
         while (segments.size > 60) segments.removeFirst()
     }
