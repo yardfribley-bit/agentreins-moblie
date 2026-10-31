@@ -62,6 +62,7 @@ import com.wangzan101.mika.task.ResourceScheduler
 import com.wangzan101.mika.task.McpTaskHub
 import com.wangzan101.mika.task.FileChildRunStore
 import com.wangzan101.mika.task.TriggerRuntime
+import com.wangzan101.mika.relay.HubRelayRuntime
 
 /**
  * App 容器:进程里共用的服务都在这里建一份,经各自的 Owner 接口交给安卓入口(界面、服务、广播、provider),
@@ -160,6 +161,9 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
 
     /** Mika 自己的界面此刻看不看得见。 */
     val foreground = AppForeground()
+
+    /** 把任务步骤镜像到固定的 Hub Relay 会话。关着或网络失败都不影响任务。 */
+    val hubRelay: HubRelayRuntime by lazy { HubRelayRuntime.create(this) }
 
     /** 检查更新:查到的新版本跟进程走,侧栏、设置首页、关于页的红点看同一份。 */
     val updates: com.wangzan101.mika.about.UpdateChecker by lazy {

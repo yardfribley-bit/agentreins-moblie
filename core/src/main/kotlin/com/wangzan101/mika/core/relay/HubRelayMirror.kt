@@ -1,0 +1,287 @@
+package com.wangzan101.mika.core.relay
+
+import com.wangzan101.mika.core.record.RunEvent
+import java.io.IOException
+import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+
+/**
+ * 把运行事件排队送到固定的 Hub 会话。网络失败只重试、丢最旧的,不抛给任务。
+ * 还没有 session id 时用加入码 join 一次并交给 [onSession];不会创建会话。
+ */
+class HubRelayMirror(
+    private val transport: RelayTransport,
+    private val config: () -> RelayConfig,
+    private val environment: () -> RelayEnvironment,
+    private val log: (String) -> Unit = {},
+    private val onSession: (String) -> Unit = {},
+    private val onToken: (String) -> Boolean = { true },
+    private val onError: (String?) -> Unit = {},
+    private val onSeq: (Long) -> Unit = {},
+    private val now: () -> Long = System::currentTimeMillis,
+    private val sleep: (Long) -> Unit = { ms -> if (ms > 0) Thread.sleep(ms) },
+    private val heartbeatEveryMs: Long = 25_000,
+    private val maxQueue: Int = 200,
+    private val maxAttempts: Int = 6,
+    private val maxShot: Int = MAX_SCREENSHOT_BYTES,
+    startWorker: Boolean = true,
+) {
+    private val lock = Object()
+    private val queue = ArrayDeque<Outbound>()
+    private val counters = ConcurrentHashMap<String, AtomicInteger>()
+    @Volatile private var activeRuns = 0
+    @Volatile private var lastBeat = now()
+
+    init {
+        if (startWorker) Thread(::loop, "mika-hub-relay").apply { isDaemon = true }.start()
+    }
+
+    /** 有任务在跑时才心跳。关掉只是不再心跳,队列里的消息仍会发出。 */
+    fun retain(): AutoCloseable {
+        synchronized(lock) {
+            activeRuns++
+            lock.notifyAll()
+        }
+        return AutoCloseable {
+            synchronized(lock) {
+                if (activeRuns > 0) activeRuns--
+                lock.notifyAll()
+            }
+        }
+    }
+
+    fun submit(runId: String, event: RunEvent) {
+        try {
+            if (!config().enabled) return
+            val index = counters.getOrPut(runId) { AtomicInteger(0) }.getAndIncrement()
+            val message = RelayEventText.map(runId, index, event) ?: return
+            enqueue(message)
+        } catch (t: Throwable) {
+            log("drop")
+        }
+    }
+
+    fun submitShot(runId: String, mediaId: Int, png: ByteArray) {
+        try {
+            val cfg = config()
+            if (!cfg.enabled || !cfg.uploadScreenshots) return
+            val tooBig = png.size > maxShot
+            val text = if (tooBig) "画面 $mediaId 超过上限，未上传" else "画面 $mediaId"
+            enqueue(
+                RelayMessage("$runId:shot:$mediaId", RelayKind.PROGRESS, text),
+                bytes = if (tooBig) null else png,
+                fileName = "screen-%04d.png".format(Locale.US, mediaId),
+            )
+        } catch (t: Throwable) {
+            log("drop shot")
+        }
+    }
+
+    /** 设置页上的「加入」。失败写在 [onError],不抛。 */
+    fun joinNow() {
+        val cfg = config()
+        try {
+            if (!cfg.enabled) {
+                onError("off")
+                return
+            }
+            val token = resolveToken(cfg)
+            if (cfg.joinCode.isBlank()) {
+                onError(if (cfg.sessionId.isBlank()) "need join code" else null)
+                return
+            }
+            join(cfg, token)
+            onError(null)
+        } catch (e: RelayException) {
+            log("join ${e.status}")
+            onError(e.message)
+        } catch (e: IOException) {
+            log("join network")
+            onError("network")
+        } catch (e: Exception) {
+            log("join")
+            onError(e.message?.take(200) ?: "error")
+        }
+    }
+
+    /** 测试里把队列走完。失败会按次退避,由 [sleep] 决定要不要真的等。 */
+    fun drain(limit: Int = 500) {
+        var n = 0
+        while (n++ < limit && pending() > 0) step()
+    }
+
+    fun pump() = step()
+
+    internal fun pending(): Int = synchronized(lock) { queue.size }
+
+    private fun enqueue(message: RelayMessage, bytes: ByteArray? = null, fileName: String? = null) {
+        synchronized(lock) {
+            if (!config().enabled) return
+            while (queue.size >= maxQueue) queue.removeFirst()
+            queue.addLast(Outbound(message.requestId, message.kind, message.text, bytes, fileName))
+            lock.notifyAll()
+        }
+    }
+
+    private fun loop() {
+        while (true) {
+            try {
+                val waitMs = synchronized(lock) {
+                    if (queue.isNotEmpty() || heartbeatDue()) 0L else heartbeatEveryMs.coerceAtLeast(1)
+                }
+                if (waitMs > 0) {
+                    synchronized(lock) {
+                        if (queue.isEmpty()) lock.wait(waitMs)
+                    }
+                    continue
+                }
+                step()
+            } catch (t: Throwable) {
+                log("loop")
+                try {
+                    sleep(1_000)
+                } catch (_: Throwable) {
+                }
+            }
+        }
+    }
+
+    private fun step() {
+        val item = synchronized(lock) { queue.firstOrNull() }
+        if (item == null) {
+            if (heartbeatDue()) beat()
+            return
+        }
+        when (try {
+            deliver(item)
+        } catch (t: Throwable) {
+            log("deliver")
+            Outcome.Drop
+        }) {
+            Outcome.Success, Outcome.Drop -> synchronized(lock) {
+                if (queue.firstOrNull() === item) queue.removeFirst()
+            }
+            Outcome.Retry -> {
+                val keep = synchronized(lock) {
+                    if (queue.firstOrNull() !== item) false
+                    else {
+                        item.attempts++
+                        if (item.attempts >= maxAttempts) {
+                            queue.removeFirst()
+                            false
+                        } else true
+                    }
+                }
+                if (keep) sleep(backoff(item.attempts))
+            }
+        }
+    }
+
+    private fun deliver(item: Outbound): Outcome {
+        val cfg = config()
+        if (!cfg.enabled) {
+            synchronized(lock) { queue.clear() }
+            return Outcome.Drop
+        }
+        return try {
+            val token = resolveToken(cfg)
+            var session = cfg.sessionId.ifBlank { join(cfg, token) }
+            var rejoined = false
+            while (true) {
+                try {
+                    post(cfg, token, session, item)
+                    break
+                } catch (e: RelayException) {
+                    if (!rejoined && (e.status == 403 || e.status == 404) && cfg.joinCode.isNotBlank()) {
+                        rejoined = true
+                        session = join(cfg, token)
+                        continue
+                    }
+                    throw e
+                }
+            }
+            Outcome.Success
+        } catch (e: RelayException) {
+            log("send ${e.status}")
+            onError(e.message)
+            if (e.retryable) Outcome.Retry else Outcome.Drop
+        } catch (e: IOException) {
+            log("send network")
+            onError("network")
+            Outcome.Retry
+        } catch (e: Exception) {
+            log("send")
+            onError(e.message?.take(200) ?: "error")
+            Outcome.Drop
+        }
+    }
+
+    private fun post(cfg: RelayConfig, token: String, session: String, item: Outbound) {
+        if (item.bytes != null && item.fileId == null) {
+            item.fileId = transport.upload(cfg.baseUrl, token, session, item.fileName ?: "screen.png", item.bytes)
+        }
+        val seq = transport.send(
+            cfg.baseUrl, token, session, item.kind, item.text, item.requestId,
+            attachments = listOfNotNull(item.fileId),
+        )
+        lastBeat = now()
+        if (seq != null) onSeq(seq) else onError(null)
+    }
+
+    private fun beat() {
+        val cfg = config()
+        if (!cfg.enabled || cfg.token.isBlank() || cfg.sessionId.isBlank() || cfg.tokenUnreadable) return
+        try {
+            transport.heartbeat(cfg.baseUrl, cfg.token, cfg.sessionId)
+            lastBeat = now()
+        } catch (e: RelayException) {
+            lastBeat = now()
+            log("heartbeat ${e.status}")
+            onError(e.message)
+        } catch (e: IOException) {
+            lastBeat = now()
+            log("heartbeat network")
+            onError("network")
+        }
+    }
+
+    private fun heartbeatDue(): Boolean {
+        val cfg = config()
+        return activeRuns > 0 && cfg.enabled && cfg.sessionId.isNotBlank() && cfg.token.isNotBlank() && !cfg.tokenUnreadable &&
+            now() - lastBeat >= heartbeatEveryMs
+    }
+
+    private fun resolveToken(cfg: RelayConfig): String {
+        if (cfg.tokenUnreadable) throw RelayException(0, false, "token unreadable")
+        if (cfg.token.isNotBlank()) return cfg.token
+        if (cfg.alias.isBlank() || cfg.agentType.isBlank()) throw RelayException(0, false, "need token")
+        val token = transport.connect(cfg.baseUrl, cfg.alias, cfg.agentType)
+        if (!onToken(token)) throw RelayException(0, false, "token unreadable")
+        return token
+    }
+
+    private fun join(cfg: RelayConfig, token: String): String {
+        if (cfg.joinCode.isBlank()) throw RelayException(0, false, "need join code")
+        val id = transport.join(cfg.baseUrl, token, cfg.joinCode, environment())
+        onSession(id)
+        return id
+    }
+
+    private fun backoff(attempt: Int): Long {
+        val exp = (attempt - 1).coerceIn(0, 6)
+        return (500L shl exp).coerceAtMost(30_000L)
+    }
+
+    private class Outbound(
+        val requestId: String,
+        val kind: String,
+        val text: String,
+        val bytes: ByteArray?,
+        val fileName: String?,
+        var fileId: String? = null,
+        var attempts: Int = 0,
+    )
+
+    private enum class Outcome { Success, Retry, Drop }
+}
