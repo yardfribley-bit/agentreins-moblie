@@ -140,9 +140,22 @@ class HubRelaySettings(private val prefs: SharedPreferences, private val cipher:
     fun token(): String? = decodeToken(prefs.getString(TOKEN, null))
 
     /** 同步开着、已加入、并且要执行老板指令时,才在后台一直收。 */
-    fun wantsInbound(): Boolean {
+    fun wantsInbound(): Boolean = inboundBlocker() == null
+
+    /**
+     * 为什么这次不把收指令拉到前台。空表示条件齐了。
+     * 认领 Hub 任务不在这里:那个开关默认关,也不决定要不要收老板指令。
+     */
+    fun inboundBlocker(): String? {
         val c = config()
-        return c.enabled && c.runOwnerInstructions && c.sessionId.isNotBlank() && c.token.isNotBlank() && !c.tokenUnreadable
+        val reasons = buildList {
+            if (!c.enabled) add("relay disabled")
+            if (!c.runOwnerInstructions) add("owner instructions off")
+            if (c.sessionId.isBlank()) add("no session")
+            if (c.tokenUnreadable) add("token unreadable")
+            else if (c.token.isBlank()) add("no token")
+        }
+        return reasons.joinToString(", ").ifBlank { null }
     }
 
     private fun mcpUrl(): String = prefs.getString(BASE, null)?.trim()?.trimEnd('/')?.ifBlank { null } ?: DEFAULT_MCP_URL
