@@ -2,7 +2,7 @@
 <resources>
     <string name="notif_channel_prepare">后台准备</string>
     <string name="notif_preparing">agentreins-moblie 正在准备</string>
-    <string name="notif_result_title">agentreins-moblie 任务结果</string>
+    <string name="notif_result_title">AgentReins 任务结果</string>
     <string name="parallel_second_display_failed">第二块虚拟屏没能建起来,这次运行期间一次只进行一个任务</string>
     <string name="parallel_needs_14">安卓 14 以上才支持同时进行多个任务</string>
     <string name="parallel_low_ram">这台手机内存较小,一次只进行一个任务</string>

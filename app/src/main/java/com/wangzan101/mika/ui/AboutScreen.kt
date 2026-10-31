@@ -5,7 +5,6 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +15,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,8 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -55,7 +50,6 @@ import androidx.compose.ui.unit.dp
 import com.wangzan101.mika.R
 import com.wangzan101.mika.about.CheckStatus
 import com.wangzan101.mika.about.MikaLinks
-import com.wangzan101.mika.about.QrImage
 import com.wangzan101.mika.about.ReleaseInfo
 import com.wangzan101.mika.about.UpdateState
 import com.wangzan101.mika.ui.components.ButtonKind
@@ -88,7 +82,6 @@ fun AboutScreen(
     issueUrl: String,
     onCheck: () -> Unit,
     onOpenUrl: (String) -> Unit,
-    onSaveQr: () -> Boolean,
     onAskMikaToJoin: () -> Unit,
     onOpenLicense: () -> Unit,
     onBack: () -> Unit,
@@ -110,10 +103,6 @@ fun AboutScreen(
             }
         }
     }
-    val saveQr = {
-        Toast.makeText(context, if (onSaveQr()) AboutCopy.QR_SAVED else AboutCopy.QR_SAVE_FAILED, Toast.LENGTH_SHORT).show()
-    }
-
     PageScaffold(AboutCopy.TITLE, onBack) {
         Hero(versionName, build, beta)
 
@@ -165,6 +154,17 @@ fun AboutScreen(
                 style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center,
             )
             Text(AboutCopy.AUTHOR, Modifier.padding(top = 2.dp), style = MikaType.Hint, color = c.ink3)
+            Text(
+                AboutCopy.AUTHOR_BIO,
+                Modifier.padding(top = 6.dp, start = 24.dp, end = 24.dp),
+                style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center,
+            )
+            Text(
+                AboutCopy.WEBSITE,
+                Modifier.padding(top = 4.dp).clip(RoundedCornerShape(6.dp)).clickable { onOpenUrl(MikaLinks.SITE) }.padding(horizontal = 6.dp, vertical = 2.dp)
+                    .testTag("about-website"),
+                style = MikaType.Hint, color = c.accent, textAlign = TextAlign.Center,
+            )
         }
     }
 
@@ -182,7 +182,7 @@ fun AboutScreen(
             onDismiss = close,
         )
         AboutSheet.Diagnostics -> DiagnosticsSheet(diagnostics, onDismiss = close)
-        AboutSheet.Group -> GroupSheet(onSave = saveQr, onAskMika = { close(); onAskMikaToJoin() }, onDismiss = close)
+        AboutSheet.Group -> GroupSheet(onAskMika = { close(); onAskMikaToJoin() }, onDismiss = close)
         null -> Unit
     }
 }
@@ -324,19 +324,12 @@ private fun FeedbackOption(icon: ImageVector, title: String, sub: String, first:
 }
 
 @Composable
-private fun GroupSheet(onSave: () -> Unit, onAskMika: () -> Unit, onDismiss: () -> Unit) {
+private fun GroupSheet(onAskMika: () -> Unit, onDismiss: () -> Unit) {
     val c = MikaTheme.colors
     // 点一次就够:连点不会开出第二个一样的任务
     var asked by remember { mutableStateOf(false) }
-    // 没有 sjtdyt 自己的二维码时只展示微信号,扫码和保存都关掉(见 QrImage)。
-    val showQr = QrImage.SHOW_QR
-    AboutSheetFrame(
-        AboutCopy.GROUP_SHEET_TITLE,
-        if (showQr) AboutCopy.GROUP_SHEET_SUB else AboutCopy.GROUP_SHEET_SUB_ID,
-        "group-sheet",
-        onDismiss,
-    ) {
-        if (showQr) WeChatQr(onSave) else WeChatId()
+    AboutSheetFrame(AboutCopy.GROUP_SHEET_TITLE, AboutCopy.GROUP_SHEET_SUB_ID, "group-sheet", onDismiss) {
+        WeChatId()
         HorizontalDivider(Modifier.padding(top = 16.dp), color = c.hair)
         Text(AboutCopy.GROUP_ALREADY_ADDED, Modifier.fillMaxWidth().padding(top = 12.dp), style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center)
         MikaButton(
@@ -362,21 +355,3 @@ private fun ColumnScope.WeChatId() {
     )
 }
 
-/** 作者微信二维码。只有 [QrImage.SHOW_QR] 时才画,避免把别人的码展示或存进相册。 */
-@Composable
-private fun ColumnScope.WeChatQr(onSave: () -> Unit) {
-    val c = MikaTheme.colors
-    // 二维码最高占屏幕约三分之一,常见手机上不用滚就能看到底下的按钮
-    val qrHeight = (LocalConfiguration.current.screenHeightDp * 0.34f).coerceAtMost(280f).dp
-    val qr = painterResource(QrImage.RES)
-    Image(
-        qr, contentDescription = AboutCopy.GROUP_SHEET_TITLE,
-        Modifier.padding(top = 12.dp, bottom = 6.dp).align(Alignment.CenterHorizontally)
-            .height(qrHeight).aspectRatio(qr.intrinsicSize.width / qr.intrinsicSize.height)
-            .clip(RoundedCornerShape(12.dp))
-            .pointerInput(Unit) { detectTapGestures(onLongPress = { onSave() }) }
-            .testTag("wechat-qr"),
-    )
-    Text(AboutCopy.GROUP_HINT, Modifier.fillMaxWidth(), style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center)
-    MikaButton(AboutCopy.SAVE_QR, onSave, Modifier.fillMaxWidth().padding(top = 14.dp), kind = ButtonKind.Tonal)
-}

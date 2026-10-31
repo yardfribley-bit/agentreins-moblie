@@ -24,9 +24,9 @@
     <string name="about_group">Join the beta group</string>
     <string name="about_group_sub">Add the author on WeChat to join the agentreins-moblie beta group</string>
     <string name="about_group_sheet_title">Join the agentreins-moblie beta group</string>
-    <string name="about_group_sheet_sub">Scan to add the author on WeChat with the note “agentreins-moblie”, and you’ll be added to the group</string>
+    <string name="about_group_sheet_sub">Add the author on WeChat (ID below) with the note “agentreins-moblie”, and you’ll be added to the group</string>
     <string name="about_group_sheet_sub_id">Search this WeChat ID and add the author with the note “agentreins-moblie”. You’ll be added to the group.</string>
-    <string name="about_group_hint">Long-press the image to save · or scan it in WeChat</string>
+    <string name="about_group_hint">Search this ID in WeChat</string>
     <string name="about_group_id">WeChat ID %1$s</string>
     <string name="about_group_id_hint">Open WeChat, tap search at the top, and enter this ID</string>
     <string name="about_save_qr">Save QR code</string>
@@ -40,7 +40,9 @@
     <string name="about_guide_sub">Getting started; add app knowledge even without coding</string>
     <string name="about_data_note">What you send agentreins-moblie — messages, screen content and screenshots — goes only to the model provider you set up. agentreins-moblie has no servers of its own and collects none of your data; checking for updates only contacts GitHub.</string>
     <string name="about_license_link">Apache-2.0 license</string>
-    <string name="about_author">AgentReins · © 2026</string>
+    <string name="about_author">Built by smith · AgentReins · © 2026</string>
+    <string name="about_author_bio">Former 360 security architect and Sangfor researcher. Now working on agent security and making agents visible and observable.</string>
+    <string name="about_website">www.agentreins.info</string>
     <string name="about_license_title">Apache-2.0 License</string>
     <string name="about_update_download">Download from GitHub</string>
     <string name="about_update_mirror">Mirror download (China)</string>

@@ -28,7 +28,7 @@ class SystemPromptTest {
 
     @Test fun loadsIdentityAndPhoneRules() {
         val p = rules()
-        assertTrue(SystemPrompt.identity().startsWith("You are agentreins-moblie"))
+        assertTrue(SystemPrompt.identity().startsWith("You are AgentReins"))
         assertTrue("virtual display" in p)
         assertTrue("hand_to_user" in p && "ask_user" in p && "end_not_done" in p)
         assertFalse("adb" in p.lowercase())

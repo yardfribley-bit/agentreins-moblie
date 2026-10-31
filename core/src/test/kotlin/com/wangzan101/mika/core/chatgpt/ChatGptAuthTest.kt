@@ -83,7 +83,7 @@ class ChatGptAuthTest {
         assertTrue(url.startsWith("$issuer/api/accounts/authorize?"))
         val q = query(url)
         assertEquals("dynamic_agent_client", q["client_id"])
-        assertEquals("Mika", q["agent_name_hint"])
+        assertEquals("AgentReins", q["agent_name_hint"])
         assertEquals("urn:uuid:h", q["ext_agent_host_id"])
         assertEquals("code", q["response_type"])
         assertEquals("http://127.0.0.1:4321/auth/callback", q["redirect_uri"])

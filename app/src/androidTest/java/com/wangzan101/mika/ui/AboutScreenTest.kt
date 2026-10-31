@@ -38,19 +38,18 @@ class AboutScreenTest {
     @get:Rule val compose = createComposeRule()
 
     private val r020 = ReleaseInfo(
-        "0.2.0", "Mika 0.2.0", "### 新增\n- 附件面板", "2026-11-05",
-        "https://github.com/wangzan101/Mika/releases/tag/v0.2.0", "https://github.com/x/mika-0.2.0.apk", "https://pan.example.cn/s/abc",
+        "0.2.0", "AgentReins 0.2.0", "### 新增\n- 附件面板", "2026-11-05",
+        "https://github.com/yardfribley-bit/agentreins-moblie/releases/tag/v0.2.0", "https://github.com/x/agentreins-0.2.0.apk", "https://pan.example.cn/s/abc",
     )
 
     private class Calls {
         val urls = mutableListOf<String>()
         var checks = 0
-        var saves = 0
         var licenses = 0
         var asks = 0
     }
 
-    private val sampleDiagnostics = "Mika 诊断信息 / Mika diagnostics\n\n[App]\nversion: 0.1.0 (build abc1234)\n"
+    private val sampleDiagnostics = "AgentReins 诊断信息 / AgentReins diagnostics\n\n[App]\nversion: 0.1.0 (build abc1234)\n"
 
     private fun about(update: UpdateState = UpdateState()): Calls {
         val calls = Calls()
@@ -59,7 +58,7 @@ class AboutScreenTest {
                 AboutScreen(
                     versionName = "0.1.0", build = "abc1234", beta = true, update = update, issueUrl = "issue://prefilled",
                     onCheck = { calls.checks++ }, onOpenUrl = { calls.urls += it },
-                    onSaveQr = { calls.saves++; true }, onAskMikaToJoin = { calls.asks++ }, onOpenLicense = { calls.licenses++ }, onBack = {},
+                    onAskMikaToJoin = { calls.asks++ }, onOpenLicense = { calls.licenses++ }, onBack = {},
                     diagnostics = { sampleDiagnostics },
                 )
             }
@@ -75,7 +74,7 @@ class AboutScreenTest {
     @Test
     fun showsHeroRowsNoteAndFooter() {
         about()
-        compose.onNodeWithText("Mika").assertIsDisplayed()
+        compose.onNodeWithText("agentreins-moblie").assertIsDisplayed()
         compose.onNodeWithText(AboutCopy.TAGLINE).assertIsDisplayed()
         compose.onNodeWithText("版本 0.1.0").assertIsDisplayed()
         compose.onNodeWithText("Beta").assertIsDisplayed()
@@ -142,7 +141,7 @@ class AboutScreenTest {
     /** 加作者微信走微信号,不展示、也不保存还没换成 sjtdyt 的二维码。 */
     @Test
     fun feedbackWeChatOpensIdSheet() {
-        val calls = about()
+        about()
         compose.onNodeWithText("反馈问题").performClick()
         compose.awaitOne(AboutCopy.FEEDBACK_WECHAT).performClick()
         compose.awaitOne(AboutCopy.GROUP_SHEET_TITLE)
@@ -150,7 +149,6 @@ class AboutScreenTest {
         compose.onNodeWithText(AboutCopy.SAVE_QR).assertDoesNotExist()
         compose.onNodeWithTag("wechat-id").assertIsDisplayed()
         compose.onNodeWithText(AboutCopy.GROUP_ID).assertIsDisplayed()
-        assertEquals(0, calls.saves)
     }
 
     @Test
@@ -234,7 +232,7 @@ class AboutScreenTest {
         assertEquals(listOf(MikaLinks.RELEASES), calls.urls)
     }
 
-    /** 侧栏最底下一行两个:设置靠左、关于 Mika 靠右(红点在最右边);有新版时关于带红点。 */
+    /** 侧栏最底下一行两个:设置靠左、关于 agentreins-moblie 靠右(红点在最右边);有新版时关于带红点。 */
     @Test
     fun drawerFooterHasSettingsAndAbout() {
         val calls = mutableListOf<String>()
@@ -249,12 +247,12 @@ class AboutScreenTest {
             }
         }
         compose.onNodeWithText("设置").assertIsDisplayed()
-        compose.onNodeWithText("关于 Mika").assertIsDisplayed()
+        compose.onNodeWithText("关于 agentreins-moblie").assertIsDisplayed()
         compose.onNodeWithTag("update-dot", useUnmergedTree = true).assertExists()
         val footer = compose.onNodeWithTag("drawer-footer").getUnclippedBoundsInRoot()
         // 量文字本身(未合并的树):合并后的可点行节点比文字宽,量它判断不了左右半边
         val settings = compose.onNodeWithText("设置", useUnmergedTree = true).getUnclippedBoundsInRoot()
-        val about = compose.onNodeWithText("关于 Mika", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val about = compose.onNodeWithText("关于 agentreins-moblie", useUnmergedTree = true).getUnclippedBoundsInRoot()
         val dot = compose.onNodeWithTag("update-dot", useUnmergedTree = true).getUnclippedBoundsInRoot()
         val mid = (footer.left + footer.right) / 2
         assertTrue(settings.right < mid)
@@ -262,7 +260,7 @@ class AboutScreenTest {
         // 关于那一项贴着右边:红点离行的右边只隔两层内边距(行 12dp + 项 12dp)
         assertTrue(footer.right - dot.right <= 25.dp)
         compose.onNodeWithText("设置").performClick()
-        compose.onNodeWithText("关于 Mika").performClick()
+        compose.onNodeWithText("关于 agentreins-moblie").performClick()
         assertEquals(listOf("settings", "about"), calls)
     }
 
@@ -276,11 +274,11 @@ class AboutScreenTest {
                 )
             }
         }
-        compose.onNodeWithText("关于 Mika").assertIsDisplayed()
+        compose.onNodeWithText("关于 agentreins-moblie").assertIsDisplayed()
         compose.onAllNodesWithTag("update-dot", useUnmergedTree = true).assertCountEquals(0)
     }
 
-    /** 设置首页「关于 Mika」一行:有新版写「x 可更新」带红点。 */
+    /** 设置首页「关于 agentreins-moblie」一行:有新版写「x 可更新」带红点。 */
     @Test
     fun settingsAboutRowShowsUpdate() {
         compose.setContent {

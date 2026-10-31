@@ -59,11 +59,11 @@ class BridgeDeviceTest {
         // 名字带随机串,下载目录里不会撞名;工作区外的文件先被路径规则拒掉
         val name = "mika-bridge-test-${UUID.randomUUID().toString().take(8)}.txt"
         val r = sh("echo hi > $name; mika share $name; echo rc=$?; mika share /etc/passwd; echo rc=$?")
-        assertTrue(r.output, r.output.contains("\"savedAs\":\"Download/Mika/$name\""))
+        assertTrue(r.output, r.output.contains("\"savedAs\":\"Download/AgentReins/$name\""))
         assertTrue(r.output, r.output.contains("rc=0"))
         assertTrue(r.output, r.output.contains("path_outside_workspace"))
         assertEquals(r.output, 1, Regex("rc=1").findAll(r.output).count())
-        assertEquals(listOf("Download/Mika/$name"), shared.map { it.savedAs })
+        assertEquals(listOf("Download/AgentReins/$name"), shared.map { it.savedAs })
     }
 
     @Test fun bridgeWorksWithNetOff() {

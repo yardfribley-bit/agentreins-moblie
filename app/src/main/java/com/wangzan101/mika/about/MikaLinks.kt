@@ -6,6 +6,7 @@ import java.net.URLEncoder
 
 /** Mika 对外的地址都在这里:仓库、问题、作者、检查更新用的两个来源。换地址只改这一处。 */
 object MikaLinks {
+    const val SITE = "https://www.agentreins.info"
     const val REPO = "https://github.com/yardfribley-bit/agentreins-moblie"
     const val REPO_LABEL = "github.com/yardfribley-bit/agentreins-moblie"
     const val README = "$REPO#readme"

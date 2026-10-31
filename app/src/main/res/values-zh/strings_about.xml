@@ -24,9 +24,9 @@
     <string name="about_group">加入内测群</string>
     <string name="about_group_sub">加作者微信，拉你进 agentreins-moblie 内测体验群</string>
     <string name="about_group_sheet_title">加入 agentreins-moblie 内测体验群</string>
-    <string name="about_group_sheet_sub">扫码加作者微信，备注「agentreins-moblie」，拉你进群</string>
+    <string name="about_group_sheet_sub">加作者微信（微信号见下），备注「agentreins-moblie」，拉你进群</string>
     <string name="about_group_sheet_sub_id">搜索这个微信号加作者，备注「agentreins-moblie」，拉你进群</string>
-    <string name="about_group_hint">长按图片保存 · 或在微信里扫一扫</string>
+    <string name="about_group_hint">在微信里搜索这个微信号</string>
     <string name="about_group_id">微信号 %1$s</string>
     <string name="about_group_id_hint">打开微信，点顶部搜索，输入这个微信号</string>
     <string name="about_save_qr">保存二维码</string>
@@ -40,7 +40,9 @@
     <string name="about_guide_sub">上手指南；不会写代码也能补充 App 知识</string>
     <string name="about_data_note">你发给 agentreins-moblie 的话、屏幕内容和截图，只发给你自己设置的模型服务商。agentreins-moblie 没有自己的服务器，不收集你的数据；检查更新时只访问 GitHub。</string>
     <string name="about_license_link">Apache-2.0 开源许可</string>
-    <string name="about_author">由 AgentReins 开发 · © 2026</string>
+    <string name="about_author">由 smith 开发 · AgentReins · © 2026</string>
+    <string name="about_author_bio">前 360 安全架构专家、深信服安全研究员，研究流量安全、网络空间测绘，目前研究 agent 安全与智能体可视化可观测。</string>
+    <string name="about_website">www.agentreins.info</string>
     <string name="about_license_title">Apache-2.0 许可证</string>
     <string name="about_update_download">从 GitHub 下载</string>
     <string name="about_update_mirror">国内备用下载</string>

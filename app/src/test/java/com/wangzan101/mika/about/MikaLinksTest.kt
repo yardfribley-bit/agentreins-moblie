@@ -56,6 +56,7 @@ class MikaLinksTest {
         assertEquals("https://github.com/yardfribley-bit/agentreins-moblie/releases", MikaLinks.RELEASES)
         assertEquals("https://x.com/agentreins", MikaLinks.X)
         assertEquals("@agentreins", MikaLinks.X_HANDLE)
+        assertEquals("https://www.agentreins.info", MikaLinks.SITE)
         assertTrue(MikaLinks.LATEST_RELEASE_API.endsWith("/repos/yardfribley-bit/agentreins-moblie/releases/latest"))
         assertFalse(MikaLinks.LATEST_RELEASE_API.contains("wangzan101"))
     }
@@ -92,13 +93,13 @@ class MikaLinksTest {
         assertFalse(t.contains("Wang Zan"))
         assertFalse(t.contains("QR"))
         assertEquals(2, t.lines().size)
-        assertEquals("AgentReins · © 2026", com.wangzan101.mika.ui.AboutCopy.AUTHOR)
+        assertEquals("Built by smith · AgentReins · © 2026", com.wangzan101.mika.ui.AboutCopy.AUTHOR)
     }
 
     @Test
     fun authorCreditNamesTheFork() {
-        assertEquals("由 AgentReins 开发 · © 2026", com.wangzan101.mika.ui.AboutCopy.AUTHOR)
+        assertEquals("由 smith 开发 · AgentReins · © 2026", com.wangzan101.mika.ui.AboutCopy.AUTHOR)
         assertFalse(com.wangzan101.mika.ui.AboutCopy.AUTHOR.contains("王赞"))
-        assertFalse(QrImage.SHOW_QR)
+        assertTrue(com.wangzan101.mika.ui.AboutCopy.AUTHOR_BIO.contains("360"))
     }
 }
