@@ -8,13 +8,13 @@
 
 ## 当前版本与安装包
 
-当前版本为 **0.1.13，构建号 14**。应用显示名称和 AI 身份为 agentreins-moblie；内部包名仍为 com.wangzan101.mika，以兼容已有配置和数据。
+当前版本为 **0.1.14，构建号 15**。应用显示名称和 AI 身份为 agentreins-moblie；内部包名仍为 com.wangzan101.mika，以兼容已有配置和数据。
 
 APK 文件名自动采用以下格式：
 
 ```text
 agentreins-moblie-v<版本号>-build<构建号>-<构建类型>.apk
-agentreins-moblie-v0.1.13-build14-debug.apk
+agentreins-moblie-v0.1.14-build15-debug.apk
 ```
 
 公开仓库：[yardfribley-bit/agentreins-moblie](https://github.com/yardfribley-bit/agentreins-moblie)。本机私人预配置 APK 位于 app/build/outputs/apk/debug/，包含个人 Key，不随公开仓库上传。目前未发布公开安装包；从源码构建普通版本后自行填写 Key。

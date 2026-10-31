@@ -14,6 +14,7 @@ import android.text.InputType
 import android.widget.*
 import com.wangzan101.mika.settings.FeatureFlags
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import kotlinx.coroutines.*
 
 /** Visible setup and explicit Android permission grant; no background permission prompts. */
 class LiveAudioActivity : Activity() {
@@ -23,6 +24,7 @@ class LiveAudioActivity : Activity() {
     private lateinit var key: EditText
     private lateinit var mic: Switch
     private lateinit var status: TextView
+    private val diagnostics = MainScope()
     private val handler = Handler(Looper.getMainLooper())
     private val refresh = object : Runnable {
         override fun run() { status.text = listOf(LiveAudioSession.status, LiveAudioSession.preview()).filter { it.isNotBlank() }.joinToString("\n"); handler.postDelayed(this, 1000) }
@@ -41,6 +43,35 @@ class LiveAudioActivity : Activity() {
         mic = Switch(this).apply { text = "使用麦克风（需要直播外放，会收录周围声音）"; isChecked = settings.microphone; layout.addView(this) }
         text("默认仅采集抖音 App 内部音频。若抖音或系统禁止采集，可能只能录到静音，可停止后尝试麦克风外放。监听期间请关闭「被操作的 App 静音」。内部采集不录制屏幕画面。")
         status = text(LiveAudioSession.status)
+        val diagnosis = text("可先测试接口，再开启录音。测试会发送内置短语音，按语音服务计费，不使用麦克风。")
+        diagnosis.setTextIsSelectable(true)
+        Button(this).apply {
+            text = "测试语音识别接口（不录音）"
+            setOnClickListener {
+                val url = endpoint.text.toString().trim().toHttpUrlOrNull()
+                if (url == null || !url.isHttps || url.username.isNotEmpty() || url.password.isNotEmpty()) {
+                    toast("请填写有效的 HTTPS 语音识别接口地址"); return@setOnClickListener
+                }
+                val apiKey = key.text.toString().trim()
+                val modelName = model.text.toString().trim()
+                if (apiKey.isBlank() || modelName.isBlank()) { toast("请填写语音识别 Key 和模型"); return@setOnClickListener }
+                isEnabled = false
+                diagnosis.text = "正在测试 ${url.host}，最长可能需要约 80 秒…"
+                diagnostics.launch {
+                    try {
+                        val transcript = withContext(Dispatchers.IO) {
+                            val pcm = assets.open("audio/connection-check.pcm").use { it.readBytes() }
+                            LiveTranscriber(url.toString(), apiKey, modelName).transcribe(pcm)
+                        }
+                        diagnosis.text = if (transcript.isBlank()) "接口已响应，但测试语音未识别出文字，请检查语音模型。"
+                            else "语音接口正常。测试识别：$transcript\n若直播仍无文字，请检查收音方式、静音开关和权限。"
+                    } catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { diagnosis.text = "接口测试失败：${e.message ?: "未知错误"}" }
+                    finally { isEnabled = true }
+                }
+            }
+            layout.addView(this)
+        }
         Button(this).apply {
             text = "保存并开始监听"
             setOnClickListener {
@@ -96,4 +127,5 @@ class LiveAudioActivity : Activity() {
     private fun toast(value: String) { Toast.makeText(this, value, Toast.LENGTH_LONG).show() }
     override fun onResume() { super.onResume(); handler.post(refresh) }
     override fun onPause() { handler.removeCallbacks(refresh); super.onPause() }
+    override fun onDestroy() { diagnostics.cancel(); super.onDestroy() }
 }

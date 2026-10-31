@@ -8,13 +8,13 @@ This is a customized fork of [Mika](https://github.com/wangzan101/Mika). Origina
 
 ## Version and installation
 
-Current version: **0.1.13, build 14**. The application label and assistant identity are agentreins-moblie. The internal package remains com.wangzan101.mika for compatibility with existing configuration and data.
+Current version: **0.1.14, build 15**. The application label and assistant identity are agentreins-moblie. The internal package remains com.wangzan101.mika for compatibility with existing configuration and data.
 
 APK filenames are generated automatically:
 
 ```text
 agentreins-moblie-v<version>-build<versionCode>-<variant>.apk
-agentreins-moblie-v0.1.13-build14-debug.apk
+agentreins-moblie-v0.1.14-build15-debug.apk
 ```
 
 Public repository: [yardfribley-bit/agentreins-moblie](https://github.com/yardfribley-bit/agentreins-moblie). Personal preconfigured APKs remain local under app/build/outputs/apk/debug/ and are not uploaded because they contain personal credentials. No public APK has been released; build an ordinary version from source and enter your own key.

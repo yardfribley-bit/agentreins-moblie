@@ -36,4 +36,29 @@ class LiveTranscriberTest {
             assertFalse(error.message!!.contains("sensitive")); assertEquals(1, server.requestCount)
         }
     }
+    @Test fun distinguishesNetworkFailures() {
+        assertTrue(LiveTranscriber.networkFailure(java.net.UnknownHostException()).message!!.contains("ASR_DNS"))
+        assertTrue(LiveTranscriber.networkFailure(java.net.SocketTimeoutException()).message!!.contains("ASR_TIMEOUT"))
+        assertTrue(LiveTranscriber.networkFailure(javax.net.ssl.SSLHandshakeException("private-details")).message!!.contains("ASR_TLS"))
+        assertTrue(LiveTranscriber.networkFailure(java.net.ConnectException()).retryable)
+    }
+    @Test fun givesActionableHttpErrorWithoutLeakingKey() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setResponseCode(403).setBody("""{"error":{"message":"Region restricted; token test-key"}}"""))
+            val error = runCatching { LiveTranscriber(server.url("/asr").toString(), "test-key", "asr").transcribe(byteArrayOf(0, 0)) }.exceptionOrNull()
+            assertNotNull(error)
+            assertTrue(error!!.message!!.contains("HTTP 403"))
+            assertTrue(error.message!!.contains("Region restricted"))
+            assertFalse(error.message!!.contains("test-key"))
+            assertEquals(1, server.requestCount)
+        }
+    }
+    @Test fun retriesTransientServerFailureOnce() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setResponseCode(503).setBody("{}"))
+            server.enqueue(MockResponse().setBody("{\"text\":\"recovered\"}"))
+            assertEquals("recovered", LiveTranscriber(server.url("/asr").toString(), "test-key", "asr").transcribe(byteArrayOf(0, 0)))
+            assertEquals(2, server.requestCount)
+        }
+    }
 }
