@@ -392,6 +392,7 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                         onForgotten = { id -> memoryRuntime.scope.launch(Dispatchers.IO) { memoryRuntime.stripMemory(setOf(id)) } },
                         runnableScripts = GuideCatalog.loadBundled().runnableScripts(),
                         appDrafts = memoryRuntime.appKnowledge(),
+                        experienceBook = memoryRuntime.experiences(),
                     )
                 }
             }

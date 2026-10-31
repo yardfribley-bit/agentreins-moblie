@@ -28,8 +28,11 @@ object MemoryContext {
         var procedures = 0
         fun procedureFits(m: MemoryItem) = m.kind != MemoryKind.procedure || procedures < MAX_PROCEDURES
 
+        // 回答风格和语言对每一句都生效,不靠和当前任务撞词,也不占置顶名额。
+        val globals = active.filter { PreferenceLearner.isAlwaysOn(it) }
+            .sortedByDescending { it.updatedAt }
         val pinned = mutableListOf<MemoryItem>()
-        for (m in active.filter { it.pinned }
+        for (m in active.filter { it.pinned && !PreferenceLearner.isAlwaysOn(it) }
             .sortedWith(compareByDescending<MemoryItem> { score[it.id] ?: 0.0 }.thenByDescending { it.updatedAt })) {
             if (pinned.size == MAX_PINNED) break
             if (!procedureFits(m)) continue
@@ -39,13 +42,13 @@ object MemoryContext {
         val relevant = mutableListOf<MemoryItem>()
         for ((item, s) in ranked) {
             if (s < MIN_SCORE || relevant.size == MAX_RELEVANT) break
-            if (item.pinned || !procedureFits(item)) continue
+            if (item.pinned || PreferenceLearner.isAlwaysOn(item) || !procedureFits(item)) continue
             if (item.kind == MemoryKind.procedure) procedures++
             relevant += item
         }
 
-        // 保留优先级从高到低:置顶(按分数)在前,相关(按分数)在后;超长从末尾去掉
-        val keep = (pinned + relevant).toMutableList()
+        // 保留优先级从高到低:风格和语言、置顶、相关;超长从末尾去掉,风格留到最后
+        val keep = (globals + pinned + relevant).distinctBy { it.id }.toMutableList()
         while (keep.isNotEmpty()) {
             val (message, ids) = render(keep, rewrite)
             if (message.length <= MAX_CHARS) return MemoryBlock(message, ids)

@@ -59,6 +59,8 @@ fun MemoryScreen(vm: MemoryViewModel, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     val ui by vm.ui.collectAsState()
     var editing by remember { mutableStateOf<Row?>(null) }
+    var editingExperience by remember { mutableStateOf<ExperienceRow?>(null) }
+    var actingExperience by remember { mutableStateOf<ExperienceRow?>(null) }
     var acting by remember { mutableStateOf<Row?>(null) }
     var adding by remember { mutableStateOf(false) }
     var searching by rememberSaveable { mutableStateOf(false) }
@@ -85,9 +87,17 @@ fun MemoryScreen(vm: MemoryViewModel, onBack: () -> Unit) {
 
         when (ui.segment) {
             Segment.Memories -> {
-                if (ui.rows.isEmpty()) {
+                if (ui.rows.isEmpty() && ui.experiences.isEmpty()) {
                     GroupLabel("")
                     EmptyNote(if (ui.query.isBlank()) stringResource(R.string.memory_empty) else stringResource(R.string.not_found))
+                }
+                if (ui.experiences.isNotEmpty()) {
+                    GroupLabel(stringResource(R.string.memory_experiences))
+                    GroupCard {
+                        ui.experiences.forEachIndexed { i, e ->
+                            ListRow(null, e.title, e.detail, first = i == 0, onClick = { actingExperience = e })
+                        }
+                    }
                 }
                 KIND_GROUPS.forEach { (kind, label) ->
                     val rows = ui.rows.filter { it.kind == kind }
@@ -150,6 +160,22 @@ fun MemoryScreen(vm: MemoryViewModel, onBack: () -> Unit) {
             ),
             onDismiss = { acting = null },
         )
+    }
+    actingExperience?.let { e ->
+        ActionSheet(
+            e.title,
+            listOf(
+                SheetAction(stringResource(R.string.edit_it)) { editingExperience = e },
+                SheetAction(stringResource(R.string.confirm_delete), destructive = true) { vm.deleteExperience(e.id) },
+            ),
+            onDismiss = { actingExperience = null },
+        )
+    }
+    editingExperience?.let { e ->
+        EditDialog(stringResource(R.string.memory_experiences), e.title, emptyList(), onDismiss = { editingExperience = null }) { content, _, _ ->
+            vm.editExperience(e.id, content)
+            editingExperience = null
+        }
     }
     editing?.let { r ->
         EditDialog(stringResource(R.string.edit_it), r.content, r.keywords, onDismiss = { editing = null }) { content, keywords, _ -> vm.edit(r.id, content, keywords); editing = null }

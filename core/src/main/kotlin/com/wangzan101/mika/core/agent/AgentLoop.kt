@@ -152,6 +152,12 @@ class AgentLoop(
     private val reviewFinalAnswer: Boolean = true,
     /** 同一网站、App 里连着做对外动作(发送、提交)时两次之间的间隔;默认不等。 */
     private val outwardPacing: OutwardPacing = OutwardPacing.Off,
+    /** 以前办过的同类任务,短摘要。 */
+    private val recalledTasks: String? = null,
+    /** 以前走通过的做法,开局当推荐计划。 */
+    private val experiencePlan: String? = null,
+    /** 调试日志:注入的记忆和推荐计划(已脱敏)。默认不写。 */
+    private val debugLog: (tag: String, message: String) -> Unit = { _, _ -> },
 ) {
     init {
         require(maxSteps > 0) { "maxSteps must be positive" }
@@ -377,8 +383,6 @@ class AgentLoop(
         // 用户回答了追问、还没做别的事:这时就要交回答,先提醒一次照做(见 [owedFollowUp])
         var answered: String? = null
         var followUpNudged = false
-        var resultReadNudged = false
-        var languageNudged = false
         fun facts() = ReviewFacts(acted, paymentHandedOver || recorder.outwardActs > 0, recorder.lastChangeMark?.let { !tools.readSince(it) } == true)
         media.clear()
         gapsNudged = false
@@ -389,9 +393,12 @@ class AgentLoop(
         val labels = installed.toMap()
         val matched = knowledge?.matchTask(task, Int.MAX_VALUE, installed).orEmpty()
         val recommended = if (skills != null && recommendSkills) GuideRecommender.recommend(skills, task) else null
+        val memoryText = listOfNotNull(ProfileContext.render(profileSnapshot), block?.message, recalledTasks, experiencePlan)
+            .filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }?.joinToString("\n\n")
+        debugLog(CONTEXT_LOG, Redactor.text(memoryText ?: "(none)"))
         val start = ctx.start(
             task, priorTurns = context?.let { (it.parts.single() as Part.Text).text },
-            memory = listOfNotNull(ProfileContext.render(profileSnapshot), block?.message).takeIf { it.isNotEmpty() }?.joinToString("\n\n"),
+            memory = memoryText,
             channel = if (knowledge != null) channelLine(matched) else null,
             knowledge = matched, knowledgeNote = toolsNote(tools.scriptsOffered()), withLinks = flags.deepLinks,
             skillsIndex = recommended?.index, indexedSkills = recommended?.ids.orEmpty(), skill = recommended?.personal,
@@ -518,21 +525,8 @@ class AgentLoop(
                     continue
                 }
                 val currentFacts = facts()
-                if (!reviewFinalAnswer && currentFacts.unreadChange && !resultReadNudged) {
-                    resultReadNudged = true
-                    history += ctx.notice("operation_result", "The result of the last action has not been read yet. Look at the current screen first to confirm the actual state, then answer; if it cannot be read, say so plainly.")
-                    continue
-                }
-                // 回答的正文不是用户最近那句的语言:退回一次整段改写;改写后还不对照样交出
-                if (!languageNudged) {
-                    val mismatch = ReplyLanguage.mismatch(latestUserWords(history), text)
-                    if (mismatch != null) {
-                        languageNudged = true
-                        TurnPolicy.language(mismatch).let { history += ctx.notice(it.source, it.text) }
-                        continue
-                    }
-                }
-                // 不带调用的回复就是最终回答；产品路径只整理来源。
+                // 不带调用的完整回复就是最终回答。不再为了补看屏幕或改写语言继续一轮:
+                // 用户的语言已经写在运行时状态和置顶的回答风格里,补一轮会在答完之后再截屏、再答一次。
                 val result = conclude(task, text, step, currentFacts, history)
                 if (result != null) {
                     // 交出之前还有插话(核对、整理来源时到的):不收尾,带着它接着做;没有就关上收件箱,之后的话才是下一件事
@@ -716,11 +710,6 @@ class AgentLoop(
         if (last == null || last.role == Role.Assistant) history += Message(Role.User, listOf(state), Author.Mika)
         else history[history.lastIndex] = last.copy(parts = last.parts + state)
     }
-
-    /** 用户最近一句话的文字(不含接在后面的运行时状态和插话标记)。 */
-    private fun latestUserWords(history: List<Message>): String =
-        history.lastOrNull { it.author == Author.User }?.let(ContextBuilder::withoutRuntimeState)?.parts?.filterIsInstance<Part.Text>()
-            ?.joinToString(" ") { it.text.removePrefix(STEER_MARKER) }.orEmpty()
 
     private suspend fun channelLine(matched: List<KnowledgeEntry>): String? {
         val facts = channelFacts ?: return null
@@ -918,6 +907,8 @@ class AgentLoop(
 
     companion object {
         const val STEER_MARKER = "<user_interjection>"
+        /** 注入进模型的记忆、以往任务和推荐计划。logcat 按这个标签过滤。 */
+        const val CONTEXT_LOG = "MikaContext"
         const val DEFAULT_MAX_STEPS = 60
         /** 正常任务没有固定步数截止；显式步数预算只用于评测和指定上限的子任务。 */
         const val UNLIMITED_STEPS = Int.MAX_VALUE

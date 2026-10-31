@@ -2,10 +2,18 @@ package com.wangzan101.mika.memory
 
 import android.content.Context
 import com.wangzan101.mika.chat.ConversationStore
+import com.wangzan101.mika.core.experience.Experience
+import com.wangzan101.mika.core.experience.ExperienceBook
+import com.wangzan101.mika.core.experience.ExperiencePersistence
 import com.wangzan101.mika.core.memory.MemoryItem
 import com.wangzan101.mika.core.memory.MemoryNote
 import com.wangzan101.mika.core.memory.MemoryStore
 import com.wangzan101.mika.core.memory.ProfileStore
+import com.wangzan101.mika.core.memory.TaskNote
+import com.wangzan101.mika.core.memory.TaskNoteBook
+import com.wangzan101.mika.core.memory.TaskNotePersistence
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 import com.wangzan101.mika.core.skills.SkillNote
 import com.wangzan101.mika.settings.KeystoreKeyCipher
 import com.wangzan101.mika.settings.MemorySettings
@@ -48,6 +56,8 @@ class MemoryRuntime(context: Context) {
     private var settings: MemorySettings? = null
     private var profile: ProfileStore? = null
     private var appKnowledge: AppKnowledgeFiles? = null
+    private var experiences: ExperienceBook? = null
+    private var taskNotes: TaskNoteBook? = null
 
     /** 任务收尾后的学习在这里跑:不随服务退出而取消。 */
     val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -91,6 +101,12 @@ class MemoryRuntime(context: Context) {
     @Synchronized fun settings(): MemorySettings =
         settings ?: MemorySettings(File(app.filesDir, "memory_settings.json")).also { settings = it }
 
+    @Synchronized fun experiences(): ExperienceBook =
+        experiences ?: ExperienceBook(JsonExperienceFile(File(app.filesDir, "memory/experiences.json")), { UUID.randomUUID().toString() }).also { experiences = it }
+
+    @Synchronized fun taskNotes(): TaskNoteBook =
+        taskNotes ?: TaskNoteBook(JsonTaskNoteFile(File(app.filesDir, "memory/task-notes.json"))).also { taskNotes = it }
+
     /** 「全部清除」:记忆、另存的坏文件、个人技能与草稿都删掉,并重建记忆密钥;对话里的记忆提示也去掉。 */
     @Synchronized fun wipeAll() {
         store().clearAll()
@@ -99,6 +115,8 @@ class MemoryRuntime(context: Context) {
         File(app.filesDir, "skills").deleteRecursively()
         File(app.filesDir, "knowledge/app-drafts").deleteRecursively()
         stripMemory(null)
+        runCatching { experiences().clear() }
+        runCatching { taskNotes().clear() }
         _notes.update { m -> m.mapValues { (_, n) -> n.copy(skillNotes = emptyList()) } }
     }
 
@@ -119,5 +137,35 @@ class MemoryRuntime(context: Context) {
 
         fun of(context: Context): MemoryRuntime = (context.applicationContext as? Owner)?.memory
             ?: error("the Application (${context.applicationContext.javaClass.name}) must implement MemoryRuntime.Owner to give the memory runtime")
+
+        internal val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    }
+}
+
+private class JsonExperienceFile(private val file: File) : ExperiencePersistence {
+    override fun load(): List<Experience> {
+        if (!file.isFile) return emptyList()
+        return MemoryRuntime.json.decodeFromString(ListSerializer(Experience.serializer()), file.readText())
+    }
+
+    override fun save(items: List<Experience>) {
+        file.parentFile?.mkdirs()
+        val tmp = File(file.parentFile, file.name + ".tmp")
+        tmp.writeText(MemoryRuntime.json.encodeToString(ListSerializer(Experience.serializer()), items))
+        if (!tmp.renameTo(file)) file.writeText(tmp.readText()).also { tmp.delete() }
+    }
+}
+
+private class JsonTaskNoteFile(private val file: File) : TaskNotePersistence {
+    override fun load(): List<TaskNote> {
+        if (!file.isFile) return emptyList()
+        return MemoryRuntime.json.decodeFromString(ListSerializer(TaskNote.serializer()), file.readText())
+    }
+
+    override fun save(items: List<TaskNote>) {
+        file.parentFile?.mkdirs()
+        val tmp = File(file.parentFile, file.name + ".tmp")
+        tmp.writeText(MemoryRuntime.json.encodeToString(ListSerializer(TaskNote.serializer()), items))
+        if (!tmp.renameTo(file)) file.writeText(tmp.readText()).also { tmp.delete() }
     }
 }

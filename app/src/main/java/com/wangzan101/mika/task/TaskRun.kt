@@ -508,6 +508,12 @@ class TaskRun(
             val profileSnapshot = if (switches.useMemory) withContext(Dispatchers.IO) {
                 runCatching { memoryRuntime.profile().snapshot() }.onFailure { Log.w(TAG, "profile unavailable", it) }.getOrDefault(emptyList())
             } else emptyList()
+            val recalledTasks = if (switches.useMemory) withContext(Dispatchers.IO) {
+                runCatching { com.wangzan101.mika.core.memory.TaskRecall.render(memoryRuntime.taskNotes().search(goal)) }.getOrNull()
+            } else null
+            val experiencePlan = if (switches.useMemory) withContext(Dispatchers.IO) {
+                runCatching { com.wangzan101.mika.core.experience.ExperienceContext.render(memoryRuntime.experiences().search(goal)) }.getOrNull()
+            } else null
             val utterances = memory?.let { UserUtterances() }
             // 改名前沉淀的个人技能:里面的旧工具名载入时换成现在的
             val catalog = GuideCatalog.withPersonal(skills, memoryRuntime.skills(), legacyNames()::rewrite)
@@ -627,6 +633,9 @@ class TaskRun(
                 interaction = service.interaction(conversationId),
                 profileSnapshot = profileSnapshot,
                 streamReplies = true,
+                recalledTasks = recalledTasks,
+                experiencePlan = experiencePlan,
+                debugLog = { tag, message -> Log.d(tag, message) },
                 userScreens = userScreens,
                 // 同一网站、App 里连着联系别人、提交:两次之间隔一段随机的时间
                 outwardPacing = OutwardPacing.human(),
@@ -888,6 +897,31 @@ class TaskRun(
             autoApprove = env.evalHooks.autoApproveSkillDrafts,
             yieldToForeground = { while (service.hasActiveRuns()) delay(500) },
         )
+        val memory = k.memory
+        if (memory != null && runId != null) withContext(Dispatchers.IO) {
+            runCatching {
+                val events = k.runStore?.events(runId).orEmpty()
+                val said = k.utterances?.all.orEmpty()
+                val earlier = k.priorTurns.mapNotNull { turn ->
+                    val id = turn.runId ?: return@mapNotNull null
+                    val prior = k.runStore?.events(id).orEmpty()
+                    if (prior.isEmpty()) null else turn.userText to prior
+                }
+                com.wangzan101.mika.core.experience.ExperienceDistiller.fromConversation(
+                    k.agent.taskText ?: goal, events, k.dispatcher.index, said, earlier,
+                )?.let { memoryRuntime.experiences().apply(it) }
+                memoryRuntime.taskNotes().add(com.wangzan101.mika.core.memory.TaskRecall.summarize(runId, k.agent.taskText ?: goal, events, System.currentTimeMillis()))
+                if (k.switches.autoRemember) {
+                    val packageName = Regex("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+$")
+                    val apps = events.filterIsInstance<com.wangzan101.mika.core.record.RunEvent.Observed>().mapNotNull { observed ->
+                        val name = observed.place?.name ?: return@mapNotNull null
+                        val label = if (packageName.matches(name)) ConfirmationNotifier.appLabel(service, name) else name
+                        label.takeUnless { packageName.matches(it) }
+                    }.distinct()
+                    com.wangzan101.mika.core.memory.PreferenceLearner.remember(memory, k.agent.taskText ?: goal, said, apps, System.currentTimeMillis(), conversationId)
+                }
+            }.onFailure { Log.w(TAG, "could not save experience", it) }
+        }
         val notes = learning.learn(RunAftermath(
             conversationId, runId, k.agent.taskText ?: goal, end, k.utterances?.all.orEmpty(), k.dispatcher.savedChanges, k.agent.usedMemoryIds,
             k.dispatcher.definitions().map { it.name }.toSet(), k.dispatcher.index,
