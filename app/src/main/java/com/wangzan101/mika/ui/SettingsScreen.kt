@@ -64,7 +64,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** 设置里能进入的子页面;[Home] 是设置首页。 */
-private enum class SettingsPage { Home, Usage, PhoneOps, DuringWork, Capsule, Language, Notifications, WebSites, Sandbox, Routes, Recovery, Developer, RunStats }
+private enum class SettingsPage { Home, Usage, PhoneOps, DuringWork, Capsule, Language, Notifications, WebSites, Sandbox, Routes, Recovery, HubRelay, Developer, RunStats }
 
 /**
  * 设置页:总状态卡 + 基本 / 隐私与数据 / 高级 / 关于四组。各子页面在这里切换(返回键先回首页),
@@ -160,6 +160,7 @@ fun SettingsScreen(
             sandbox = sandboxStatus, onOpenSandbox = { page = SettingsPage.Sandbox },
             routes = routeCount, onOpenRoutes = { page = SettingsPage.Routes },
             onOpenRecovery = { page = SettingsPage.Recovery },
+            onOpenHubRelay = { page = SettingsPage.HubRelay },
             showDeveloper = showDeveloper, onOpenDeveloper = { page = SettingsPage.Developer },
             versionName = BuildConfig.VERSION_NAME, updateVersion = updateVersion, onOpenAbout = onOpenAbout,
         )
@@ -186,6 +187,7 @@ fun SettingsScreen(
             onBack = toHome,
         )
         SettingsPage.Recovery -> RecoveryScreen(onBack = toHome)
+        SettingsPage.HubRelay -> HubRelayScreen(onBack = toHome)
         SettingsPage.Developer -> DeveloperOptionsScreen(
             speed, onSpeed = { flags.setSpeed(it); speed = it }, onBack = toHome,
             autonomous = autonomous, onAutonomous = onAutonomous,
@@ -248,6 +250,7 @@ fun SettingsContent(
     routes: Int? = null,
     onOpenRoutes: () -> Unit = {},
     onOpenRecovery: () -> Unit = {},
+    onOpenHubRelay: () -> Unit = {},
     showDeveloper: Boolean = false,
     onOpenDeveloper: () -> Unit = {},
     versionName: String = "",
@@ -307,25 +310,24 @@ fun SettingsContent(
 
         val sandboxRow = sandbox?.takeIf { it !is SandboxStatus.Unsupported }
         val recoveryRow = status.sdkInt >= Prerequisites.MIN_SDK
-        if (sandboxRow != null || routes != null || recoveryRow || showDeveloper) {
-            GroupLabel(stringResource(R.string.settings_advanced))
-            GroupCard {
-                var first = true
-                fun take(): Boolean = first.also { first = false }
-                if (sandboxRow != null) {
-                    ListRow(MikaIcons.Terminal, stringResource(R.string.settings_sandbox), first = take(), onClick = onOpenSandbox) {
-                        RowValue(sandboxValue(sandboxRow)); RowChevron()
-                    }
+        GroupLabel(stringResource(R.string.settings_advanced))
+        GroupCard {
+            var first = true
+            fun take(): Boolean = first.also { first = false }
+            if (sandboxRow != null) {
+                ListRow(MikaIcons.Terminal, stringResource(R.string.settings_sandbox), first = take(), onClick = onOpenSandbox) {
+                    RowValue(sandboxValue(sandboxRow)); RowChevron()
                 }
-                routes?.let {
-                    ListRow(MikaIcons.Route, stringResource(R.string.settings_routes), first = take(), onClick = onOpenRoutes) { RowValue(trPlural(R.plurals.settings_count_routes, it)); RowChevron() }
-                }
-                if (recoveryRow) {
-                    ListRow(MikaIcons.Wrench, stringResource(R.string.settings_recovery), first = take(), onClick = onOpenRecovery) { RowChevron() }
-                }
-                if (showDeveloper) {
-                    ListRow(MikaIcons.Code, stringResource(R.string.settings_developer), first = take(), onClick = onOpenDeveloper) { RowChevron() }
-                }
+            }
+            routes?.let {
+                ListRow(MikaIcons.Route, stringResource(R.string.settings_routes), first = take(), onClick = onOpenRoutes) { RowValue(trPlural(R.plurals.settings_count_routes, it)); RowChevron() }
+            }
+            if (recoveryRow) {
+                ListRow(MikaIcons.Wrench, stringResource(R.string.settings_recovery), first = take(), onClick = onOpenRecovery) { RowChevron() }
+            }
+            ListRow(MikaIcons.Link, stringResource(R.string.settings_hub_relay), stringResource(R.string.settings_hub_relay_sub), first = take(), onClick = onOpenHubRelay) { RowChevron() }
+            if (showDeveloper) {
+                ListRow(MikaIcons.Code, stringResource(R.string.settings_developer), first = take(), onClick = onOpenDeveloper) { RowChevron() }
             }
         }
 

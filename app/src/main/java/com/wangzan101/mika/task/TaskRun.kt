@@ -73,6 +73,8 @@ import com.wangzan101.mika.core.knowledge.KnowledgeStore
 import com.wangzan101.mika.core.knowledge.AppKnowledgeDrafter
 import com.wangzan101.mika.core.knowledge.GuideCatalog
 import com.wangzan101.mika.core.record.RunSink
+import com.wangzan101.mika.core.run.RunEventBus
+import com.wangzan101.mika.relay.RelayRun
 import com.wangzan101.mika.core.resource.ResourceScope
 import com.wangzan101.mika.core.tool.HandBack
 import com.wangzan101.mika.core.tool.ToolDispatcher
@@ -311,6 +313,10 @@ class TaskRun(
     @Volatile var usedGroups: List<String> = emptyList()
         private set
 
+    /** 这一轮工具结果里下一轮还用得着的原文;记进对话,追问才能接着用。 */
+    @Volatile var carriedFacts: List<String> = emptyList()
+        private set
+
     fun joinedSteers(): List<String> = _steers.value.filter { it.state == SteerState.Joined }.map { it.text }
 
     /** 把 [ids] 这几句改成 [to];给了 [from] 时只改还在那个状态的(收下和交给模型可能先后颠倒,不往回改)。 */
@@ -381,6 +387,7 @@ class TaskRun(
         var shellBinder: IBinder? = null
         var record: RunHandle? = null
         var runStore: RunStore? = null
+        var relayRun: RelayRun? = null
         // 这次运行里经计量的模型请求(含旁路调用),收尾时记进运行记录
         val tally = RunUsageTally()
         // 第一次打开网址时才建;没建过就不用关
@@ -486,13 +493,19 @@ class TaskRun(
             gate = taskGate
             // 用户在「干活时」关掉了常亮就不拿唤醒锁
             awake = if (FeatureFlags.get(service).keepScreenOn()) KeepAwake(service.wakeLock.lease(), side) else null
-            // 记录开不起来就不记,任务照跑
+            // 记录开不起来就不记,任务照跑。Hub 镜像订在同一条总线上:本地照写,发出去失败也不打断任务。
             val sink: RunSink = withContext(Dispatchers.IO) {
-                runCatching {
+                val handle = runCatching {
                     val runs = RunStore(service).also { runStore = it }
                     runs.open(goal).also { record = it; _runId.value = it.runId }
                 }.onFailure { Log.w(TAG, "run record unavailable, running without it", it) }.getOrNull()
-            } ?: RunSink.NONE
+                val bus = RunEventBus()
+                if (handle != null) bus.subscribe(handle)
+                relayRun = runCatching { (service.application as MikaApp).hubRelay.open(handle?.runId ?: key) }
+                    .onFailure { Log.w(TAG, "hub relay unavailable", it) }.getOrNull()
+                relayRun?.let { bus.subscribe(it) }
+                if (handle == null && relayRun == null) RunSink.NONE else bus
+            }
             // 装了哪些 App:每个任务读一次,读不到就当没有;参考资料用
             val apps = try { phoneScreen.listApps() } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
             val speed = FeatureFlags.get(service).speedFlags()
@@ -504,6 +517,12 @@ class TaskRun(
             val profileSnapshot = if (switches.useMemory) withContext(Dispatchers.IO) {
                 runCatching { memoryRuntime.profile().snapshot() }.onFailure { Log.w(TAG, "profile unavailable", it) }.getOrDefault(emptyList())
             } else emptyList()
+            val recalledTasks = if (switches.useMemory) withContext(Dispatchers.IO) {
+                runCatching { com.wangzan101.mika.core.memory.TaskRecall.render(memoryRuntime.taskNotes().search(goal)) }.getOrNull()
+            } else null
+            val experiencePlan = if (switches.useMemory) withContext(Dispatchers.IO) {
+                runCatching { com.wangzan101.mika.core.experience.ExperienceContext.render(memoryRuntime.experiences().search(goal)) }.getOrNull()
+            } else null
             val utterances = memory?.let { UserUtterances() }
             // 改名前沉淀的个人技能:里面的旧工具名载入时换成现在的
             val catalog = GuideCatalog.withPersonal(skills, memoryRuntime.skills(), legacyNames()::rewrite)
@@ -623,6 +642,9 @@ class TaskRun(
                 interaction = service.interaction(conversationId),
                 profileSnapshot = profileSnapshot,
                 streamReplies = true,
+                recalledTasks = recalledTasks,
+                experiencePlan = experiencePlan,
+                debugLog = { tag, message -> Log.d(tag, message) },
                 userScreens = userScreens,
                 // 同一网站、App 里连着联系别人、提交:两次之间隔一段随机的时间
                 outwardPacing = OutwardPacing.human(),
@@ -723,6 +745,7 @@ class TaskRun(
             }
             return withContext(tally) { agent.run(runSpec, inbox) }.also { usedGroups = agent.usedGroups.toList() }
         } finally {
+            loop?.let { carriedFacts = it.carriedFacts }
             com.wangzan101.mika.audio.LiveAudioSession.release(service, key)
             handoffUnconsumed()
             side.cancel()
@@ -753,6 +776,8 @@ class TaskRun(
                     try { mute?.restoreAll() } finally { recovery.endRun(key) }
                     watcher?.close()
                 } finally {
+                    relayRun?.close()
+                    relayRun = null
                     resources.close()
                 }
             }
@@ -853,7 +878,10 @@ class TaskRun(
         val judged = OutcomeJudge(k.light ?: k.model, k.model).judge(k.agent.taskText ?: goal, end.answer, k.priorTurns)
         val runId = _runId.value
         if (runId != null) withContext(Dispatchers.IO) {
-            k.runStore?.append(runId, judged.event(System.currentTimeMillis()))
+            val judgedEvent = judged.event(System.currentTimeMillis())
+            k.runStore?.append(runId, judgedEvent)
+            runCatching { (service.application as MikaApp).hubRelay.submit(runId, judgedEvent) }
+                .onFailure { Log.w(TAG, "hub relay outcome failed", it) }
             if (BuildConfig.DEBUG) k.runStore?.mirrorToExternal(runId)
             runCatching { conversations.updateTurn(conversationId, runId) { it.copy(result = judged.outcome.wire) } }
                 .onFailure { Log.w(TAG, "could not save run outcome", it) }
@@ -883,6 +911,31 @@ class TaskRun(
             autoApprove = env.evalHooks.autoApproveSkillDrafts,
             yieldToForeground = { while (service.hasActiveRuns()) delay(500) },
         )
+        val memory = k.memory
+        if (memory != null && runId != null) withContext(Dispatchers.IO) {
+            runCatching {
+                val events = k.runStore?.events(runId).orEmpty()
+                val said = k.utterances?.all.orEmpty()
+                val earlier = k.priorTurns.mapNotNull { turn ->
+                    val id = turn.runId ?: return@mapNotNull null
+                    val prior = k.runStore?.events(id).orEmpty()
+                    if (prior.isEmpty()) null else turn.userText to prior
+                }
+                com.wangzan101.mika.core.experience.ExperienceDistiller.fromConversation(
+                    k.agent.taskText ?: goal, events, k.dispatcher.index, said, earlier,
+                )?.let { memoryRuntime.experiences().apply(it) }
+                memoryRuntime.taskNotes().add(com.wangzan101.mika.core.memory.TaskRecall.summarize(runId, k.agent.taskText ?: goal, events, System.currentTimeMillis()))
+                if (k.switches.autoRemember) {
+                    val packageName = Regex("^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+$")
+                    val apps = events.filterIsInstance<com.wangzan101.mika.core.record.RunEvent.Observed>().mapNotNull { observed ->
+                        val name = observed.place?.name ?: return@mapNotNull null
+                        val label = if (packageName.matches(name)) ConfirmationNotifier.appLabel(service, name) else name
+                        label.takeUnless { packageName.matches(it) }
+                    }.distinct()
+                    com.wangzan101.mika.core.memory.PreferenceLearner.remember(memory, k.agent.taskText ?: goal, said, apps, System.currentTimeMillis(), conversationId)
+                }
+            }.onFailure { Log.w(TAG, "could not save experience", it) }
+        }
         val notes = learning.learn(RunAftermath(
             conversationId, runId, k.agent.taskText ?: goal, end, k.utterances?.all.orEmpty(), k.dispatcher.savedChanges, k.agent.usedMemoryIds,
             k.dispatcher.definitions().map { it.name }.toSet(), k.dispatcher.index,

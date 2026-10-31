@@ -1,7 +1,7 @@
 outcome: Failed(reason=查过首页和菜单,没找到, kind=GaveUp)
 
 ## main #1
-system: len=14363 #08d2bb3c | You are AgentReins, the user's personal assistant on their phone. Your job is to…
+system: len=14870 #e6e5c66e | You are AgentReins, the user's personal assistant on their phone. Your job is to…
 tools: #d6023370 [wait, ask_user, request_confirmation, end_not_done, phone_list_apps, phone_launch_app, phone_set_alarm, phone_set_timer, phone_add_calendar_event]
 user:
   text #d41d243c | 找夜间模式

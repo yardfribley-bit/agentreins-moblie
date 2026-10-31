@@ -35,9 +35,60 @@ object Tokenize {
         return out
     }
 
+    /**
+     * 检索用的词,不是相邻两字。虚词切开后丢掉;剩下的中文片段按词留下,英文按单词。
+     * 「在微信群里发红包」得到「微信群」「发红包」,而不是「在微」「信群」。
+     */
+    fun keywords(text: String): List<String> {
+        val out = ArrayList<String>()
+        val han = StringBuilder()
+        fun flush() {
+            if (han.isEmpty()) return
+            val chunk = StringBuilder()
+            val pieces = ArrayList<String>()
+            for (c in han) {
+                if (c in STOP_HAN) {
+                    if (chunk.isNotEmpty()) { pieces += chunk.toString(); chunk.clear() }
+                } else chunk.append(c)
+            }
+            if (chunk.isNotEmpty()) pieces += chunk.toString()
+            han.clear()
+            for (piece in pieces) when {
+                piece.length in 2..8 && piece !in STOP_WORD -> out += piece
+                piece.length > 8 -> {
+                    var i = 0
+                    while (i + 2 <= piece.length) {
+                        val n = minOf(4, piece.length - i)
+                        if (n >= 2) out += piece.substring(i, i + n)
+                        i += 4
+                    }
+                }
+            }
+        }
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            if (isHan(c)) { han.append(c); i++; continue }
+            flush()
+            val m = WORD.matchAt(text, i)
+            if (m != null) {
+                val word = m.value.lowercase()
+                if (word !in STOP_WORD && word.length >= 2) out += word
+                i = m.range.last + 1
+            } else i++
+        }
+        flush()
+        return out.distinct()
+    }
+
     internal fun isHan(c: Char) = Character.UnicodeScript.of(c.code) == Character.UnicodeScript.HAN
 
     internal fun isUnigram(term: String) = term.length == 1 && isHan(term[0])
+
+    private val STOP_HAN = "的了是在我你他她它和与或把被给从到这那吗呢吧啊呀着过就也都还又很个里下再".toSet()
+    private val STOP_WORD = setOf(
+        "帮我", "给我", "一下", "这个", "那个", "please", "the", "and", "for", "with", "always", "never", "remember",
+    )
 }
 
 /**

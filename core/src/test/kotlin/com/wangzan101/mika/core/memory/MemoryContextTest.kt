@@ -105,6 +105,16 @@ class MemoryContextTest {
         assertTrue(block.message!!.startsWith("Ways of doing things the user approved (when they conflict with what the user says now, follow what they say now):"))
     }
 
+    @Test fun stylePreferenceIsInjectedWithoutUsingAPinnedSlot() {
+        val style = mem("回答风格: 用中文简短回复", kind = MemoryKind.preference)
+        val pinned = (1..5).map { mem("置顶的事$it", pinned = true) }
+        val block = MemoryContext.build(distractors(10) + pinned + style, goal = "查明天的天气", lastUserTurn = null)
+        assertTrue(style.id in block.usedIds)
+        assertEquals(MemoryContext.MAX_PINNED, block.usedIds.count { id -> pinned.any { it.id == id } })
+        assertTrue(block.message!!.contains("用中文简短回复"))
+        assertTrue(block.usedIds.first() == style.id)
+    }
+
     @Test fun emptyGivesNull() {
         assertEquals(MemoryBlock(null, emptyList()), MemoryContext.build(emptyList(), goal = "点外卖", lastUserTurn = null))
         assertNull(MemoryContext.build(distractors(10), goal = "点外卖", lastUserTurn = null).message)

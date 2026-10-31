@@ -133,6 +133,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- 已加入 Hub 时在后台收老板指令。进程被系统杀掉后按 START_STICKY 再拉起。 -->
+        <service
+            android:name=".relay.HubRelayService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- 网页上传:把暂存的上传文件以只读 content:// 地址交给内置浏览器的文件选择框,不对外导出。
              FileProvider 要求 grantUriPermissions=true,否则进程启动时就抛异常;
              这里从不把地址授权给别的 App,读取方只有本进程里的 WebView。 -->

@@ -1,1 +1,1 @@
-Read new speech from the user-authorized continuous live-audio session, or stop it. Use repeatedly when asked to listen and reply to a live stream. User must first enable Live listening in Settings > During work.
+Read new speech from the user-authorized continuous live-audio session, or stop it. Use repeatedly when asked to listen and reply to a live stream. User must first enable Live listening in Settings > During work. If they restarted it, call again to attach. not_listening means the session ended: report the reason and ask them to start it again.

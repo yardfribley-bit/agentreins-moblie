@@ -328,13 +328,8 @@ private fun GroupSheet(onAskMika: () -> Unit, onDismiss: () -> Unit) {
     val c = MikaTheme.colors
     // 点一次就够:连点不会开出第二个一样的任务
     var asked by remember { mutableStateOf(false) }
-    AboutSheetFrame(AboutCopy.GROUP_SHEET_TITLE, AboutCopy.GROUP_SHEET_SUB, "group-sheet", onDismiss) {
-        Text(
-            MikaLinks.AUTHOR_WECHAT_ID,
-            Modifier.fillMaxWidth().padding(top = 16.dp).testTag("wechat-id"),
-            style = MikaType.Title, color = c.ink, textAlign = TextAlign.Center,
-        )
-        Text(AboutCopy.GROUP_HINT, Modifier.fillMaxWidth().padding(top = 6.dp), style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center)
+    AboutSheetFrame(AboutCopy.GROUP_SHEET_TITLE, AboutCopy.GROUP_SHEET_SUB_ID, "group-sheet", onDismiss) {
+        WeChatId()
         HorizontalDivider(Modifier.padding(top = 16.dp), color = c.hair)
         Text(AboutCopy.GROUP_ALREADY_ADDED, Modifier.fillMaxWidth().padding(top = 12.dp), style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center)
         MikaButton(
@@ -343,3 +338,20 @@ private fun GroupSheet(onAskMika: () -> Unit, onDismiss: () -> Unit) {
         )
     }
 }
+
+/** 微信号,给还没换上作者二维码时用:用户自己在微信里搜,或让助手按这个号去发。 */
+@Composable
+private fun ColumnScope.WeChatId() {
+    val c = MikaTheme.colors
+    Text(
+        AboutCopy.GROUP_ID,
+        Modifier.fillMaxWidth().padding(top = 16.dp).testTag("wechat-id"),
+        style = MikaType.Title, color = c.ink, textAlign = TextAlign.Center,
+    )
+    Text(
+        AboutCopy.GROUP_ID_HINT,
+        Modifier.fillMaxWidth().padding(top = 6.dp),
+        style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center,
+    )
+}
+

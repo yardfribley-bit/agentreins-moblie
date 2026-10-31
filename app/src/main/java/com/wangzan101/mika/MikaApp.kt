@@ -62,6 +62,8 @@ import com.wangzan101.mika.task.ResourceScheduler
 import com.wangzan101.mika.task.McpTaskHub
 import com.wangzan101.mika.task.FileChildRunStore
 import com.wangzan101.mika.task.TriggerRuntime
+import com.wangzan101.mika.relay.HubRelayRuntime
+import com.wangzan101.mika.relay.HubRelayService
 
 /**
  * App 容器:进程里共用的服务都在这里建一份,经各自的 Owner 接口交给安卓入口(界面、服务、广播、provider),
@@ -161,6 +163,9 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
     /** Mika 自己的界面此刻看不看得见。 */
     val foreground = AppForeground()
 
+    /** 把任务步骤镜像到固定的 Hub Relay 会话。关着或网络失败都不影响任务。 */
+    val hubRelay: HubRelayRuntime by lazy { HubRelayRuntime.create(this) }
+
     /** 检查更新:查到的新版本跟进程走,侧栏、设置首页、关于页的红点看同一份。 */
     val updates: com.wangzan101.mika.about.UpdateChecker by lazy {
         com.wangzan101.mika.about.UpdateChecker(java.io.File(filesDir, "update-v1.json"), BuildConfig.VERSION_NAME)
@@ -256,6 +261,10 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
         scope.launch { runCatching { ShareExporter(this@MikaApp).cleanPending() } }
         // 上次进程留下的网页上传副本
         scope.launch { runCatching { WebFiles.clearStale(this@MikaApp, SandboxDirs(this@MikaApp).gate) } }
+        // 已经加入 Hub 时马上开始收老板指令。冷启动时界面还没到前台,系统可能拒绝前台服务;
+        // 任一界面 resume 之后再提升一次,通知才会留在状态栏。
+        registerActivityLifecycleCallbacks(HubRelayService.promoteWhenResumed())
+        HubRelayService.sync(this)
         // 运行环境没准备好(首次启动、Mika 升级后)就在后台准备,不联网、对用户不可见
         RuntimePreparer.ensure(this)
         // 沙箱就绪(启动时已就绪,或刚装好)就把技能目录核对一次:App 更新带来的脚本马上能用

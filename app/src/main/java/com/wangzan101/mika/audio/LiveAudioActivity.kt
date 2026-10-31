@@ -12,6 +12,7 @@ import android.os.Handler
 import android.os.Looper
 import android.text.InputType
 import android.widget.*
+import com.wangzan101.mika.BuildConfig
 import com.wangzan101.mika.settings.FeatureFlags
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import kotlinx.coroutines.*
@@ -26,8 +27,13 @@ class LiveAudioActivity : Activity() {
     private lateinit var status: TextView
     private val diagnostics = MainScope()
     private val handler = Handler(Looper.getMainLooper())
+    private var debug: TextView? = null
     private val refresh = object : Runnable {
-        override fun run() { status.text = listOf(LiveAudioSession.status, LiveAudioSession.preview()).filter { it.isNotBlank() }.joinToString("\n"); handler.postDelayed(this, 1000) }
+        override fun run() {
+            status.text = listOf(LiveAudioSession.status, LiveAudioSession.preview()).filter { it.isNotBlank() }.joinToString("\n")
+            debug?.text = "调试 session ${LiveAudioSession.generation} · ${LiveAudioSession.source} · peak ${LiveAudioSession.lastPeak} · rms ${LiveAudioSession.lastRms}"
+            handler.postDelayed(this, 1000)
+        }
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,8 +47,9 @@ class LiveAudioActivity : Activity() {
         model = field("语音识别模型", settings.model)
         key = field("语音识别 API Key", settings.key).apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
         mic = Switch(this).apply { text = "使用麦克风（需要直播外放，会收录周围声音）"; isChecked = settings.microphone; layout.addView(this) }
-        text("默认仅采集抖音 App 内部音频。若抖音或系统禁止采集，可能只能录到静音，可停止后尝试麦克风外放。监听期间请关闭「被操作的 App 静音」。内部采集不录制屏幕画面。")
+        text("默认采集抖音内部音频。连续约 24 秒无声时，只这一场自动改用麦克风外放，不会改上面的开关。下次开始仍按开关；要一直用麦克风请自己打开再保存。麦克风也无声则只提示检查外放，不会来回切换。监听期间请关闭「被操作的 App 静音」。华为等机型可能拦截内部采集。内部采集不录制屏幕画面。")
         status = text(LiveAudioSession.status)
+        if (BuildConfig.DEBUG) debug = text("")
         val diagnosis = text("可先测试接口，再开启录音。测试会发送内置短语音，按语音服务计费，不使用麦克风。")
         diagnosis.setTextIsSelectable(true)
         Button(this).apply {
@@ -95,7 +102,7 @@ class LiveAudioActivity : Activity() {
             layout.addView(this)
         }
         Button(this).apply { text = "停止监听"; setOnClickListener { stopService(Intent(this@LiveAudioActivity, LiveAudioService::class.java)) }; layout.addView(this) }
-        text("开始后回到聊天，说：进入指定直播间，持续听主播讲话，有合适的话题再回复；不要重复，每条至少间隔 15 秒，直到我停止。\n通知栏可随时停止监听。单次最长一小时，两分钟无任务读取会自动停止。")
+        text("开始后回到聊天，说：进入指定直播间，持续听主播讲话，有合适的话题再回复；不要重复，每条至少间隔 15 秒，直到我停止。\n通知栏可随时停止监听。单次最长一小时。聊天任务还没接上时，不会因两分钟空闲停止；接上后两分钟没有读取会自动停止。在本页重新开始后，回到原来的聊天再让它听即可。")
         Button(this).apply { text = "返回"; setOnClickListener { finish() }; layout.addView(this) }
         setContentView(ScrollView(this).apply { addView(layout) })
     }

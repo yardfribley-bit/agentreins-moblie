@@ -158,10 +158,13 @@ object HistoryPruner {
     /** 长字段(长字符串、大数组/对象)换成 [OMITTED_READ],结局字段留着;不是 JSON 的整段换掉。 */
     private fun shrinkRead(content: String): String {
         val obj = parse(content) ?: return OMITTED_READ
-        return JsonObject(obj.mapValues { (k, v) ->
+        val kept = TurnFacts.quote(obj)
+        val shrunk = JsonObject(obj.mapValues { (k, v) ->
             val long = if (v is JsonPrimitive) v.isString && v.content.length > LONG_TEXT else v.toString().length > LONG_TEXT
-            if (long && k !in OUTCOME) JsonPrimitive(OMITTED_READ) else v
-        }).toString()
+            if (long && k !in OUTCOME && k != TurnFacts.KEPT_FACT) JsonPrimitive(OMITTED_READ) else v
+        })
+        val withFact = if (kept.isNullOrBlank()) shrunk else JsonObject(shrunk + (TurnFacts.KEPT_FACT to JsonPrimitive(kept)))
+        return withFact.toString()
     }
 
     private fun callVerbs(messages: List<Message>, tools: ToolIndex): Map<String, Verb?> {
