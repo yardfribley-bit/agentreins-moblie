@@ -139,6 +139,12 @@ class HubRelaySettings(private val prefs: SharedPreferences, private val cipher:
 
     fun token(): String? = decodeToken(prefs.getString(TOKEN, null))
 
+    /** 同步开着、已加入、并且要执行老板指令时,才在后台一直收。 */
+    fun wantsInbound(): Boolean {
+        val c = config()
+        return c.enabled && c.runOwnerInstructions && c.sessionId.isNotBlank() && c.token.isNotBlank() && !c.tokenUnreadable
+    }
+
     private fun mcpUrl(): String = prefs.getString(BASE, null)?.trim()?.trimEnd('/')?.ifBlank { null } ?: DEFAULT_MCP_URL
 
     private fun text(key: String, fallback: String): String = prefs.getString(key, null)?.trim()?.ifBlank { null } ?: fallback

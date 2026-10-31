@@ -16,7 +16,8 @@ import org.junit.Test
 
 class HubMcpClientTest {
     private val server = MockWebServer()
-    private val client = HubMcpClient()
+    private val logs = mutableListOf<String>()
+    private val client = HubMcpClient(log = { logs += it })
     private val env = RelayEnvironment("Android", "14 / API 34", "arm64-v8a")
     private val seen = mutableListOf<RecordedRequest>()
     private var expireSession = false
@@ -49,6 +50,12 @@ class HubMcpClientTest {
                 }
                 if (body.contains("diaodu_relay_read")) {
                     return json("""{"jsonrpc":"2.0","id":4,"result":{"structuredContent":{"events":[{"seq":3,"kind":"message","from_owner":true,"sender":{"role":"owner","name":"o"},"message":{"kind":"instruction","text":"do"}},{"seq":4,"kind":"message","from_owner":false,"sender":{"role":"mentor","name":"m"},"message":{"kind":"instruction","text":"no"}}],"next_cursor":4,"has_more":false},"content":[{"type":"text","text":"{}"}]}}""")
+                }
+                if (body.contains("diaodu_relay_join") && body.contains("TAKEN")) {
+                    return json("""{"jsonrpc":"2.0","id":4,"result":{"isError":true,"content":[{"type":"text","text":"{\"code\":409,\"message\":\"already member\",\"session_id\":\"ses_kept\"}"}]}}""")
+                }
+                if (body.contains("diaodu_relay_join") && body.contains("OCCUPIED")) {
+                    return json("""{"jsonrpc":"2.0","id":4,"result":{"isError":true,"content":[{"type":"text","text":"{\"code\":409,\"message\":\"already member\"}"}]}}""")
                 }
                 if (body.contains("diaodu_relay_join")) {
                     return json("""{"jsonrpc":"2.0","id":4,"result":{"content":[{"type":"text","text":"{\"session\":{\"id\":\"ses_text\"}}"}],"structuredContent":{"session":{"id":"ses_structured","role":"worker"}}}}""")
@@ -213,6 +220,22 @@ class HubMcpClientTest {
         assertEquals("Bearer da_test", raw.getHeader("Authorization"))
         assertEquals(4, raw.body.peek().readByteArray().size)
         assertFalse(raw.body.peek().readUtf8().contains("content_base64"))
+    }
+
+    @Test fun join409WithSessionIdIsSuccess() {
+        assertEquals("ses_kept", client.join(mcp(), "da_test", "TAKEN", env))
+        assertEquals(listOf("join 409"), logs)
+        assertTrue(logs.none { it.contains("da_test") })
+    }
+
+    @Test fun join409WithoutSessionIdStaysAlreadyMember() {
+        val error = assertThrows(RelayException::class.java) {
+            client.join(mcp(), "da_test", "OCCUPIED", env)
+        }
+        assertEquals(409, error.status)
+        assertEquals("already member", error.message)
+        assertFalse(error.retryable)
+        assertEquals(listOf("join 409"), logs)
     }
 
     @Test fun ackPostsTheInstructionSeq() {

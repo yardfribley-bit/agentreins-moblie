@@ -312,7 +312,12 @@ class HubRelayMirror(
 
     private fun join(cfg: RelayConfig, token: String): String {
         if (cfg.joinCode.isBlank()) throw RelayException(0, false, "need join code")
-        val id = transport.join(cfg.mcpUrl, token, cfg.joinCode, environment())
+        val id = try {
+            transport.join(cfg.mcpUrl, token, cfg.joinCode, environment())
+        } catch (e: RelayException) {
+            // 409 = 已经是这个会话的成员,不是失败。沿用保存的会话继续收指令。
+            if (e.status == 409 && cfg.sessionId.isNotBlank()) cfg.sessionId else throw e
+        }
         onSession(id)
         checkedSession = id
         return id

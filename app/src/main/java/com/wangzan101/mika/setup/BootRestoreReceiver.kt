@@ -1,6 +1,7 @@
 package com.wangzan101.mika.setup
 
 import com.wangzan101.mika.cap.phone.setup.BootRestoreHandler
+import com.wangzan101.mika.relay.HubRelayService
 import com.wangzan101.mika.task.TriggerRuntime
 import android.content.Context
 import android.content.Intent
@@ -12,6 +13,9 @@ class BootRestoreReceiver : BootRestoreHandler() {
         super.onReceive(context, intent)
         if (intent.action == Intent.ACTION_BOOT_COMPLETED || intent.action == Intent.ACTION_TIME_CHANGED ||
             intent.action == AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED ||
-            intent.action == Intent.ACTION_TIMEZONE_CHANGED) TriggerRuntime.rearm(context)
+            intent.action == Intent.ACTION_TIMEZONE_CHANGED) {
+            TriggerRuntime.rearm(context)
+            if (intent.action == Intent.ACTION_BOOT_COMPLETED) HubRelayService.sync(context)
+        }
     }
 }

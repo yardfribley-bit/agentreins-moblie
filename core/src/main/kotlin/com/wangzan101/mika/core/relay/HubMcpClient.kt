@@ -33,6 +33,7 @@ class HubMcpClient(
         .writeTimeout(40, TimeUnit.SECONDS)
         .build(),
     private val mcpUploadMaxBytes: Int = MCP_UPLOAD_MAX,
+    private val log: (String) -> Unit = {},
 ) : RelayTransport {
     private val json = Json { ignoreUnknownKeys = true }
     private val ids = AtomicInteger(0)
@@ -81,13 +82,19 @@ class HubMcpClient(
     }
 
     override fun join(mcpUrl: String, token: String, code: String, environment: RelayEnvironment): String {
-        val body = call(mcpUrl, token, "diaodu_relay_join", buildJsonObject {
-            put("code", code)
-            put("role", "worker")
-            put("environment", environmentJson(environment))
-        }, secret = token).obj()
-        val id = body?.get("session").obj()?.str("id") ?: body.str("session_id")
-        return id?.takeIf { it.isNotBlank() } ?: throw RelayException(200, false, "missing session id")
+        try {
+            val body = call(mcpUrl, token, "diaodu_relay_join", buildJsonObject {
+                put("code", code)
+                put("role", "worker")
+                put("environment", environmentJson(environment))
+            }, secret = token).obj()
+            val id = body?.get("session").obj()?.str("id") ?: body.str("session_id")
+            return id?.takeIf { it.isNotBlank() } ?: throw RelayException(200, false, "missing session id")
+        } catch (e: RelayException) {
+            if (e.status != 409) throw e
+            log("join 409")
+            throw RelayException(409, false, "already member")
+        }
     }
 
     override fun send(
@@ -159,7 +166,15 @@ class HubMcpClient(
         val text = (result["content"] as? JsonArray).orEmpty().mapNotNull { item ->
             (item as? JsonObject)?.get("text").str()
         }.joinToString("\n")
-        if (result["isError"]?.bool() == true) throw toolError(text, secret)
+        if (result["isError"]?.bool() == true) {
+            val structured = result["structuredContent"] as? JsonObject
+            val conflict = if (tool == "diaodu_relay_join") joinAlreadyMember(text, structured) else null
+            if (conflict != null) {
+                log("join 409")
+                return conflict
+            }
+            throw toolError(text, secret)
+        }
         val structured = result["structuredContent"] as? JsonObject
         return ToolPayload(structured, text)
     }
@@ -259,6 +274,23 @@ class HubMcpClient(
             throw RelayException(if (sessionGone) 404 else code, code == 429 || code >= 500, message)
         }
         return root["result"] as? JsonObject
+    }
+
+    /** 409 且能看出已是成员:记下会话编号并当成功。没有编号则抛 409,由上层沿用已保存的会话。 */
+    private fun joinCode(text: String, structured: JsonObject?): Int {
+        val body = payload(text)
+        return body?.get("code").int() ?: structured?.get("code").int() ?: 0
+    }
+
+    private fun joinAlreadyMember(text: String, structured: JsonObject?): ToolPayload? {
+        if (joinCode(text, structured) != 409) return null
+        val body = payload(text)
+        val id = structured?.get("session").obj()?.str("id")
+            ?: structured.str("session_id")
+            ?: body?.get("session").obj()?.str("id")
+            ?: body.str("session_id")
+        if (id.isNullOrBlank()) return null
+        return ToolPayload(buildJsonObject { put("session", buildJsonObject { put("id", id) }) }, text)
     }
 
     private fun toolError(text: String, secret: String?): RelayException {

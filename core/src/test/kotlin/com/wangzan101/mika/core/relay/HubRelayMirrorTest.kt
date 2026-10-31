@@ -146,6 +146,22 @@ class HubRelayMirrorTest {
         assertEquals("ses_new", session)
     }
 
+    @Test fun join409KeepsTheStoredSession() {
+        val fake = FakeRelay()
+        fake.member = false
+        fake.failJoin409 = true
+        val errors = mutableListOf<String?>()
+        val mirror = mirror(
+            fake,
+            RelayConfig(enabled = true, token = "da_test", sessionId = "ses_old", joinCode = "CODE", agentId = "ag_x"),
+            onError = { errors += it },
+        )
+        mirror.submit("run-1", RunEvent.State(1, "s", "1"))
+        mirror.drain()
+        assertEquals("ses_old", fake.sent.single().sessionId)
+        assertTrue(errors.none { it == "already member" || it?.contains("409") == true })
+    }
+
     @Test fun heartbeatWhileRunIsActive() {
         val fake = FakeRelay()
         val mirror = mirror(fake, RelayConfig(enabled = true, token = "da_test", sessionId = "ses_fixed"), heartbeatEveryMs = 0)
@@ -212,8 +228,10 @@ class HubRelayMirrorTest {
             return RelayIdentity("da_new", "ag_test")
         }
 
+        var failJoin409 = false
         override fun join(mcpUrl: String, token: String, code: String, environment: RelayEnvironment): String {
             calls += "join:$code:${environment.osName}"
+            if (failJoin409) throw RelayException(409, false, "HTTP 409: already member")
             return "ses_new"
         }
 

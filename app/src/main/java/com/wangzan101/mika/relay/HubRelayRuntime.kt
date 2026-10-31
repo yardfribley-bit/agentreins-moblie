@@ -3,6 +3,7 @@ package com.wangzan101.mika.relay
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.wangzan101.mika.MikaApp
 import com.wangzan101.mika.core.record.RunEvent
 import com.wangzan101.mika.core.record.RunSink
 import com.wangzan101.mika.core.relay.HubClaimDecision
@@ -28,11 +29,12 @@ import kotlinx.coroutines.flow.asStateFlow
 class HubRelayRuntime(
     private val settings: HubRelaySettings,
     environment: () -> RelayEnvironment,
-    private val transport: RelayTransport = HubMcpClient(),
+    private val transport: RelayTransport = HubMcpClient(log = { Log.i("HubMcp", it) }),
     startWorker: Boolean = true,
     private val busy: () -> Boolean = { false },
     private val startRun: (String) -> Unit = {},
     startInbound: Boolean = true,
+    private val onListen: () -> Unit = {},
     private val log: (String) -> Unit = { Log.w(TAG, it) },
 ) {
     private val _revision = MutableStateFlow(0)
@@ -66,16 +68,16 @@ class HubRelayRuntime(
 
     fun snapshot(): HubRelaySnapshot = settings.snapshot()
 
-    fun setEnabled(on: Boolean) { settings.setEnabled(on); bump() }
+    fun setEnabled(on: Boolean) { settings.setEnabled(on); bump(); onListen() }
     fun setMcpUrl(url: String) { settings.setMcpUrl(url) }
     fun setToken(token: String): Boolean = settings.setToken(token).also { bump() }
-    fun clearToken() { settings.setToken(""); bump() }
+    fun clearToken() { settings.setToken(""); bump(); onListen() }
     fun setJoinCode(code: String) { settings.setJoinCode(code) }
     fun setAlias(alias: String) { settings.setAlias(alias) }
     fun setAgentType(agentType: String) { settings.setAgentType(agentType) }
     fun setUploadScreenshots(on: Boolean) { settings.setUploadScreenshots(on); bump() }
     fun setClaimTasks(on: Boolean) { settings.setClaimTasks(on); bump() }
-    fun setRunOwnerInstructions(on: Boolean) { settings.setRunOwnerInstructions(on); bump() }
+    fun setRunOwnerInstructions(on: Boolean) { settings.setRunOwnerInstructions(on); bump(); onListen() }
 
     fun open(runId: String): RelayRun {
         mirror.claimReply(runId)
@@ -84,7 +86,7 @@ class HubRelayRuntime(
 
     fun submit(runId: String, event: RunEvent) = mirror.submit(runId, event)
 
-    fun joinNow() { mirror.joinNow(); bump() }
+    fun joinNow() { mirror.joinNow(); bump(); onListen() }
 
     /**
      * 认领开关关上时直接拒绝。打开了也只返回 [HubClaimDecision.NotImplemented] 或确认要求,
@@ -167,8 +169,9 @@ class HubRelayRuntime(
                         architecture = Build.SUPPORTED_ABIS.firstOrNull()?.takeIf { it.isNotBlank() } ?: "unknown",
                     )
                 },
-                busy = { (app as com.wangzan101.mika.MikaApp).taskState.busy.value },
+                busy = { (app as MikaApp).taskState.busy.value },
                 startRun = { goal -> TaskService.start(app, goal, prefs.hubConversationId()) },
+                onListen = { HubRelayService.sync(app) },
             )
         }
     }
