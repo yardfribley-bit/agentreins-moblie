@@ -264,7 +264,7 @@ class OpenAiCompatModel(
                 "length" -> StopReason.MaxTokens
                 else -> if (parts.any { it is Part.ToolCall }) StopReason.ToolUse else StopReason.Other
             }
-            return ModelReply(parts, stop, parseUsage(root["usage"]))
+            return EmbeddedToolCalls.lift(ModelReply(parts, stop, parseUsage(root["usage"])))
         } catch (e: ModelError) {
             throw e
         } catch (e: Exception) {
@@ -366,7 +366,7 @@ private class OpenAiStream(
             "length" -> StopReason.MaxTokens
             else -> if (calls.isNotEmpty()) StopReason.ToolUse else StopReason.Other
         }
-        return ModelReply(parts, stop, usage)
+        return EmbeddedToolCalls.lift(ModelReply(parts, stop, usage))
     }
 }
 

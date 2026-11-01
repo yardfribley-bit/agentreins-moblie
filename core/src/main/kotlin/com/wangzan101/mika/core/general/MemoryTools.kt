@@ -2,6 +2,7 @@ package com.wangzan101.mika.core.general
 
 import com.wangzan101.mika.core.observation.ObsKind
 import com.wangzan101.mika.core.observation.Observation
+import com.wangzan101.mika.core.memory.AccountCues
 import com.wangzan101.mika.core.memory.MemoryIndex
 import com.wangzan101.mika.core.memory.MemoryKind
 import com.wangzan101.mika.core.memory.MemoryRejected
@@ -86,14 +87,20 @@ internal object MemorySave : AgentTool {
     override suspend fun execute(a: Args, ctx: ToolContext): ToolExecution {
         val kind = a.str("kind")!!.let { k -> MemoryKind.entries.find { it.name == k } ?: throw ArgError("kind", "must be fact, preference or procedure") }
         val content = a.str("content", max = MemoryStore.MAX_CONTENT)!!
-        val quote = a.str("quote", max = 1000)!!
-        val keywords = a.strList("keywords", 0, MemoryStore.MAX_KEYWORDS, itemMax = 30) ?: emptyList()
+        val given = a.str("quote", max = 1000)!!
+        val keywords = ((a.strList("keywords", 0, MemoryStore.MAX_KEYWORDS, itemMax = 30) ?: emptyList()) +
+            AccountCues.keywords(content)).distinct().take(MemoryStore.MAX_KEYWORDS)
         val utterances = ctx.config.utterances!!
+        val remembered = given == com.wangzan101.mika.core.model.EmbeddedToolCalls.FROM_REMEMBER
+        val quote = if (remembered) utterances.all.firstOrNull { AccountCues.wantsRemember(it) } ?: given else given
         // 引文要出自用户本次说的话;屏幕和网页上的字不能当成用户说的
         if (!utterances.contains(quote)) return fail("quote_not_from_user",
             Feedback["memory.quote_not_from_user"], recoverable = false)
-        // 引文对上了,内容里的具体值(地址、号码、名字)也得是用户说过的,不能从屏幕上补
-        if ((listOf(content) + keywords).any { utterances.unsupportedSpecifics(it, quote).isNotEmpty() }) return fail("content_not_from_user",
+        val asked = AccountCues.wantsRemember(quote) || utterances.all.any(AccountCues::wantsRemember)
+        val extras = (listOf(content) + keywords).flatMap { utterances.unsupportedSpecifics(it, quote) }.distinct()
+        // 用户说记住时，平台名和邮箱可以来自这次登录；电话、门牌、地址仍必须是用户亲口说的。密钥另由 SensitiveFilter 拒绝。
+        val blocked = if (asked) extras.filterNot { AccountCues.allowedExtra(it, content) } else extras
+        if (blocked.isNotEmpty()) return fail("content_not_from_user",
             Feedback["memory.content_not_from_user"], recoverable = false)
         val store = ctx.config.memory!!
         val added = store.add(kind, content, keywords, MemorySource("user_said", quote.trim(), ctx.config.conversationId, store.clock(),
