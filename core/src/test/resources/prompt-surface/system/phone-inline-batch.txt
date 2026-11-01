@@ -391,7 +391,7 @@ end_not_done #41d1f0f74c58
 view_past_screens #a3ac22f0d0d1
 hand_to_user #8af7d38230f9
 handle_obstacle #1a00c1e71b3c
-do_steps #2b53d8570955
+do_steps #6a65345341e6
 phone_observe #9ffb6bf96600
 phone_list_elements #a2f676e3e547
 phone_tap #379f50552711

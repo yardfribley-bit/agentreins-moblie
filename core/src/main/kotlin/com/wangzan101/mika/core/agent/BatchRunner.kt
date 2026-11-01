@@ -88,7 +88,11 @@ class BatchRunner(
             val skipped = steps.drop(i).map { entry(it.tool) { put("ok", false); put("error", NEW_MESSAGE); put("executed", false) } }
             return Stop(i, NEW_MESSAGE, skipped.first(), executed = false, rest = skipped.drop(1))
         }
-        for ((i, s) in steps.withIndex()) {
+        val retriedExpired = HashSet<Int>()
+        var i = 0
+        while (i < steps.size) {
+            val s = steps[i]
+            val alreadyRetried = i in retriedExpired
             if (i > 0 && steerWaiting()) {
                 stop = skipFrom(i)
                 break
@@ -138,6 +142,12 @@ class BatchRunner(
                 c["limitReached"] != null -> "limit_reached"
                 else -> null
             }
+            // 页面刚跳走时旧编号会失效。重新读一屏再试这一步一次；还不行才停下。
+            if (hard == "ref_expired" && !alreadyRetried) {
+                retriedExpired += i
+                tools.lookNow()
+                continue
+            }
             val review = i < steps.lastIndex && screen != null &&
                 (screen["imageReason"] != null || screen["protected"] == JsonPrimitive(true) ||
                     screen["readable"] == JsonPrimitive(false) || screen["note"] != null)
@@ -160,6 +170,7 @@ class BatchRunner(
                 effectKind(c)?.let { put("effect", it) }
                 (c["verification"] as? JsonPrimitive)?.let { put("verification", it) }
                 reason?.let { put("error", it) }
+                if (alreadyRetried) put("retried", true)
                 if (waited != null && !waited.met) s.until?.let { untilFields(it).forEach { (k, v) -> put(k, v) } }
                 waited?.let { w ->
                     put("wait", buildJsonObject { put("met", w.met); w.stopped?.let { put("stopped", it) }; put("waited_ms", w.waitedMs) })
@@ -176,8 +187,9 @@ class BatchRunner(
                 stop = Stop(i, NEW_MESSAGE, JsonObject(e + ("executed" to JsonPrimitive(true))), executed = true); break
             }
             entries += e
-            if (guards.stop != null && i < steps.size - 1) {
-                stop = Stop(i + 1, "guard_stopped", entry(steps[i + 1].tool) { put("ok", false); put("error", "guard_stopped"); put("executed", false) }, executed = false)
+            i++
+            if (guards.stop != null && i < steps.size) {
+                stop = Stop(i, "guard_stopped", entry(steps[i].tool) { put("ok", false); put("error", "guard_stopped"); put("executed", false) }, executed = false)
                 break
             }
         }

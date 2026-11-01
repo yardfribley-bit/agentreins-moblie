@@ -71,6 +71,29 @@ class BatchRunnerTest {
     private fun st(tool: String, args: String = "{}", expect: String? = null) = Triple(tool, args, expect)
     private fun JsonObject.s(k: String) = this[k]!!.jsonPrimitive.content
 
+    @Test fun refExpiredReobservesAndRetriesOnce() = runTest {
+        val s = BatchScreen(home)
+        s.results += ActionResult.Failed("ref_expired")
+        s.results += ActionResult.Ok(changed = true)
+        val d = toolDispatcher(s).also { it.execute(com.wangzan101.mika.core.model.Part.ToolCall("o", "phone_observe", "{}")) }
+        val r = runner(d).run(steps(st("phone_tap", """{"ref":"@e1","snapshotId":"p1"}"""), st("phone_back")), "c1").content
+        assertEquals("true", r.s("ok"))
+        assertEquals(2, r["completed"]!!.jsonPrimitive.int)
+        assertEquals(2, s.calls.count { it.startsWith("tapRef") })
+    }
+
+    @Test fun refExpiredStopsAfterOneRetry() = runTest {
+        val s = BatchScreen(home)
+        s.results += ActionResult.Failed("ref_expired")
+        s.results += ActionResult.Failed("ref_expired")
+        val d = toolDispatcher(s).also { it.execute(com.wangzan101.mika.core.model.Part.ToolCall("o", "phone_observe", "{}")) }
+        val r = runner(d).run(steps(st("phone_tap", """{"ref":"@e1","snapshotId":"p1"}"""), st("phone_back")), "c1").content
+        assertEquals("false", r.s("ok"))
+        assertEquals("ref_expired", r.s("reason"))
+        assertEquals(2, s.calls.count { it.startsWith("tapRef") })
+        assertTrue(r["steps"]!!.jsonArray.first().jsonObject["retried"]!!.jsonPrimitive.content == "true")
+    }
+
     @Test fun allStepsPassReturnsOk() = runTest {
         val s = BatchScreen(home)
         val d = toolDispatcher(s).also { it.execute(com.wangzan101.mika.core.model.Part.ToolCall("o", "phone_observe", "{}")) }

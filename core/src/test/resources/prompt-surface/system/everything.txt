@@ -481,7 +481,7 @@ memory_save #ace476657c9b
 view_past_screens #a3ac22f0d0d1
 hand_to_user #26582d67eb46
 handle_obstacle #31695598de59
-do_steps #2b53d8570955
+do_steps #6a65345341e6
 phone_observe #9ffb6bf96600
 phone_list_elements #a2f676e3e547
 phone_screenshot #1973a5708e73
