@@ -493,7 +493,7 @@ class AgentLoop(
                 preview = text.takeIf { streamReplies && calls.isEmpty() && it.isNotEmpty() })
             // 带调用的回复等执行完再记:要看端口是否报告了密码框
             fun recordReply(argsJson: String?) = emit(RunEvent.ModelReply(
-                now(), step, RunEvent.clip(Redactor.text(text)), tool, argsJson,
+                now(), step, RunEvent.clip(Redactor.outbound(text)), tool, argsJson?.let(Redactor::toolArgs),
                 reply.usage?.inputTokens, reply.usage?.outputTokens, reply.usage?.cachedInputTokens, latencyMs,
                 if (caller.recordRoles) used.name else null, if (caller.recordRoles) caller.roleOf(used) else null, retryWaitMs = retryWaitMs,
                 repliedAtMs = repliedAtMs,

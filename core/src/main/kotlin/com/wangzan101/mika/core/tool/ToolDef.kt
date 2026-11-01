@@ -22,7 +22,7 @@ internal class ToolDef(
         put("type", "object")
         put("properties", buildJsonObject {
             props.forEach { (k, v) -> put(k, v) }
-            if (!ownReason) put("reason", str("Optional short note on why you are calling this; not used for execution."))
+            if (!ownReason) put("reason", str("Optional short note on why you are calling this; not used for execution. Never write a password, PIN, OTP, recovery code or TOTP secret here."))
         })
         put("required", JsonArray(required.map { JsonPrimitive(it) }))
         put("additionalProperties", false)

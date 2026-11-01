@@ -49,6 +49,35 @@ class RedactorTest {
         assertFalse(a.contains(key))
     }
 
+    @Test fun outboundKeepsAccountIdentifiersAndMasksSecretValues() {
+        val account = "GitHub 用邮箱 smithjat@163.com 登录，登录方式是密码，已绑定两步验证"
+        assertEquals(account, Redactor.outbound(account))
+        assertFalse(Redactor.outbound("输入支付密码 142536").contains("142536"))
+        assertFalse(Redactor.outbound("密码「Qwe1220010579.」").contains("Qwe1220010579"))
+        assertFalse(Redactor.outbound("password is hunter2").contains("hunter2"))
+        assertFalse(Redactor.outbound("密钥 hrsdvstctn3yv3vpnxgvtlslng4xdil7").contains("hrsdvstctn3yv3vpnxgvtlslng4xdil7"))
+        assertEquals("密码键盘 *", Redactor.outbound("密码键盘 0"))
+        assertEquals("pin this note", Redactor.outbound("pin this note"))
+        assertFalse(Redactor.outbound("otp 552211").contains("552211"))
+    }
+
+    @Test fun keypadTapsLoseDigitsAndCoordinates() {
+        val args = """{"reason":"输入支付密码 142536","steps":[{"tool":"phone_tap","args":{"x":499,"y":969,"target":"密码键盘 0"}},{"tool":"phone_tap","args":{"x":10,"y":20,"ref":"@e1","target":"搜索"}}]}"""
+        val out = Redactor.toolArgs(args)
+        assertFalse(out, out.contains("142536"))
+        assertFalse(out, out.contains("499"))
+        assertFalse(out, out.contains("969"))
+        assertFalse(out, "密码键盘 0" in out)
+        assertTrue(out, "密码键盘 *" in out)
+        assertTrue(out, "搜索" in out)
+        assertTrue(out, "@e1" in out)
+        val stored = com.wangzan101.mika.core.record.RunEvent.forStorage(
+            com.wangzan101.mika.core.record.RunEvent.TaskEnded(1, "succeeded", "密码是 hunter2，邮箱仍是 a@b.com"),
+        ) as com.wangzan101.mika.core.record.RunEvent.TaskEnded
+        assertFalse(stored.answerOrReason.contains("hunter2"))
+        assertTrue(stored.answerOrReason.contains("a@b.com"))
+    }
+
     @Test fun ordinaryTextKept() {
         val s = "打开设置,搜索 sky-blue 主题 task-1234 Bearer"
         assertEquals(s, Redactor.text(s))

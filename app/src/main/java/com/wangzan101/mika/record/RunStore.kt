@@ -56,7 +56,7 @@ class RunStore internal constructor(
         val id = "$stamp-$suffix"
         val dir = File(root, id)
         dir.mkdirs()
-        val handle = RunHandle(id, dir, RunSummary(id = id, goal = Redactor.text(goal), startedAtMs = start), encode, metrics::append)
+        val handle = RunHandle(id, dir, RunSummary(id = id, goal = Redactor.outbound(goal), startedAtMs = start), encode, metrics::append)
         prune()
         return handle
     }
@@ -80,9 +80,10 @@ class RunStore internal constructor(
     fun append(runId: String, e: RunEvent) {
         val dir = dirOf(runId) ?: return
         runCatching {
-            File(dir, EVENTS).appendText(RunEvent.encode(e) + "\n")
+            val stored = RunEvent.forStorage(e)
+            File(dir, EVENTS).appendText(RunEvent.encode(stored) + "\n")
             val summaryFile = File(dir, RUN_JSON)
-            val summary = RunEvent.json.decodeFromString(RunSummary.serializer(), summaryFile.readText()).with(e)
+            val summary = RunEvent.json.decodeFromString(RunSummary.serializer(), summaryFile.readText()).with(stored)
             val tmp = File(dir, "$RUN_JSON.tmp")
             tmp.writeText(RunEvent.json.encodeToString(RunSummary.serializer(), summary))
             if (!tmp.renameTo(summaryFile)) error("rename failed")
@@ -208,10 +209,11 @@ class RunHandle internal constructor(
     }
 
     private fun write(e: RunEvent) {
-        // 先计入概要再追加,即使追加失败,结局也会写进 run.json
-        summary = summary.with(e)
-        metrics.add(e)
-        safely("event") { File(dir, RunStore.EVENTS).appendText(RunEvent.encode(e) + "\n") }
+        // 先计入概要再追加,即使追加失败,结局也会写进 run.json。落盘的是打过码的副本。
+        val stored = RunEvent.forStorage(e)
+        summary = summary.with(stored)
+        metrics.add(stored)
+        safely("event") { File(dir, RunStore.EVENTS).appendText(RunEvent.encode(stored) + "\n") }
         sinceSummary += 1
         // 定期刷新概要:进程被杀时 run.json 里也有大致的步数和用量
         if (e is RunEvent.TaskEnded || sinceSummary >= SUMMARY_EVERY) writeSummary()
