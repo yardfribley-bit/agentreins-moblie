@@ -599,6 +599,7 @@ class TaskRun(
                 imageOps = BitmapImageOps, runSpec = runSpec,
                 userScreens = userScreens,
                 liveAudio = if (provenance.origin == RunOrigin.Ui) com.wangzan101.mika.audio.LiveAudioSession.port(service, key) else null,
+                liveAudioSetup = if (provenance.origin == RunOrigin.Ui) com.wangzan101.mika.audio.LiveAudioSetupStore(service) else null,
                 scheduleTrigger = if (provenance.origin == RunOrigin.Ui) { trigger -> TriggerRuntime.schedule(service, trigger) } else null,
                 scheduleAdmin = if (provenance.origin == RunOrigin.Ui) LocalScheduleAdmin(service) else null,
                 childHost = childRunner)

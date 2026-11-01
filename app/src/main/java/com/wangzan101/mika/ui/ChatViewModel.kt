@@ -1212,6 +1212,7 @@ class ToolLabels(private val tools: ToolIndex, private val legacy: LegacyNames =
             "系统命令" to R.string.tool_shell,
             "查找界面控件" to R.string.tool_find_element,
             "听直播" to R.string.tool_listen_live,
+            "配置直播语音识别" to R.string.tool_configure_live_audio,
             "采集多屏内容" to R.string.tool_collect,
             "连续操作手机" to R.string.tool_phone_run,
             "处理文件" to R.string.tool_process_files,

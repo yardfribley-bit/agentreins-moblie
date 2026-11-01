@@ -74,7 +74,7 @@ Presets for DeepSeek, 通义千问, Kimi, 智谱, 硅基流动, 火山方舟, Mi
 ## Live listening and replies
 
 1. Turn off Settings > During work > Mute the app being used. Stop an existing task first if it has already muted Douyin.
-2. Open Settings > During work > Live listening. The personal build preconfigures its transcription URL, model and key.
+2. Open Settings > During work > Live listening. OpenRouter or OpenAI fills the URL and model so only a key is required; a single paste of URL, model and key also works. Values are kept as you type, and Save is separate from Start listening. The personal build preconfigures its transcription URL, model and key. Chat can save the same three fields and must not repeat the full key.
 3. Choose the audio source, start listening and accept Android's permission prompts.
 4. Check the latest transcript displayed on the setup page before starting replies.
 5. In a new chat, request continuous listening and relevant short replies. State the intended duration and reply rules.

@@ -56,4 +56,5 @@
     <string name="tool_type">Type text</string>
     <string name="tool_clear">Clear field</string>
     <string name="tool_listen_live">Listen to live audio</string>
+    <string name="tool_configure_live_audio">Configure live transcription</string>
 </resources>

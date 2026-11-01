@@ -42,6 +42,20 @@ class LiveTranscriberTest {
         assertTrue(LiveTranscriber.networkFailure(javax.net.ssl.SSLHandshakeException("private-details")).message!!.contains("ASR_TLS"))
         assertTrue(LiveTranscriber.networkFailure(java.net.ConnectException()).retryable)
     }
+    @Test fun http401NamesProviderMismatchWithoutTheKey() {
+        val key = "sk-or-v1-" + "abcdefghijklmnopqrstuvwxyz"
+        val message = LiveTranscriber.httpFailure(
+            401, """{"error":{"message":"invalid api key $key"}}""", key,
+            "https://api.openai.com/v1/audio/transcriptions",
+        ).message!!
+        assertTrue(message.contains("OpenRouter"))
+        assertTrue(message.contains("401"))
+        assertFalse(message.contains(key))
+        assertFalse(message.contains("abcdefghijklmnopqrstuvwxyz"))
+        val sameProvider = LiveTranscriber.httpFailure(401, "{}", "sk-" + "abcdefghijklmnopqrstuvwxyz", "https://api.openai.com/v1/audio/transcriptions").message!!
+        assertTrue(sameProvider.contains("Key 无效或已失效"))
+    }
+
     @Test fun givesActionableHttpErrorWithoutLeakingKey() = runBlocking {
         MockWebServer().use { server ->
             server.enqueue(MockResponse().setResponseCode(403).setBody("""{"error":{"message":"Region restricted; token test-key"}}"""))
