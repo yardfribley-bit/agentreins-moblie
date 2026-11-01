@@ -62,11 +62,11 @@ class MemoryStore(
         if (!reloadIfNeeded()) return Result.failure(MemoryRejected("unavailable"))
         val text = clean(content)
         val kws = cleanKeywords(keywords)
-        check(text, kws, source)?.let { return Result.failure(it) }
+        check(text, kws)?.let { return Result.failure(it) }
         if (_items.value.size >= limit) return Result.failure(MemoryRejected("memory_full"))
         val now = clock()
         val item = MemoryItem(
-            id = ids(), kind = kind, content = text, keywords = kws, source = source,
+            id = ids(), kind = kind, content = text, keywords = kws, source = safeSource(source),
             status = if (kind == MemoryKind.procedure) MemoryStatus.pending else MemoryStatus.active,
             createdAt = now, updatedAt = now,
         )
@@ -83,8 +83,8 @@ class MemoryStore(
         val before = _items.value.find { it.id == id } ?: return Result.failure(MemoryRejected("not_found"))
         val text = clean(content)
         val kws = keywords?.let(::cleanKeywords) ?: before.keywords
-        val src = source ?: before.source
-        check(text, kws, src)?.let { return Result.failure(it) }
+        val src = safeSource(source ?: before.source)
+        check(text, kws)?.let { return Result.failure(it) }
         val reapprove = before.kind == MemoryKind.procedure && source != null && source.type != "manual"
         val item = before.copy(
             content = text, keywords = kws, source = src, updatedAt = clock(),
@@ -154,11 +154,16 @@ class MemoryStore(
         commit(emptyList())
     }
 
-    private fun check(content: String, keywords: List<String>, source: MemorySource): MemoryRejected? {
+    private fun check(content: String, keywords: List<String>): MemoryRejected? {
         if (content.isEmpty() || content.length > MAX_CONTENT) return MemoryRejected("too_long")
-        val texts = listOf(content) + keywords + listOfNotNull(source.quote)
-        if (texts.any { SensitiveFilter.hit(it) != null }) return MemoryRejected("sensitive")
+        if ((listOf(content) + keywords).any { SensitiveFilter.hit(it) != null }) return MemoryRejected("sensitive")
         return null
+    }
+
+    /** 引文里夹带的密码不连坐整条记忆:内容本身必须干净,引文只留去掉密钥之后的说法。 */
+    private fun safeSource(source: MemorySource): MemorySource {
+        val quote = source.quote?.let(SensitiveFilter::redact) ?: return source
+        return source.copy(quote = quote)
     }
 
     // 换行、连续空白压成一个空格:记忆块按行编号,内容里不能有换行

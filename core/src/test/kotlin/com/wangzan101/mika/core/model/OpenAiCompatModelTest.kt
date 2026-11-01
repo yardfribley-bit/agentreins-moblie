@@ -35,6 +35,18 @@ class OpenAiCompatModelTest {
     private fun body(): kotlinx.serialization.json.JsonObject =
         Json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject
 
+    @Test fun textEmbeddedDsmlBecomesAToolCall() = runTest {
+        val body = """{"choices":[{"finish_reason":"stop","message":{"content":"<｜｜DSML｜｜invoke name=\"memory_add\"><｜｜DSML｜｜parameter name=\"content\" string=\"true\">用户用 a@b.com 登录 GitHub</｜｜DSML｜｜parameter><｜｜DSML｜｜parameter name=\"kind\" string=\"true\">fact</｜｜DSML｜｜parameter></｜｜DSML｜｜invoke>"}}]}"""
+        server.enqueue(ok(body))
+        val r = model().complete("sys", user, emptyList())
+        val call = r.parts.filterIsInstance<Part.ToolCall>().single()
+        assertEquals("memory_save", call.name)
+        assertTrue(call.argsJson.contains("a@b.com"))
+        assertTrue(call.argsJson.contains(EmbeddedToolCalls.FROM_REMEMBER))
+        assertFalse(r.parts.filterIsInstance<Part.Text>().joinToString("") { it.text }.contains("DSML"))
+        assertEquals(StopReason.ToolUse, r.stopReason)
+    }
+
     @Test fun parsesToolCalls() = runTest {
         server.enqueue(ok("""{"choices":[{"finish_reason":"tool_calls","message":{"content":null,"tool_calls":[{"id":"c1","type":"function","function":{"name":"phone_tap","arguments":"{\"ref\":\"a1\"}"}}]}}],"usage":{"prompt_tokens":10,"completion_tokens":3,"prompt_tokens_details":{"cached_tokens":4}}}"""))
         val r = model().complete("sys", user, listOf(ToolSpec("phone_tap", "d", """{"type":"object"}""")))
