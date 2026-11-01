@@ -73,7 +73,7 @@ No web page is open yet. Open one with web_navigate; this is not a fault.
 {{app}} is open in the foreground, but its window cannot be read right now (a secure, splash or special window, or one shown elsewhere). The app did launch: do not launch it again. Wait a moment and look once more; if it is still unreadable, press back once, and if that does not help, call hand_to_user.
 
 ## tree_poor
-The accessibility tree is missing much of this screen (treeQuality), and observing again will not add the missing elements. visibleText is the text read from the screenshot; its center is a tap point on phone_tap's 0–999 x/y grid. Use element refs where they exist; tap text that has none with phone_tap x/y at its center. OCR can misread small or decorated text: do not report a garbled line as fact.
+The accessibility tree is missing much of this screen (treeQuality, degraded: true, targeting screenshot_ocr), and observing again will not add the missing elements. visibleText is the text read from the screenshot; its center is a tap point on phone_tap's 0–999 x/y grid. Use element refs where they exist; tap text that has none with phone_tap x/y at its center. OCR can misread small or decorated text: do not report a garbled line as fact.
 
 ## tree_poor.visual
 {{tree_poor}} For a control without text (an icon, a picture, an input box), call phone_find_visually (one target, quick); to type into a box, give phone_type_text its point, or name the box in element and it is found by sight. Call phone_describe only when you cannot tell what the page is: it reads the whole screen and is slow.
@@ -356,6 +356,9 @@ The text did not appear in the field after a retry. Observe the screen, tap the 
 
 ## type.unverified
 The text was entered but could not be read back to confirm it; check the screen before relying on it.
+
+## type.quark_confirm
+Enter only inserts a newline in the Quark address bar. Tap the confirm button on the right of the field (前往, 确认, or 搜索). Do not press Enter again.
 
 ## type.unverified_enter
 {{unverified}} Enter was not pressed; press it yourself once the screen shows the text.

@@ -151,7 +151,11 @@ internal class ScreenSession(
             put("snapshotId", s.snapshotId)
             put("screenshotId", shotId)
             imageReason?.let { put("imageReason", it) }
-            quality(tree)?.let { put("treeQuality", it) }
+            quality(tree)?.let {
+                put("treeQuality", it)
+                put("degraded", true)
+                put("targeting", "screenshot_ocr")
+            }
             ocrStatus?.let { put("ocr", it) }
             put("screenChangedDuringRead", s.changedDuringRead)
             if (s.changedDuringRead) put("note", NOTE_CHANGED_DURING_READ)
@@ -277,7 +281,7 @@ internal class ScreenSession(
                 (if (s.changedDuringRead) mapOf("note" to JsonPrimitive(NOTE_CHANGED_DURING_READ)) else emptyMap()) +
                 (s.opened?.let { mapOf("opened" to openedJson(it)) } ?: emptyMap()) +
                 (s.web?.dialog?.let { mapOf("dialog" to dialogJson(it)) } ?: emptyMap()) +
-                (quality(tree)?.let { mapOf("treeQuality" to JsonPrimitive(it)) } ?: emptyMap()) +
+                (quality(tree)?.let { mapOf("treeQuality" to JsonPrimitive(it), "degraded" to JsonPrimitive(true), "targeting" to JsonPrimitive("screenshot_ocr")) } ?: emptyMap()) +
                 (ocrStatus?.let { mapOf("ocr" to JsonPrimitive(it)) } ?: emptyMap()) +
                 ((unreadable(s)?.takeIf { ocr.isNullOrEmpty() }?.let { mapOf("readable" to JsonPrimitive(false), "hint" to JsonPrimitive(it)) })
                     ?: treeHint(tree, ocrStatus)?.let { mapOf("hint" to JsonPrimitive(it)) } ?: emptyMap()))

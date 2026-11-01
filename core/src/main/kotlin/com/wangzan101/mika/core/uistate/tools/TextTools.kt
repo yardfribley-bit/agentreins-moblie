@@ -1,6 +1,7 @@
 package com.wangzan101.mika.core.uistate.tools
 
 import com.wangzan101.mika.core.uistate.ScreenFamily
+import com.wangzan101.mika.core.uistate.session
 import com.wangzan101.mika.core.risk.GateTarget
 import com.wangzan101.mika.core.prompt.Feedback
 import com.wangzan101.mika.core.uistate.ActionResult
@@ -38,6 +39,8 @@ import com.wangzan101.mika.core.uistate.screen
 import com.wangzan101.mika.core.uistate.withPortRef
 
 private const val KEYCODE_ENTER = 66
+private const val QUARK = "com.quark.browser"
+private val QUARK_CONFIRM = setOf("前往", "确认", "搜索", "访问", "打开", "Go", "Search")
 
 /** 输入、清空另收的参数:一个点的坐标(ref 也可以是看图找到的 @vN),树读不到输入框时直接往那一点打字。 */
 private val POINT_ARGS = mapOf(
@@ -113,6 +116,20 @@ internal class TypeText(f: ScreenFamily) : ScreenTool(f, "type_text") {
         }
     }
 
+    private suspend fun quarkAddressBar(ctx: ToolContext): Boolean {
+        val pkg = ctx.session.lastSnapshot?.packageName ?: return false
+        return pkg == QUARK
+    }
+
+    /** 夸克地址栏回车只会换行。点输入框右侧的确认，而不是再送一次回车。 */
+    private suspend fun tapQuarkConfirm(ctx: ToolContext): Boolean {
+        val s = ctx.session.lastSnapshot ?: return false
+        val hit = s.elements.firstOrNull { el ->
+            el.clickable && el.name.trim() in QUARK_CONFIRM && !el.editable
+        } ?: return false
+        return ctx.screen.tapRef(hit.ref, s.snapshotId) is ActionResult.Ok
+    }
+
     private suspend fun typeInto(ctx: ToolContext, text: String, enter: Boolean, type: suspend () -> ActionResult): ToolExecution {
         val screen = ctx.screen
         val typed = type()
@@ -126,12 +143,16 @@ internal class TypeText(f: ScreenFamily) : ScreenTool(f, "type_text") {
         val switched = typed.appSwitched
         // 读不回来就不按回车:可能把没打进去的内容提交出去;前台被切走时回车会打到别的 App 上
         val pressEnter = enter && v != Verification.UNKNOWN && switched == null
-        if (pressEnter) {
+        val quark = pressEnter && quarkAddressBar(ctx)
+        var confirmed = false
+        if (quark) confirmed = tapQuarkConfirm(ctx)
+        else if (pressEnter) {
             val k = screen.pressKey(KEYCODE_ENTER)
             if (k !is ActionResult.Ok) return ctx.action(k)
         }
         return ToolExecution(okObj {
-            put("typed", text.length); put("pressedEnter", pressEnter)
+            put("typed", text.length); put("pressedEnter", pressEnter && !quark || confirmed)
+            if (quark) put("enterVia", if (confirmed) "quark_confirm" else "quark_confirm_missing")
             put("secret", typed.secret)
             if (typed.relocated) put("relocated", true)
             typed.relocatedTo?.takeIf { typed.relocated }?.let { put("relocatedTo", it) }
@@ -139,6 +160,7 @@ internal class TypeText(f: ScreenFamily) : ScreenTool(f, "type_text") {
             if (enter && !pressEnter) put("enterSkipped", true)
             switched?.let { put("app_switched", it) }
             val hints = listOfNotNull(
+                Feedback["type.quark_confirm"].takeIf { quark && !confirmed },
                 typed.hint,
                 (if (enter) Feedback.format("type.unverified_enter", "unverified" to Feedback["type.unverified"]) else Feedback["type.unverified"])
                     .takeIf { v == Verification.UNKNOWN },
