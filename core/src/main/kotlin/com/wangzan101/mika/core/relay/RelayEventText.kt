@@ -18,7 +18,7 @@ object RelayEventText {
 
     fun map(runId: String, index: Int, event: RunEvent): RelayMessage? {
         val built = body(event) ?: return null
-        val text = clip(Redactor.text(built.second))
+        val text = clip(Redactor.outbound(built.second))
         if (text.isBlank()) return null
         return RelayMessage(requestId(runId, index), built.first, text)
     }
@@ -96,7 +96,7 @@ object RelayEventText {
             if (said.isNotBlank()) append(" ").append(said)
             if (tool != null) {
                 append(" → ").append(tool)
-                val args = event.argsJson?.takeIf { it.isNotBlank() && it != "{}" }
+                val args = event.argsJson?.takeIf { it.isNotBlank() && it != "{}" }?.let(Redactor::toolArgs)
                 if (args != null) append(" ").append(short(args, 160))
             }
         })

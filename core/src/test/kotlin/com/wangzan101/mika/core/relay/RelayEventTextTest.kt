@@ -47,6 +47,17 @@ class RelayEventTextTest {
         assertTrue(leaked.text.contains("***"))
         assertTrue(leaked.text.contains("phone_type"))
 
+        val pin = RelayEventText.map(
+            "run", 4,
+            RunEvent.ModelReply(1, 22, "输入支付密码", "do_steps",
+                """{"reason":"输入支付密码 142536","steps":[{"tool":"phone_tap","args":{"x":499,"y":969,"target":"密码键盘 0"}}]}""",
+                null, null, null),
+        )!!
+        assertFalse(pin.text, pin.text.contains("142536"))
+        assertFalse(pin.text, pin.text.contains("499"))
+        assertFalse(pin.text, "密码键盘 0" in pin.text)
+        assertTrue(pin.text.contains("密码键盘 *"))
+
         val long = RelayEventText.map("run", 1, RunEvent.TaskEnded(2, "succeeded", "答".repeat(9000)))!!
         assertTrue(long.text.length <= RELAY_MAX_TEXT)
     }

@@ -175,6 +175,10 @@ Obstacles
 - A sign-in wall, an expired session or another account problem is a barrier,
   not a failed task. Try available sign-in methods; hand over only when a
   password, code, identity check or CAPTCHA requires the user's hands.
+- Never write a password, PIN, one-time code, recovery code or TOTP secret in
+  a tool reason, a target label, a progress note or the final answer. Say
+  "输入支付密码" or "输入验证码" without the value. On a PIN keypad, do not
+  repeat the digits in reason; the tap itself is enough.
 - A transient "please wait", loading or verifying page is not a barrier yet:
   wait a few seconds and look again.
 - Not found, unreadable, behind a sign-in wall and failed to load are
@@ -383,44 +387,44 @@ Besides the phone, you have a Linux sandbox (Alpine with Python 3 and Node). Use
 - The environment is still being set up in the background. The first tool call waits for it (up to about two minutes); if it is still not ready, the tool says so.
 
 ==== tools (41) ====
-wait #5794ab76ac33
-ask_user #6254b6ed563d
-request_confirmation #9baf652ef468
-end_not_done #41d1f0f74c58
-view_past_screens #a3ac22f0d0d1
+wait #e688f8d8d543
+ask_user #4f00c29ec33c
+request_confirmation #b80cb3c49387
+end_not_done #5a2e13bd5370
+view_past_screens #5896532e345c
 hand_to_user #8af7d38230f9
 handle_obstacle #1a00c1e71b3c
-phone_observe #9ffb6bf96600
-phone_list_elements #a2f676e3e547
-phone_tap #379f50552711
-phone_scroll #bc11a29bff0f
-phone_swipe #c392265bc7e1
-phone_type_text #0caaf9ed7de4
-phone_clear_text #1eb9d4ca69e9
-phone_back #f9818ae186e1
-phone_press_key #b987dc91abfe
-phone_diagnose #9a442720df28
-phone_query #b0a260531e49
-phone_find #f6edca419ddd
-phone_extract #c1ba7a8b83d9
-phone_collect #12401fcb9fab
-phone_wait #422d1d649ef0
-phone_event #dc1657f03e18
-phone_dialog #d4590fa126bf
-phone_gesture #7bfb6a51abb7
-phone_set_wheel #43bcb3f70244
-phone_run #cea4dd41713b
-phone_system_command #7206379577b0
-phone_list_apps #e24d184b5e69
-phone_launch_app #b564e82a4b3b
+phone_observe #0bbf03b2fd6b
+phone_list_elements #7c906e399e1e
+phone_tap #bb37c7dad38f
+phone_scroll #055f21bb3cab
+phone_swipe #c8ba50ace388
+phone_type_text #3736dc410432
+phone_clear_text #a8ff54582139
+phone_back #b8cba5ade0a7
+phone_press_key #1aaf59ca72f6
+phone_diagnose #26dabec2c878
+phone_query #fd75827edb97
+phone_find #6a037ca12f5e
+phone_extract #ece60c83d09c
+phone_collect #02047efc8d89
+phone_wait #8317b14d0f21
+phone_event #a08171ed51f3
+phone_dialog #fa7b934ad7cb
+phone_gesture #4fc704bab57a
+phone_set_wheel #6f62a4fefc39
+phone_run #9071cac9d8fb
+phone_system_command #b21eb013c415
+phone_list_apps #3c9d1e18b923
+phone_launch_app #a7f33219b2e2
 phone_share_text #a68241065b81
-phone_set_alarm #f84abdeb90e2
-phone_set_timer #58e8e6883f36
-phone_show_alarms #a8bd8ef58822
-phone_add_calendar_event #fbebceaf1463
-run_command #a641b8e33cb1
-run_bundled_script #b88c567d400b
-read_file #b90f2fbe3080
-write_file #9641c463f0d8
-search_files #4e9002cea934
-share_file #d63e5b33b1d9
+phone_set_alarm #97e4a95081ee
+phone_set_timer #446867adab53
+phone_show_alarms #88922ad547be
+phone_add_calendar_event #fd92a8a75056
+run_command #705284208b69
+run_bundled_script #3bdec2a88589
+read_file #ce77a04d4590
+write_file #0a10ed285f09
+search_files #8ebb1f0689b1
+share_file #35824b46bd53

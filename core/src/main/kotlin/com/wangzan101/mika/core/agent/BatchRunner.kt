@@ -318,14 +318,14 @@ class BatchRunner(
 
         /** 运行记录用:批里输入的文字一律打码(端口还没说是不是密码框)。 */
         fun redactArgs(argsJson: String): String {
-            val o = try { Json.parseToJsonElement(argsJson) as? JsonObject } catch (e: SerializationException) { null } ?: return Redactor.text(argsJson)
-            val steps = o["steps"] as? JsonArray ?: return Redactor.text(argsJson)
+            val o = try { Json.parseToJsonElement(argsJson) as? JsonObject } catch (e: SerializationException) { null } ?: return Redactor.toolArgs(argsJson)
+            val steps = o["steps"] as? JsonArray ?: return Redactor.toolArgs(argsJson)
             val masked = JsonArray(steps.map { s ->
                 val so = s as? JsonObject ?: return@map s
                 val a = so["args"] as? JsonObject
                 if (a == null || "text" !in a) s else JsonObject(so + ("args" to JsonObject(a + ("text" to JsonPrimitive("***")))))
             })
-            return Redactor.text(JsonObject(o + ("steps" to masked)).toString())
+            return Redactor.toolArgs(JsonObject(o + ("steps" to masked)).toString())
         }
 
         /** do_steps 的定义;[batchable] 是能放进一批的工具名。 */
@@ -364,7 +364,7 @@ class BatchRunner(
                             put("additionalProperties", false)
                         })
                     })
-                    put("reason", buildJsonObject { put("type", "string"); put("description", "Optional short note on why you are calling this; not used for execution.") })
+                    put("reason", buildJsonObject { put("type", "string"); put("description", "Optional short note on why you are calling this; not used for execution. Never write a password, PIN, OTP, recovery code or TOTP secret here.") })
                 })
                 put("required", JsonArray(listOf(JsonPrimitive("steps"))))
                 put("additionalProperties", false)

@@ -155,6 +155,10 @@ Obstacles
 - A sign-in wall, an expired session or another account problem is a barrier,
   not a failed task. Try available sign-in methods; hand over only when a
   password, code, identity check or CAPTCHA requires the user's hands.
+- Never write a password, PIN, one-time code, recovery code or TOTP secret in
+  a tool reason, a target label, a progress note or the final answer. Say
+  "输入支付密码" or "输入验证码" without the value. On a PIN keypad, do not
+  repeat the digits in reason; the tap itself is enough.
 - A transient "please wait", loading or verifying page is not a barrier yet:
   wait a few seconds and look again.
 - Not found, unreadable, behind a sign-in wall and failed to load are

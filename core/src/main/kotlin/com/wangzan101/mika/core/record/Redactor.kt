@@ -3,8 +3,10 @@ package com.wangzan101.mika.core.record
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import com.wangzan101.mika.core.tool.Verb
 
 /**
@@ -104,6 +106,20 @@ object Redactor {
     /** 码和这类词之间至多隔几个字(哪一边都算)。 */
     private const val CODE_WINDOW = 24
 
+    private val SECRET_CUE = Regex(
+        """支付密码|交易密码|取款密码|密码|口令|验证码|动态码|动态密码|密钥|恢复码|(?i:(?<![A-Za-z])(?:password|passcode|passwd|recovery code|totp)(?![A-Za-z]))""",
+    )
+    /** pin / otp 太短,只在后面跟数字时才遮,免得把普通英文一起打码。 */
+    private val PIN_CUE = Regex("""(?i)(?<![A-Za-z])(?:pin|otp)(?![A-Za-z])""")
+    private val GAP = Regex("""[\s:：=是为]{0,4}(?:(?:is|was|are)\s+)?""")
+    private val QUOTED_VALUE = Regex("""[「『"'][^」』"'\n]{4,80}[」』"']""")
+    private val TOKEN_VALUE = Regex("""[A-Za-z0-9@._+\-]{4,80}""")
+    private val DIGIT_VALUE = Regex("""[0-9]{4,12}""")
+    private val KEYPAD = Regex("""密码键盘\s*[0-9]""")
+    private val KEYPAD_TARGET = Regex("""^密码键盘\s*[0-9#*]$""")
+    private val SINGLE_DIGIT = Regex("""^[0-9]$""")
+    private val PIN_CONTEXT = Regex("""支付密码|密码键盘|支付|密码|验证码|口令|(?i)password|passcode|(?<![A-Za-z])(?:pin|otp)(?![A-Za-z])""")
+
     /**
      * 证据账本里的材料(读屏、网页、命令输出)进账前经它:[text] 认得的 Key 之外,一次性码也遮住——
      * 前后 [CODE_WINDOW] 个字以内有「验证」「短信」「code」一类词的 4–8 位数字。密码框的字本来就不进读屏文字。
@@ -122,6 +138,104 @@ object Redactor {
         var out = s
         for (re in listOf(SK_KEY, GOOGLE_KEY, GOOGLE_AUTH_KEY, GITHUB_TOKEN)) out = re.replace(out, MASK)
         return BEARER.replace(out, "Bearer $MASK")
+    }
+
+    /**
+     * 离开本机之前的最后一道:API Key、验证码,以及密码 / PIN / 支付密码后的值。
+     * 进度、Hub 和运行记录都走它。账号标识(邮箱、平台名、「登录方式是密码」)没有紧跟的密钥值,保持原样。
+     */
+    fun outbound(s: String): String {
+        var out = evidence(s)
+        out = maskAfter(out, SECRET_CUE, digitsOnly = false)
+        out = maskAfter(out, PIN_CUE, digitsOnly = true)
+        return KEYPAD.replace(out, "密码键盘 *")
+    }
+
+    /**
+     * 写进进度和记录之前的工具参数:reason 里的密钥打码;支付/密码键盘上的逐位点击去掉数字和坐标。
+     * 执行用的原参数不要经过这里。
+     */
+    fun toolArgs(json: String): String {
+        val o = try { Json.parseToJsonElement(json) as? JsonObject } catch (e: SerializationException) { null }
+            ?: return outbound(json)
+        val reason = (o["reason"] as? JsonPrimitive)?.contentOrNull
+        val steps = o["steps"] as? JsonArray
+        val targets = steps?.map { stepTarget(it) } ?: listOf((o["target"] as? JsonPrimitive)?.contentOrNull)
+        val pin = pinContext(reason, targets)
+        val next = if (steps != null) {
+            JsonObject(buildMap {
+                putAll(o)
+                if (reason != null) put("reason", JsonPrimitive(outbound(reason)))
+                put("steps", JsonArray(steps.map { maskStep(it, pin) }))
+            })
+        } else {
+            maskTapObject(o, pin, reason)
+        }
+        return outbound(next.toString())
+    }
+
+    private fun maskStep(step: JsonElement, pin: Boolean): JsonElement {
+        val so = step as? JsonObject ?: return step
+        val args = so["args"] as? JsonObject ?: return step
+        return JsonObject(so + ("args" to maskTapObject(args, pin, reason = null)))
+    }
+
+    private fun maskTapObject(o: JsonObject, pin: Boolean, reason: String?): JsonObject {
+        val target = (o["target"] as? JsonPrimitive)?.contentOrNull
+        val keypad = target != null && (KEYPAD_TARGET.matches(target.trim()) || (pin && SINGLE_DIGIT.matches(target.trim())))
+        val reasonMasked = reason?.let { outbound(it) }
+        return JsonObject(buildMap {
+            o.forEach { (k, v) ->
+                when {
+                    k == "reason" && reasonMasked != null -> put(k, JsonPrimitive(reasonMasked))
+                    k == "target" && keypad -> put(k, JsonPrimitive(if (target!!.contains("密码键盘")) "密码键盘 *" else "*"))
+                    k == "x" && keypad -> Unit
+                    k == "y" && keypad -> Unit
+                    k == "text" && v is JsonPrimitive && v.isString && v.content == MASK -> put(k, v)
+                    else -> put(k, v)
+                }
+            }
+            if (reasonMasked != null && "reason" !in o) put("reason", JsonPrimitive(reasonMasked))
+        })
+    }
+
+    private fun stepTarget(step: JsonElement): String? =
+        (((step as? JsonObject)?.get("args") as? JsonObject)?.get("target") as? JsonPrimitive)?.contentOrNull
+
+    private fun pinContext(reason: String?, targets: List<String?>): Boolean {
+        val blob = buildString {
+            append(reason.orEmpty())
+            targets.forEach { append(' '); append(it.orEmpty()) }
+        }
+        return PIN_CONTEXT.containsMatchIn(blob)
+    }
+
+    private fun maskAfter(s: String, cue: Regex, digitsOnly: Boolean): String {
+        val sb = StringBuilder()
+        var i = 0
+        while (i < s.length) {
+            val m = cue.find(s, i) ?: break
+            val gap = GAP.matchAt(s, m.range.last + 1)
+            val from = if (gap != null) gap.range.last + 1 else m.range.last + 1
+            val quoted = QUOTED_VALUE.matchAt(s, from)
+            val token = (if (digitsOnly) DIGIT_VALUE else TOKEN_VALUE).matchAt(s, from)
+            val value = quoted ?: token
+            sb.append(s, i, from)
+            if (value == null) {
+                i = from
+                continue
+            }
+            if (quoted != null) {
+                sb.append(s[from])
+                sb.append(MASK)
+                sb.append(s[value.range.last])
+            } else {
+                sb.append(MASK)
+            }
+            i = value.range.last + 1
+        }
+        sb.append(s, i, s.length)
+        return sb.toString()
     }
 
     // ---------- 网页网络数据 ----------

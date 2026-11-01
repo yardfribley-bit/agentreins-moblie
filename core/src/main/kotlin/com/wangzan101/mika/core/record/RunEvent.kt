@@ -261,6 +261,27 @@ sealed interface RunEvent {
         /** 运行记录里写的地方:App 是包名,站点是「网站 域名」(和以往的记录同一写法)。 */
         fun placeLabel(p: Place?): String? = p?.let { if (it.kind == com.wangzan101.mika.core.observation.PlaceKind.Site) "网站 ${it.name}" else it.name }
 
+        /** 落盘前再过一遍密钥脱敏。进度里已经打过码的字段再过一次也仍是 `***`。 */
+        fun forStorage(e: RunEvent): RunEvent = when (e) {
+            is TaskStarted -> e.copy(goal = Redactor.outbound(e.goal))
+            is TaskEnded -> e.copy(answerOrReason = Redactor.outbound(e.answerOrReason))
+            is ModelReply -> e.copy(text = Redactor.outbound(e.text), argsJson = e.argsJson?.let(Redactor::toolArgs))
+            is ToolResult -> e.copy(resultJson = Redactor.outbound(e.resultJson))
+            is Observed -> e.copy(
+                text = Redactor.outbound(e.text),
+                title = e.title?.let(Redactor::outbound),
+                inputs = e.inputs?.map(Redactor::outbound),
+                focused = e.focused?.let(Redactor::outbound),
+            )
+            is Activity -> e.copy(target = e.target?.let(Redactor::outbound), title = e.title?.let(Redactor::outbound))
+            is State -> e.copy(detail = Redactor.outbound(e.detail))
+            is Takeover -> e.copy(reason = Redactor.outbound(e.reason))
+            is AnswerCheck -> e.copy(unmatched = e.unmatched.map(Redactor::outbound))
+            is Unconfirmed -> e.copy(items = e.items.map(Redactor::outbound))
+            is OutcomeJudged -> e.copy(reason = Redactor.outbound(e.reason))
+            else -> e
+        }
+
         fun clip(s: String): String = if (s.length <= MAX_FIELD) s else s.take(MAX_FIELD) + "…(已截短)"
 
         fun clipResult(s: String): String =
