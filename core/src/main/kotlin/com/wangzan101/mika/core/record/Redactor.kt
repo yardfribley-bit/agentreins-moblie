@@ -28,6 +28,7 @@ object Redactor {
         if (verb == Verb.Script) return script(argsJson)
         if (verb == Verb.PhoneCommand) return maskFields(argsJson, setOf("command"))
         if (verb == Verb.PhoneRun) return phoneRun(argsJson)
+        if (verb == Verb.ConfigureLiveAudio) return maskFields(argsJson, setOf("key", "paste"))
         if (verb != Verb.TypeText || !secretField) return text(argsJson)
         val o = try {
             Json.parseToJsonElement(argsJson) as? JsonObject
@@ -76,6 +77,9 @@ object Redactor {
         } ?: content
         Verb.HandToUser -> if ("userNote" in content) JsonObject(content + ("userNote" to JsonPrimitive(MASK))) else content
         Verb.PhoneCommand -> if ("output" in content) JsonObject(content + ("output" to JsonPrimitive(MASK))) else content
+        Verb.ConfigureLiveAudio -> JsonObject(content.mapValues { (k, v) ->
+            if (k in setOf("key", "paste", "apiKey", "api_key", "token", "secret")) JsonPrimitive(MASK) else v
+        })
         else -> content
     }
 

@@ -100,13 +100,14 @@ fun toolDispatcher(
     /** 这个对话里用户发来的屏幕;给了而这次的话或之前几轮里带着屏幕时提供 view_user_screen。 */
     userScreens: UserScreenSource? = null,
     liveAudio: com.wangzan101.mika.core.cap.phone.LiveAudioPort? = null,
+    liveAudioSetup: com.wangzan101.mika.core.cap.phone.LiveAudioSetup? = null,
 ): ToolDispatcher {
     val config = ToolConfig(visionEnabled, skills, recordFrames, vision, inlineScreen, adaptiveVision, memory, profile, utterances, conversationId,
         imageOps, scheduleTrigger, scheduleAdmin, runSpec, childHost, userScreens)
     val providers: List<CapabilityProvider> = listOf(
         object : CapabilityProvider {
             override val id = PHONE
-            override fun open(spec: RunSpec) = PhoneCapability(screen, deepLinks, liveAudio)
+            override fun open(spec: RunSpec) = PhoneCapability(screen, deepLinks, liveAudio, liveAudioSetup)
         },
         object : CapabilityProvider {
             override val id = WEB

@@ -56,4 +56,5 @@
     <string name="tool_type">输入文字</string>
     <string name="tool_clear">清空输入框</string>
     <string name="tool_listen_live">听直播</string>
+    <string name="tool_configure_live_audio">配置直播语音识别</string>
 </resources>

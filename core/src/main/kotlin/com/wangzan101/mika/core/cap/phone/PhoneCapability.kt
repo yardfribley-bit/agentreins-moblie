@@ -21,6 +21,7 @@ internal class PhoneCapability(
     /** 提速开关 deepLinks:提供打开链接的工具。 */
     val deepLinks: Boolean,
     val liveAudio: LiveAudioPort? = null,
+    val liveAudioSetup: LiveAudioSetup? = null,
 ) : Capability {
     var audioCursor = 0L
     override val id = PHONE

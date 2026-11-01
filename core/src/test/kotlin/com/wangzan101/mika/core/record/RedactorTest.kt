@@ -1,6 +1,8 @@
 package com.wangzan101.mika.core.record
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
@@ -47,6 +49,22 @@ class RedactorTest {
         // 不是密码框,但参数里有 Key 样子的串也要遮
         val a = Redactor.args(verb("phone_type_text"), """{"text":"$key"}""", secretField = false)
         assertFalse(a.contains(key))
+    }
+
+    @Test fun liveAudioKeyAndPasteAreMaskedEvenWhenNotAnSkKey() {
+        val secret = "custom-token-value-xyz"
+        val args = """{"endpoint":"https://asr.example.com/v1","model":"whisper-1","key":"$secret","paste":"model=whisper-1 key=$secret"}"""
+        val out = Redactor.args(verb("phone_configure_live_audio"), args, secretField = false)
+        assertFalse(out.contains(secret))
+        assertTrue(out.contains("https://asr.example.com/v1"))
+        assertTrue(out.contains("whisper-1"))
+        val shown = Redactor.result(verb("phone_configure_live_audio"), JsonObject(mapOf(
+            "ok" to JsonPrimitive(true),
+            "key" to JsonPrimitive(secret),
+            "endpoint" to JsonPrimitive("https://asr.example.com/v1"),
+        )))
+        assertFalse(shown.toString().contains(secret))
+        assertEquals("https://asr.example.com/v1", shown["endpoint"]!!.jsonPrimitive.content)
     }
 
     @Test fun ordinaryTextKept() {

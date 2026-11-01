@@ -56,7 +56,7 @@ class LiveTranscriber(private val endpoint: String, private val key: String, pri
                                     bodySource.request(4096)
                                     bodySource.buffer.clone().readUtf8(minOf(bodySource.buffer.size, 4096L))
                                 }.orEmpty()
-                                throw httpFailure(it.code, raw, key)
+                                throw httpFailure(it.code, raw, key, endpoint)
                             }
                             val source = it.body?.source() ?: error("识别结果为空")
                             source.request(64 * 1024L + 1)
@@ -81,15 +81,18 @@ class LiveTranscriber(private val endpoint: String, private val key: String, pri
             is ConnectException -> SpeechFailure("ASR_CONNECT：无法连接语音服务，请检查手机网络或代理", true)
             else -> SpeechFailure("ASR_NETWORK：网络连接中断，请检查手机能否访问语音服务", true)
         }
-        internal fun httpFailure(code: Int, body: String, key: String): SpeechFailure {
-            val hint = when (code) {
-                401 -> "Key 无效或已失效，请重新填写语音识别 Key"
-                402 -> "账户余额不足，请检查 OpenRouter 余额"
-                403 -> "服务拒绝访问，请检查模型的地区限制和 Key 权限"
-                404 -> "接口或模型不存在，请检查完整接口地址及模型名"
-                429 -> "请求过于频繁或额度受限，请稍后重试"
-                in 500..599 -> "语音服务暂时异常，请稍后重试"
-                in 300..399 -> "接口发生重定向，请填写最终的 HTTPS 语音识别地址"
+        internal fun httpFailure(code: Int, body: String, key: String, endpoint: String = ""): SpeechFailure {
+            val mismatch = if (code == 401) com.wangzan101.mika.core.cap.phone.AsrConfig.mismatch(endpoint, key) else null
+            val hint = when {
+                mismatch?.keyKind == "openrouter" -> "这个 Key 以 sk-or- 开头，属于 OpenRouter，但接口地址是 OpenAI。请改用 OpenRouter 预设"
+                mismatch?.keyKind == "openai" -> "这个 Key 看起来属于 OpenAI，但接口地址是 OpenRouter。请改用 OpenAI 预设"
+                code == 401 -> "Key 无效或已失效，请重新填写语音识别 Key"
+                code == 402 -> "账户余额不足，请检查 OpenRouter 余额"
+                code == 403 -> "服务拒绝访问，请检查模型的地区限制和 Key 权限"
+                code == 404 -> "接口或模型不存在，请检查完整接口地址及模型名"
+                code == 429 -> "请求过于频繁或额度受限，请稍后重试"
+                code in 500..599 -> "语音服务暂时异常，请稍后重试"
+                code in 300..399 -> "接口发生重定向，请填写最终的 HTTPS 语音识别地址"
                 else -> "请求被拒绝，请检查语音模型和接口配置"
             }
             val message = runCatching { Json.parseToJsonElement(body).jsonObject["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content }.getOrNull().orEmpty()
