@@ -12,6 +12,10 @@ import android.os.*
 import android.util.Log
 import com.wangzan101.mika.R
 import com.wangzan101.mika.core.cap.phone.LiveListenPolicy
+import com.wangzan101.mika.core.cap.phone.speech.CapturePath
+import com.wangzan101.mika.core.cap.phone.speech.SpeechControl
+import com.wangzan101.mika.core.cap.phone.speech.SpeechFloor
+import com.wangzan101.mika.core.cap.phone.speech.VadYield
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import java.io.ByteArrayOutputStream
@@ -28,6 +32,7 @@ class LiveAudioService : Service() {
     /** True while a new listen is replacing the recorder, so the old loop must not stop the service. */
     @Volatile private var replacing = false
     private val jobs = mutableListOf<Job>()
+    private var recordingCallback: AudioManager.AudioRecordingCallback? = null
     override fun onBind(intent: Intent?) = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "stop") {
@@ -66,6 +71,7 @@ class LiveAudioService : Service() {
             check(minimum > 0) { "设备不支持 16kHz 录音" }
             val record = if (mic) openMicrophone() else openPlayback(intent)
             recorder = record
+            watchRecording(record.audioSessionId)
             val sessionId = LiveAudioSession.begin(mic)
             Log.d(LiveListenPolicy.LOG_TAG, "session=$sessionId source=${if (mic) "mic" else "internal"} decision=start reason=new listen")
             replacing = false
@@ -88,6 +94,8 @@ class LiveAudioService : Service() {
                 val buffer = ShortArray(1600)
                 var policy = LiveListenPolicy.State(if (mic) LiveListenPolicy.Source.Microphone else LiveListenPolicy.Source.Internal)
                 var active = record
+                var windowPeak = 0
+                var windowSamples = 0
                 try {
                     while (isActive && LiveAudioSession.generation == sessionId) {
                         val time = System.currentTimeMillis()
@@ -103,11 +111,24 @@ class LiveAudioService : Service() {
                                 sumSquares += value.toDouble() * value.toDouble()
                                 samples++
                                 bytes.write(value and 255); bytes.write((value shr 8) and 255)
+                                windowPeak = maxOf(windowPeak, abs(value))
+                                windowSamples++
+                                if (windowSamples >= 3200) {
+                                    val capture = if (policy.source == LiveListenPolicy.Source.Microphone) CapturePath.Microphone else CapturePath.Playback
+                                    SpeechFloor.captureIsMic = capture == CapturePath.Microphone
+                                    SpeechFloor.lastPeak = windowPeak
+                                    if (VadYield.shouldYield(capture, SpeechFloor.speaking, windowPeak)) SpeechControl.onYield?.invoke()
+                                    windowPeak = 0
+                                    windowSamples = 0
+                                }
                             }
                         }
                         if (LiveAudioSession.generation != sessionId) break
                         val rms = if (samples == 0) 0 else sqrt(sumSquares / samples).toInt()
                         val decision = LiveAudioFallback.onSegment(policy, peak)
+                        SpeechFloor.silentStreak = decision.state.silentStreak
+                        SpeechFloor.captureIsMic = decision.state.source == LiveListenPolicy.Source.Microphone
+                        SpeechFloor.lastPeak = peak
                         Log.d(LiveListenPolicy.LOG_TAG, LiveListenPolicy.segmentLog(sessionId, policy.source, peak, rms, decision))
                         LiveAudioSession.noteLevel(peak, rms)
                         when (decision) {
@@ -162,6 +183,17 @@ class LiveAudioService : Service() {
             LiveAudioSession.end("监听启动失败：${e.message ?: e.javaClass.simpleName}", LiveAudioWatch.START_FAILED); stopSelf()
         }
         return START_NOT_STICKY
+    }
+    private fun watchRecording(sessionId: Int) {
+        val manager = getSystemService(AudioManager::class.java)
+        recordingCallback?.let { manager.unregisterAudioRecordingCallback(it) }
+        val callback = object : AudioManager.AudioRecordingCallback() {
+            override fun onRecordingConfigChanged(configs: MutableList<AudioRecordingConfiguration>) {
+                SpeechFloor.clientSilenced = configs.any { it.clientAudioSessionId == sessionId && it.isClientSilenced }
+            }
+        }
+        recordingCallback = callback
+        manager.registerAudioRecordingCallback(callback, Handler(Looper.getMainLooper()))
     }
     private fun listeningNotification(text: String): Notification {
         val stop = PendingIntent.getService(this, 0, Intent(this, javaClass).setAction("stop"), PendingIntent.FLAG_IMMUTABLE)
@@ -239,6 +271,10 @@ class LiveAudioService : Service() {
         }
         if (stopProjection) {
             projection?.stop(); projection = null
+        }
+        recordingCallback?.let { callback ->
+            runCatching { getSystemService(AudioManager::class.java).unregisterAudioRecordingCallback(callback) }
+            recordingCallback = null
         }
     }
     override fun onDestroy() {

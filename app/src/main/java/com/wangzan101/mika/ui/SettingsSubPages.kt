@@ -197,6 +197,9 @@ fun DuringWorkScreen(
             ListRow(MikaIcons.Phone, stringResource(R.string.settings_live_audio), stringResource(R.string.settings_live_audio_sub), onClick = {
                 audioContext.startActivity(android.content.Intent(audioContext, com.wangzan101.mika.audio.LiveAudioActivity::class.java))
             }) { RowChevron() }
+            ListRow(MikaIcons.Phone, stringResource(R.string.settings_live_speech), stringResource(R.string.settings_live_speech_sub), onClick = {
+                audioContext.startActivity(android.content.Intent(audioContext, com.wangzan101.mika.audio.SpeechActivity::class.java))
+            }) { RowChevron() }
             parallel?.let { ParallelRow(it, onParallelMax) }
         }
     }

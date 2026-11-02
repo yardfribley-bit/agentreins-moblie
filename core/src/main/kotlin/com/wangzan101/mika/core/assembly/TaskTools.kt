@@ -101,13 +101,16 @@ fun toolDispatcher(
     userScreens: UserScreenSource? = null,
     liveAudio: com.wangzan101.mika.core.cap.phone.LiveAudioPort? = null,
     liveAudioSetup: com.wangzan101.mika.core.cap.phone.LiveAudioSetup? = null,
+    speech: com.wangzan101.mika.core.cap.phone.speech.SpeechPort? = null,
+    speechSetup: com.wangzan101.mika.core.cap.phone.speech.SpeechSetup? = null,
+    micSeat: com.wangzan101.mika.core.cap.phone.speech.MicSeatPort? = null,
 ): ToolDispatcher {
     val config = ToolConfig(visionEnabled, skills, recordFrames, vision, inlineScreen, adaptiveVision, memory, profile, utterances, conversationId,
         imageOps, scheduleTrigger, scheduleAdmin, runSpec, childHost, userScreens)
     val providers: List<CapabilityProvider> = listOf(
         object : CapabilityProvider {
             override val id = PHONE
-            override fun open(spec: RunSpec) = PhoneCapability(screen, deepLinks, liveAudio, liveAudioSetup)
+            override fun open(spec: RunSpec) = PhoneCapability(screen, deepLinks, liveAudio, liveAudioSetup, speech, speechSetup, micSeat)
         },
         object : CapabilityProvider {
             override val id = WEB

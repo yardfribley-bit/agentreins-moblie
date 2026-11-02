@@ -28,6 +28,7 @@ enum class Verb {
     Tap, TypeText, ClearText, Scroll, Swipe, Back, PressKey,
     ListApps, LaunchApp, OpenLink, ShareText,
     SetAlarm, SetTimer, ShowAlarms, AddCalendarEvent, SetWheel, ListenLive, ConfigureLiveAudio,
+    Speak, TakeMic, LeaveMic, ConfigureSpeech,
     Navigate, ReadPage, EvaluateJs, SiteCommand, Tabs, Downloads, Upload, SiteMode, Script, Interact, Capture, WaitFor,
     RunCommand, RunBundledScript, ReadFile, WriteFile, SearchFiles, ShareFile,
     Wait, AskUser, RequestConfirmation, HandToUser, HandleObstacle, EndNotDone,

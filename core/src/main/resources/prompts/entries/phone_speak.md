@@ -1,0 +1,1 @@
+Say a reply aloud, or stop speaking. The owner must turn 允许出声 on in Settings first; you cannot. Take a mic seat with phone_take_mic before the live room should hear you. After speaking, call phone_listen_live. Do not treat your own voice as someone else's.

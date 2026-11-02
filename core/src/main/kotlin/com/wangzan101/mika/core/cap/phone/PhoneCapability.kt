@@ -7,6 +7,9 @@ import com.wangzan101.mika.core.capability.PromptEnv
 import com.wangzan101.mika.core.uistate.Surface
 import com.wangzan101.mika.core.observation.Look
 import com.wangzan101.mika.core.prompt.Prompts
+import com.wangzan101.mika.core.cap.phone.speech.MicSeatPort
+import com.wangzan101.mika.core.cap.phone.speech.SpeechPort
+import com.wangzan101.mika.core.cap.phone.speech.SpeechSetup
 import com.wangzan101.mika.core.uistate.ScreenPort
 import com.wangzan101.mika.core.tool.AgentTool
 import com.wangzan101.mika.core.tool.ArgError
@@ -22,6 +25,9 @@ internal class PhoneCapability(
     val deepLinks: Boolean,
     val liveAudio: LiveAudioPort? = null,
     val liveAudioSetup: LiveAudioSetup? = null,
+    val speech: SpeechPort? = null,
+    val speechSetup: SpeechSetup? = null,
+    val micSeat: MicSeatPort? = null,
 ) : Capability {
     var audioCursor = 0L
     override val id = PHONE
