@@ -130,6 +130,47 @@ class MemoryToolsTest {
         assertEquals(1, store.items.value.size)
     }
 
+    @Test fun accountProfileSavedWithoutThePasswordAndFoundLater() {
+        val store = memStore()
+        val said = "记住这个账号 smithjat@163.com 密码是 hunter2，用来登录 GitHub"
+        val u = UserUtterances().apply { add(said) }
+        val d = dispatcher(store, u)
+        val saved = d.run("memory_save", saveArgs(
+            "fact",
+            "用户用 smithjat@163.com 登录 GitHub，登录方式是密码，已绑定两步验证",
+            said,
+        ))
+        assertEquals("true", saved.s("ok"))
+        val item = store.items.value.single()
+        assertTrue(item.content.contains("smithjat@163.com"))
+        assertFalse(item.source.quote.orEmpty().contains("hunter2"))
+        val found = MemoryIndex(store.items.value).search("登录 GitHub", 3)
+        assertEquals(item.id, found.first().first.id)
+        val told = "记住密钥 hrsdvstctn3yv3vpnxgvtlslng4xdil7"
+        val secret = dispatcher(store, UserUtterances().apply { add(told) }).run(
+            "memory_save", buildJsonObject {
+                put("kind", "fact"); put("content", "用户的密钥是 hrsdvstctn3yv3vpnxgvtlslng4xdil7"); put("quote", told)
+            },
+        )
+        assertEquals("sensitive", secret.s("error"))
+    }
+
+    @Test fun dsmlMemoryAddIsExecuted() = runTest {
+        val store = memStore()
+        val said = "记住这次：小满默认指互关的小满312"
+        val dsml = "<｜｜DSML｜｜invoke name=\"memory_add\">" +
+            "<｜｜DSML｜｜parameter name=\"kind\" string=\"true\">fact</｜｜DSML｜｜parameter>" +
+            "<｜｜DSML｜｜parameter name=\"content\" string=\"true\">以后说到小满默认指互关的小满312</｜｜DSML｜｜parameter>" +
+            "</｜｜DSML｜｜invoke>"
+        val model = FakeModel(
+            ModelReply(listOf(Part.Text(dsml)), StopReason.EndTurn, null),
+            finishReply,
+        )
+        val loop = AgentLoop(model, toolDispatcher(FakeScreen(), memory = store, utterances = UserUtterances()), "B", memory = store)
+        loop.run(said)
+        assertEquals(listOf("以后说到小满默认指互关的小满312"), store.items.value.map { it.content })
+    }
+
     @Test fun sensitiveRejected() {
         val store = memStore()
         val d = dispatcher(store, UserUtterances().apply { add("记住我的支付密码是123456") })

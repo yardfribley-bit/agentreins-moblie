@@ -464,6 +464,7 @@ class AgentLoop(
                 continue
             }
             var (reply, used) = routed
+            reply = com.wangzan101.mika.core.model.EmbeddedToolCalls.lift(reply)
             val proposed = reply.parts.filterIsInstance<Part.ToolCall>().firstOrNull()
             if (provenance.origin == RunOrigin.Ui && intentGate != null && proposed != null &&
                 tools.verb(proposed.name) !in DISCUSSION_LOOKUP_VERBS) {

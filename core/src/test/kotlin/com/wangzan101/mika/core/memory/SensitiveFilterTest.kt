@@ -1,9 +1,11 @@
 package com.wangzan101.mika.core.memory
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SensitiveFilterTest {
@@ -61,6 +63,20 @@ class SensitiveFilterTest {
 
     @Test fun apiKeyHit() {
         assertEquals("api_key", SensitiveFilter.hit("key 是 sk-" + "a1B2c3D4e5F6g7H8i9J0k1L2"))
+    }
+
+    @Test fun accountProfileIsNotASecret() {
+        val profile = "用户用 smithjat@163.com 登录 GitHub，登录方式是密码，已绑定两步验证"
+        assertNull(SensitiveFilter.hit(profile))
+        assertNull(SensitiveFilter.hit("password login"))
+        assertNull(SensitiveFilter.hit("GitHub是密码"))
+        assertEquals("password", SensitiveFilter.hit("密码是 hunter2"))
+        assertEquals("totp", SensitiveFilter.hit("密钥 hrsdvstctn3yv3vpnxgvtlslng4xdil7"))
+        assertEquals("password", SensitiveFilter.hit("恢复码 ABCD-EF12"))
+        val quote = SensitiveFilter.redact("记住这个账号 smithjat@163.com 密码是 hunter2")
+        assertNotNull(quote)
+        assertFalse(quote!!.contains("hunter2"))
+        assertTrue(quote.contains("smithjat@163.com"))
     }
 
     @Test fun englishVariantsHit() {

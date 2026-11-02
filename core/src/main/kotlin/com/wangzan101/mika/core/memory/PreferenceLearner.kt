@@ -27,7 +27,7 @@ object PreferenceLearner {
             if (PATH.containsMatchIn(said)) continue
             val style = STYLE.containsMatchIn(said)
             if (!style && !LASTING.containsMatchIn(said)) continue
-            val text = Redactor.text(said).trim()
+            val text = SensitiveFilter.redact(Redactor.text(said).trim()) ?: continue
             if (SensitiveFilter.hit(text) != null) continue
             val words = Tokenize.terms(text).filter { it.length >= 2 }.distinct().take(5)
             out += Candidate(if (style) "回答风格: $text" else text, words, said)
