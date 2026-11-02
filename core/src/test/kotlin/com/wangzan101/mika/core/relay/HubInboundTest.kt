@@ -1,10 +1,13 @@
 package com.wangzan101.mika.core.relay
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 
 class HubInboundTest {
     @Test fun keepsOwnerInstructionTextAndDelegatedOrders() {
@@ -56,5 +59,61 @@ class HubInboundTest {
         val done = gate.poll(now = 3_000, busy = false, queue = still.first)
         assertEquals(HubInstruction(5, "再看一眼"), done.second)
         assertTrue(done.first.isEmpty())
+    }
+
+    @Test fun downloadWaitDoesNotLookLikeAStall() {
+        val gate = HubRunGate(stallMs = 20_000)
+        val queued = listOf(HubInstruction(2, "带附件"))
+        val started = gate.poll(now = 0, busy = false, queue = queued)
+        assertEquals(HubInstruction(2, "带附件"), started.second)
+        gate.noteStarting(25_000)
+        val still = gate.poll(now = 30_000, busy = false, queue = emptyList())
+        assertNull(still.second)
+        assertEquals(HubInstruction(2, "带附件"), gate.inflight)
+        val stalled = gate.poll(now = 50_000, busy = false, queue = emptyList())
+        assertEquals(listOf(HubInstruction(2, "带附件")), stalled.first)
+        assertNull(gate.inflight)
+    }
+
+    @Test fun keepsAttachmentMetadataAndDropsTheSignedUrl() {
+        val raw = """
+            {"events":[{"seq":250,"kind":"message","from_owner":true,"sender":{"role":"owner","name":"o"},
+            "message":{"kind":"instruction","text":"post this","attachments":[
+            {"id":"fl_52161fe383bbac29a14b66a9","name":"agentreins-ime.png","size":114848,"sha256":"abc","type":"image/png","url":"https://files.example/a?sig=deadbeef","download_url":"https://files.example/a?sig=deadbeef"}
+            ]}}],"next_cursor":250,"has_more":false}
+        """.trim()
+        val page = HubInstructionFilter.parse(Json.parseToJsonElement(raw).jsonObject)
+        val event = page.events.single()
+        assertEquals("fl_52161fe383bbac29a14b66a9", event.attachments.single().fileId)
+        assertEquals("agentreins-ime.png", event.attachments.single().name)
+        assertEquals(114848L, event.attachments.single().size)
+        assertEquals("image/png", event.attachments.single().mime)
+        val plan = HubInbound.plan(page, handled = 0)
+        assertEquals(250L, plan.ackSeq)
+        val stored = HubInbound.encodeQueue(plan.fresh)
+        assertFalse(stored.contains("sig="))
+        assertFalse(stored.contains("http"))
+        assertFalse(stored.contains("deadbeef"))
+        assertEquals(plan.fresh, HubInbound.decodeQueue(stored))
+        val old = HubInbound.decodeQueue("2\u001e查一下 内存")
+        assertEquals(listOf(HubInstruction(2, "查一下 内存")), old)
+    }
+
+    @Test fun downloadFailureStillDescribesTheTask() {
+        val instruction = HubInstruction(250, "post this", listOf(HubAttachmentRef("fl_52161fe383bbac29a14b66a9", "agentreins-ime.png")))
+        var called = false
+        val prepared = HubOwnerLaunch.decorate(instruction) {
+            called = true
+            throw IOException("https://files.example/a?sig=deadbeef bearer da_secret")
+        }
+        assertTrue(called)
+        assertTrue(prepared.goal.startsWith("post this"))
+        assertTrue(prepared.goal.contains("fl_52161fe383bbac29a14b66a9"))
+        assertTrue(prepared.resultNote!!.contains("fl_52161fe383bbac29a14b66a9"))
+        assertFalse(prepared.goal.contains("sig="))
+        assertFalse(prepared.resultNote!!.contains("da_secret"))
+        val plain = HubOwnerLaunch.decorate(HubInstruction(1, "only text")) { error("should not prepare") }
+        assertEquals("only text", plain.goal)
+        assertNull(plain.resultNote)
     }
 }

@@ -30,6 +30,15 @@ const val RELAY_MAX_TEXT = 8000
 /** 截图默认不上传;打开后超过这个字节数的画面只记一句,不传字节。 */
 const val MAX_SCREENSHOT_BYTES = 1_500_000
 
+/**
+ * 老板指令附件的上限。Hub 本身允许 100MB；手机上只收下 32MB，再大的记成缺失，不把字节读进内存。
+ * MCP 内联（`content_base64`）的分界是 5MB，更大的走签名链接，两边都用这个上限卡住。
+ */
+const val HUB_ATTACHMENT_MAX_BYTES = 32L * 1024 * 1024
+
+/** 一条指令最多带的附件个数，和 Hub 的 `MAX_ATTACHMENTS` 一样。 */
+const val HUB_ATTACHMENT_MAX_FILES = 20
+
 object RelayKind {
     const val PROGRESS = "progress"
     const val RESULT = "result"
@@ -94,6 +103,21 @@ interface RelayTransport {
     ): Long?
 
     fun upload(mcpUrl: String, token: String, sessionId: String, name: String, bytes: ByteArray): String
+
+    /**
+     * `diaodu_relay_download`（Hub `diaodu/relay_mcp.py` 的 `relay_download`）。
+     * 参数是 `session` 和 `file_id`。响应带 `file_id`、`name`、`size`、`sha256`、`type`。
+     * 不超过 5MB 时还有 `content_base64`（放在 [RelayFileDownload.bytes]）；更大则 `too_large`
+     * 为真，只给 `download_url`（签名 15 分钟），字节用 [fetchUnsigned] 去取，不要加 Authorization。
+     */
+    fun download(mcpUrl: String, token: String, sessionId: String, fileId: String): RelayFileDownload
+
+    /**
+     * 下载 [download] 返回的签名链接。不要加 Authorization，也不要把链接写进日志。
+     * 读到的字节超过 [maxBytes] 时失败，不返回半截。
+     */
+    fun fetchUnsigned(url: String, maxBytes: Long): ByteArray
+
     fun heartbeat(mcpUrl: String, token: String, sessionId: String, environment: RelayEnvironment)
     fun read(mcpUrl: String, token: String, sessionId: String, after: Long, waitSeconds: Int): HubRelayPage
 
@@ -105,4 +129,21 @@ interface RelayTransport {
 
     /** 传入 session 时:仍是成员为 true。`member=false` 要重新加入。 */
     fun memberOf(mcpUrl: String, token: String, sessionId: String): Boolean
+}
+
+/**
+ * `diaodu_relay_download` 的一页元数据。字节只在不超过 5MB 时有；更大只有 [downloadUrl]。
+ * [toString] 不带字节、也不带签名链接。
+ */
+class RelayFileDownload(
+    val fileId: String,
+    val name: String,
+    val size: Long,
+    val sha256: String?,
+    val mime: String,
+    val bytes: ByteArray?,
+    val downloadUrl: String?,
+) {
+    override fun toString(): String =
+        "RelayFileDownload(fileId=$fileId, size=$size, mime=$mime, inline=${bytes != null}, remote=${!downloadUrl.isNullOrBlank()})"
 }

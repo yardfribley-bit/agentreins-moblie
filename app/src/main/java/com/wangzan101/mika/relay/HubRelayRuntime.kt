@@ -6,9 +6,14 @@ import android.util.Log
 import com.wangzan101.mika.MikaApp
 import com.wangzan101.mika.core.record.RunEvent
 import com.wangzan101.mika.core.record.RunSink
+import com.wangzan101.mika.core.relay.HubAttachmentIntake
 import com.wangzan101.mika.core.relay.HubClaimDecision
 import com.wangzan101.mika.core.relay.HubInbound
+import com.wangzan101.mika.core.relay.HubInstruction
 import com.wangzan101.mika.core.relay.HubInstructionFilter
+import com.wangzan101.mika.core.relay.HubOwnerLaunch
+import com.wangzan101.mika.core.relay.HubPreparedTask
+import com.wangzan101.mika.core.relay.RelayConfig
 import com.wangzan101.mika.core.relay.HubMcpClient
 import com.wangzan101.mika.core.relay.HubRemoteInstruction
 import com.wangzan101.mika.core.relay.HubRunGate
@@ -33,6 +38,8 @@ class HubRelayRuntime(
     startWorker: Boolean = true,
     private val busy: () -> Boolean = { false },
     private val startRun: (String) -> Unit = {},
+    private val prepare: (RelayConfig, HubInstruction) -> HubPreparedTask =
+        { _, instruction -> HubPreparedTask(instruction.text, null) },
     startInbound: Boolean = true,
     private val onListen: () -> Unit = {},
     private val log: (String) -> Unit = { Log.w(TAG, it) },
@@ -147,8 +154,10 @@ class HubRelayRuntime(
         val (rest, next) = gate.poll(System.currentTimeMillis(), busy(), queued)
         if (rest != queued) settings.setInstructionQueue(rest)
         if (next != null) {
-            mirror.armReply(next.seq)
-            startRun(next.text)
+            val prepared = HubOwnerLaunch.decorate(next) { prepare(cfg, it) }
+            gate.noteStarting(System.currentTimeMillis())
+            mirror.armReply(next.seq, prepared.resultNote)
+            startRun(prepared.goal)
         }
         readWait = if (page.hasMore) 0 else HubInstructionFilter.MAX_WAIT_SECONDS
         return 0L
@@ -165,6 +174,13 @@ class HubRelayRuntime(
         fun create(context: Context): HubRelayRuntime {
             val app = context.applicationContext
             val prefs = HubRelaySettings(app.getSharedPreferences(PREFS, Context.MODE_PRIVATE), KeystoreKeyCipher("mika-hub-relay-token"))
+            val client = HubMcpClient(log = { Log.i("HubMcp", it) })
+            val intake = HubAttachmentIntake(
+                transport = client,
+                write = { name, bytes -> HubInboxWriter(app, prefs.hubConversationId()).write(name, bytes) },
+                gallery = MediaStoreGallery(app),
+                sleep = { ms -> if (ms > 0) Thread.sleep(ms) },
+            )
             return HubRelayRuntime(
                 prefs,
                 environment = {
@@ -174,8 +190,10 @@ class HubRelayRuntime(
                         architecture = Build.SUPPORTED_ABIS.firstOrNull()?.takeIf { it.isNotBlank() } ?: "unknown",
                     )
                 },
+                transport = client,
                 busy = { (app as MikaApp).taskState.busy.value },
                 startRun = { goal -> TaskService.start(app, goal, prefs.hubConversationId()) },
+                prepare = { cfg, instruction -> intake.prepare(cfg, instruction) },
                 onListen = { HubRelayService.sync(app) },
             )
         }

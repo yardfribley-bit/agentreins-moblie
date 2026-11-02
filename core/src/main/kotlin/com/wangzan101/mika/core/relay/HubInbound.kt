@@ -1,7 +1,24 @@
 package com.wangzan101.mika.core.relay
 
-/** 一条要在手机上执行的所有者指令。 */
-data class HubInstruction(val seq: Long, val text: String)
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+/** 一条要在手机上执行的所有者指令。附件在真正开跑之前才下载。 */
+data class HubInstruction(
+    val seq: Long,
+    val text: String,
+    val attachments: List<HubAttachmentRef> = emptyList(),
+)
+
+/** Hub 事件上的一个附件。没有签名链接：链接会过期，执行时再向 Hub 要字节。 */
+@Serializable
+data class HubAttachmentRef(
+    val fileId: String,
+    val name: String? = null,
+    val size: Long? = null,
+    val mime: String? = null,
+    val sha256: String? = null,
+)
 
 /**
  * 读到一页之后要做的事:确认到哪一号(待确认计数靠 `diaodu_relay_ack`),
@@ -21,22 +38,38 @@ object HubInbound {
     fun plan(page: HubRelayPage, handled: Long): HubInboundPlan {
         val fresh = page.events.mapNotNull { event ->
             if (!HubInstructionFilter.accept(event) || event.seq <= handled) null
-            else HubInstruction(event.seq, event.text!!.trim())
+            else HubInstruction(event.seq, event.text!!.trim(), event.attachments)
         }
         return HubInboundPlan(fresh.maxOfOrNull { it.seq }, fresh, page.nextCursor)
     }
 
     fun encodeQueue(items: List<HubInstruction>): String =
-        items.joinToString("\n") { "${it.seq}\u001e${it.text.replace("\\", "\\\\").replace("\n", "\\n")}" }
+        items.joinToString("\n") { item ->
+            if (item.attachments.isEmpty()) {
+                "${item.seq}\u001e${escape(item.text)}"
+            } else {
+                json.encodeToString(QueueLine.serializer(), QueueLine(item.seq, item.text, item.attachments))
+            }
+        }
 
     fun decodeQueue(raw: String): List<HubInstruction> =
         raw.lineSequence().filter { it.isNotBlank() }.mapNotNull { line ->
-            val sep = line.indexOf('\u001e')
-            if (sep <= 0) return@mapNotNull null
-            val seq = line.substring(0, sep).toLongOrNull() ?: return@mapNotNull null
-            val text = line.substring(sep + 1).replace("\\n", "\n").replace("\\\\", "\\")
-            if (text.isBlank()) null else HubInstruction(seq, text)
+            if (line.startsWith("{")) {
+                val row = runCatching { json.decodeFromString(QueueLine.serializer(), line) }.getOrNull()
+                    ?: return@mapNotNull null
+                if (row.text.isBlank()) null else HubInstruction(row.seq, row.text, row.attachments)
+            } else {
+                val sep = line.indexOf('\u001e')
+                if (sep <= 0) return@mapNotNull null
+                val seq = line.substring(0, sep).toLongOrNull() ?: return@mapNotNull null
+                val text = unescape(line.substring(sep + 1))
+                if (text.isBlank()) null else HubInstruction(seq, text)
+            }
         }.toList()
+
+    private fun escape(text: String) = text.replace("\\", "\\\\").replace("\n", "\\n")
+
+    private fun unescape(text: String) = text.replace("\\n", "\n").replace("\\\\", "\\")
 
     /** 按序号去重后追加。 */
     fun enqueue(queue: List<HubInstruction>, fresh: List<HubInstruction>): List<HubInstruction> {
@@ -46,6 +79,11 @@ object HubInbound {
         for (item in fresh) if (seen.add(item.seq)) out += item
         return out
     }
+
+    @Serializable
+    private data class QueueLine(val seq: Long, val text: String, val attachments: List<HubAttachmentRef> = emptyList())
+
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = false }
 }
 
 /**
@@ -82,5 +120,13 @@ class HubRunGate(private val stallMs: Long = 20_000) {
         startedAt = now
         sawBusy = false
         return queue.drop(1) to next
+    }
+
+    /**
+     * 下载附件可能超过 [stallMs]。还没看见任务忙起来时，把计时拨到 [now]，
+     * 避免附件刚下完、任务刚启动就被当成卡住而重新入队。
+     */
+    fun noteStarting(now: Long) {
+        if (inflight != null && !sawBusy) startedAt = now
     }
 }
