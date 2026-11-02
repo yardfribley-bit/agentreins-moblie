@@ -445,6 +445,26 @@ class AgentLoop(
             }
         }
 
+        var credentialStreak = 0
+        var biometricLatched = false
+        suspend fun loginSafety(toolName: String, exec: ToolExecution, atStep: Int): TaskState? {
+            val blob = LoginSafety.blob(exec)
+            if (LoginSafety.biometric(blob) && !biometricLatched) {
+                biometricLatched = true
+                val handed = user.takeover(
+                    com.wangzan101.mika.core.tool.Outcome.Takeover("captcha", LoginSafety.BIOMETRIC_MESSAGE),
+                    TaskState.Running(atStep, note),
+                )
+                if (handed == null) return TaskState.Failed(LoginSafety.BIOMETRIC_MESSAGE, FailKind.GaveUp)
+                history += ctx.notice("biometric_handoff", LoginSafety.BIOMETRIC_NOTE)
+            }
+            if (LoginSafety.rejected(blob)) {
+                if (LoginSafety.couldSubmit(toolName)) credentialStreak++
+            } else credentialStreak = 0
+            if (credentialStreak >= LoginSafety.MAX_FAILURES) return TaskState.Failed(LoginSafety.CREDENTIAL_STOP, FailKind.GaveUp)
+            return null
+        }
+
         for (step in 1..maxSteps) {
             appendSteers(history, inbox)
             if (maxSteps != Int.MAX_VALUE) TurnPolicy.beforeStep(TurnSnapshot(step, maxSteps))?.let { history += ctx.notice(it.source, it.text) }
@@ -563,7 +583,7 @@ class AgentLoop(
             }
             if (flags.batchSteps && first.name == DO_STEPS_TOOL) {
                 when (val end = batch(first, skipped, history, specs, guards, executor, track, step, note, tool, reason, narration, recordReply = ::recordReply,
-                    app = { place = it }, steerWaiting = { inbox?.hasSteers() == true },
+                    app = { place = it }, steerWaiting = { inbox?.hasSteers() == true }, loginSafety = { loginSafety(DO_STEPS_TOOL, it, step) },
                     noteVerdicts = { s, sub, v ->
                         // 和单步一样计卡住提醒与同一段字的重复输入
                         val typed = StuckAdvice.typedText(tools.verb(s.tool), parseArgs(s.argsJson), sub?.content)
@@ -646,6 +666,8 @@ class AgentLoop(
                 media.getOrPut(step) { mutableListOf() } += shotId
                 emit(RunEvent.Media(now(), shotId, step, RunEvent.placeLabel(place)))
             }
+
+            loginSafety(first.name, exec, step)?.let { return it }
 
             val stopNow = guards.stop ?: executor.offScreenStop
             val end = StopRules.afterAction(exec.outcome, stopNow)
@@ -765,6 +787,7 @@ class AgentLoop(
         executor: ActionExecutor, track: StepTrack, step: Int, note: String, tool: String?, reason: String?, narration: String?,
         recordReply: (String?) -> Unit, app: (Place) -> Unit, steerWaiting: () -> Boolean,
         noteVerdicts: (BatchStep, ToolExecution?, List<GuardVerdict>) -> String?,
+        loginSafety: suspend (ToolExecution) -> TaskState? = { null },
     ): TaskState? {
         // 收着的组里的工具也能放进批里(和单步一样照常执行、展开它那一组)
         val (parsed, problem) = BatchRunner.parse(first.argsJson, tools.definitions().map { it.name }.toSet(), tools.batchable())
@@ -810,7 +833,7 @@ class AgentLoop(
             media.getOrPut(step) { mutableListOf() } += shotId
             emit(RunEvent.Media(now(), shotId, step, RunEvent.placeLabel(currentPlace)))
         }
-        return guards.stop?.let(StopRules::guard)
+        return guards.stop?.let(StopRules::guard) ?: loginSafety(exec)
     }
 
     /** do_steps 的结果里至少有一个子步真的执行了(没执行的停止项标着 executed=false)。 */
