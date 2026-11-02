@@ -54,6 +54,11 @@ data class HubRelayEvent(
     val text: String? = null,
     /** 授权代发时 Hub 会带 `delegated_by`。代发的指令也算所有者的。 */
     val delegated: Boolean = false,
+    /**
+     * 消息上的附件。Hub 在读事件时把编号展开成对象（`id`、`name`、`size`、`sha256`、`type`）。
+     * 签名下载链接不放进来：过一会儿就失效，执行前再调 `diaodu_relay_download`。
+     */
+    val attachments: List<HubAttachmentRef> = emptyList(),
 )
 
 data class HubRelayPage(
@@ -91,11 +96,34 @@ object HubInstructionFilter {
             val messageKind = (message?.get("kind") as? JsonPrimitive)?.contentOrNull
             val text = (message?.get("text") as? JsonPrimitive)?.contentOrNull
             val delegated = row["delegated_by"] is JsonObject
-            HubRelayEvent(seq, kind, fromOwner, messageKind, text, delegated)
+            HubRelayEvent(seq, kind, fromOwner, messageKind, text, delegated, attachmentsOf(message))
         }
         val cursor = (obj["next_cursor"] as? JsonPrimitive)?.longOrNull ?: events.lastOrNull()?.seq ?: 0L
         val more = (obj["has_more"] as? JsonPrimitive)?.booleanOrNull == true
         return HubRelayPage(events, cursor, more)
+    }
+
+    /** 读事件里的附件。对象取 `id`（或 `file_id`）；旧数据如果只是编号字符串，也收下。不保留 `url`。 */
+    private fun attachmentsOf(message: JsonObject?): List<HubAttachmentRef> {
+        val items = message?.get("attachments") as? JsonArray ?: return emptyList()
+        return items.mapNotNull { item ->
+            when (item) {
+                is JsonPrimitive -> item.contentOrNull?.takeIf { it.isNotBlank() }?.let { HubAttachmentRef(it) }
+                is JsonObject -> {
+                    val id = (item["id"] as? JsonPrimitive)?.contentOrNull
+                        ?: (item["file_id"] as? JsonPrimitive)?.contentOrNull
+                    if (id.isNullOrBlank()) return@mapNotNull null
+                    HubAttachmentRef(
+                        fileId = id,
+                        name = (item["name"] as? JsonPrimitive)?.contentOrNull,
+                        size = (item["size"] as? JsonPrimitive)?.longOrNull,
+                        mime = (item["type"] as? JsonPrimitive)?.contentOrNull,
+                        sha256 = (item["sha256"] as? JsonPrimitive)?.contentOrNull,
+                    )
+                }
+                else -> null
+            }
+        }
     }
 }
 

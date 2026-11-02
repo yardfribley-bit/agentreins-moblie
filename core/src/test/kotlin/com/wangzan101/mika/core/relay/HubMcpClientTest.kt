@@ -7,8 +7,10 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -27,6 +29,7 @@ class HubMcpClientTest {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 val body = request.body.peek().readUtf8()
                 seen += request
+                if (request.path?.startsWith("/blob/") == true) return MockResponse().setResponseCode(200).setBody("xyz")
                 if (request.path?.contains("/files") == true) return json("""{"file_id":"fl_rest","id":"fl_rest"}""")
                 val method = request.method
                 if (method != "POST") return MockResponse().setResponseCode(405)
@@ -62,6 +65,13 @@ class HubMcpClientTest {
                 }
                 if (body.contains("diaodu_relay_upload")) {
                     return json("""{"jsonrpc":"2.0","id":5,"result":{"content":[{"type":"text","text":"{\"file_id\":\"fl_9\"}"}]}}""")
+                }
+                if (body.contains("diaodu_relay_download") && body.contains("fl_big")) {
+                    val url = server.url("/blob/fl_big").newBuilder().addQueryParameter("exp", "1").addQueryParameter("sig", "deadbeef").build()
+                    return json("""{"jsonrpc":"2.0","id":4,"result":{"structuredContent":{"file_id":"fl_big","name":"clip.mp4","size":${6 * 1024 * 1024},"sha256":"abc","type":"video/mp4","too_large":true,"download_url":"$url"},"content":[{"type":"text","text":"{}"}]}}""")
+                }
+                if (body.contains("diaodu_relay_download")) {
+                    return json("""{"jsonrpc":"2.0","id":4,"result":{"structuredContent":{"file_id":"fl_52161fe383bbac29a14b66a9","name":"agentreins-ime.png","size":3,"sha256":"abc","type":"image/png","content_base64":"AQID"},"content":[{"type":"text","text":"{}"}]}}""")
                 }
                 if (body.contains("diaodu_relay_ack")) {
                     return json("""{"jsonrpc":"2.0","id":9,"result":{"structuredContent":{"acknowledged":2},"content":[{"type":"text","text":"{\"acknowledged\":2}"}]}}""")
@@ -236,6 +246,38 @@ class HubMcpClientTest {
         assertEquals("already member", error.message)
         assertFalse(error.retryable)
         assertEquals(listOf("join 409"), logs)
+    }
+
+    @Test fun downloadBase64AndSignedUrl() {
+        val inline = client.download(mcp(), "da_test", "ses_fixed", "fl_52161fe383bbac29a14b66a9")
+        assertEquals("fl_52161fe383bbac29a14b66a9", inline.fileId)
+        assertEquals("agentreins-ime.png", inline.name)
+        assertEquals(3L, inline.size)
+        assertEquals("image/png", inline.mime)
+        assertArrayEquals(byteArrayOf(1, 2, 3), inline.bytes)
+        assertNull(inline.downloadUrl)
+        assertFalse(inline.toString().contains("AQID"))
+        val call = seen.first { it.body.peek().readUtf8().contains("diaodu_relay_download") }
+        val args = arguments(call)
+        assertEquals("ses_fixed", args["session"]!!.jsonPrimitive.content)
+        assertEquals("fl_52161fe383bbac29a14b66a9", args["file_id"]!!.jsonPrimitive.content)
+        assertEquals("Bearer da_test", call.getHeader("Authorization"))
+        assertFalse(call.body.peek().readUtf8().contains("da_test"))
+        assertTrue(logs.none { it.contains("da_test") || it.contains("AQID") || it.contains("sig=") })
+
+        val remote = client.download(mcp(), "da_test", "ses_fixed", "fl_big")
+        assertNull(remote.bytes)
+        assertEquals("video/mp4", remote.mime)
+        assertTrue(remote.downloadUrl!!.contains("sig=deadbeef"))
+        assertFalse(remote.toString().contains("sig="))
+        assertFalse(remote.toString().contains("deadbeef"))
+        val bytes = client.fetchUnsigned(remote.downloadUrl!!, HUB_ATTACHMENT_MAX_BYTES)
+        assertArrayEquals("xyz".toByteArray(), bytes)
+        val get = seen.last { it.path?.startsWith("/blob/") == true }
+        assertEquals("GET", get.method)
+        assertNull(get.getHeader("Authorization"))
+        assertFalse(get.headers.toString().contains("da_test"))
+        assertTrue(logs.none { it.contains("sig=") || it.contains("deadbeef") || it.contains("da_test") })
     }
 
     @Test fun ackPostsTheInstructionSeq() {

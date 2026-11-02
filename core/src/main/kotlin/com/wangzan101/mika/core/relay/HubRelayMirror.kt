@@ -26,12 +26,20 @@ class HubRelayMirror(
     private val maxQueue: Int = 200,
     private val maxAttempts: Int = 6,
     private val maxShot: Int = MAX_SCREENSHOT_BYTES,
+    /** 进度攒够这么多条就发一批。结果不攒，单独发。 */
+    private val progressBatch: Int = 40,
+    /** 进度最久压这么久。长任务大约半分钟一条进度，外加最后的 result。 */
+    private val progressFlushMs: Long = 30_000,
     startWorker: Boolean = true,
 ) {
     private val lock = Object()
     private val queue = ArrayDeque<Outbound>()
+    private val progressHold = ArrayDeque<RelayMessage>()
+    private var progressSince = 0L
     private val counters = ConcurrentHashMap<String, AtomicInteger>()
     private val replies = HashMap<String, Long>()
+    /** 指令 seq → 要附在 result 上的缺失说明。不含文件字节。 */
+    private val resultNotes = HashMap<Long, String>()
     private var pendingReply: Long? = null
     private var checkedSession: String? = null
     private var whoamiTried = false
@@ -42,8 +50,19 @@ class HubRelayMirror(
         if (startWorker) Thread(::loop, "mika-hub-relay").apply { isDaemon = true }.start()
     }
 
-    /** 下一次打开的运行,其最终 result 要回复这条指令。 */
-    fun armReply(seq: Long) { synchronized(lock) { pendingReply = seq } }
+    /** 下一次打开的运行,其最终 result 要回复这条指令。[resultNote] 附在 result 末尾，说明没下载到的附件。 */
+    fun armReply(seq: Long, resultNote: String? = null) {
+        synchronized(lock) {
+            pendingReply = seq
+            if (resultNote.isNullOrBlank()) resultNotes.remove(seq) else {
+                resultNotes[seq] = resultNote
+                while (resultNotes.size > 30) {
+                    val oldest = resultNotes.keys.minOrNull() ?: break
+                    resultNotes.remove(oldest)
+                }
+            }
+        }
+    }
 
     /** 运行记录开张时把挂起的回复号记到这次 [runId] 上。 */
     fun claimReply(runId: String) {
@@ -73,8 +92,14 @@ class HubRelayMirror(
             if (!config().enabled) return
             val index = counters.getOrPut(runId) { AtomicInteger(0) }.getAndIncrement()
             val message = RelayEventText.map(runId, index, event) ?: return
+            if (message.kind == RelayKind.PROGRESS) {
+                holdProgress(message)
+                return
+            }
+            flushProgress(force = true)
             val reply = if (message.kind == RelayKind.RESULT) synchronized(lock) { replies[runId] } else null
-            enqueue(message, replyTo = reply)
+            val text = if (message.kind == RelayKind.RESULT) notedResult(reply, message.text) else message.text
+            enqueue(RelayMessage(message.requestId, message.kind, text), replyTo = reply)
         } catch (t: Throwable) {
             log("drop")
         }
@@ -86,6 +111,7 @@ class HubRelayMirror(
             if (!cfg.enabled || !cfg.uploadScreenshots) return
             val tooBig = png.size > maxShot
             val text = if (tooBig) "画面 $mediaId 超过上限，未上传" else "画面 $mediaId"
+            flushProgress(force = true)
             enqueue(
                 RelayMessage("$runId:shot:$mediaId", RelayKind.PROGRESS, text),
                 bytes = if (tooBig) null else png,
@@ -123,15 +149,63 @@ class HubRelayMirror(
         }
     }
 
-    /** 测试里把队列走完。失败会按次退避,由 [sleep] 决定要不要真的等。 */
+    /** 测试里把队列走完。失败会按次退避,由 [sleep] 决定要不要真的等。没攒满的进度也一起发出。 */
     fun drain(limit: Int = 500) {
+        flushProgress(force = true)
         var n = 0
         while (n++ < limit && pending() > 0) step()
     }
 
-    fun pump() = step()
+    fun pump() {
+        flushProgress(force = false)
+        step()
+    }
 
     internal fun pending(): Int = synchronized(lock) { queue.size }
+
+    /** 进度先攒着。换了一次运行、正文快满、条数够了或时间到了，才合成一条发出。 */
+    private fun holdProgress(message: RelayMessage) {
+        synchronized(lock) {
+            val incoming = message.requestId.substringBeforeLast(':')
+            if (progressHold.isNotEmpty() && progressHold.first().requestId.substringBeforeLast(':') != incoming) {
+                flushProgressLocked()
+            }
+            val nextChars = heldChars() + message.text.length + if (progressHold.isEmpty()) 0 else 1
+            if (progressHold.isNotEmpty() && nextChars > RELAY_MAX_TEXT) flushProgressLocked()
+            if (progressHold.isEmpty()) progressSince = now()
+            progressHold.addLast(message)
+            val due = progressHold.size >= progressBatch || now() - progressSince >= progressFlushMs
+            if (due) flushProgressLocked() else lock.notifyAll()
+        }
+    }
+
+    private fun flushProgress(force: Boolean) {
+        synchronized(lock) {
+            if (progressHold.isEmpty()) return
+            val due = force || progressHold.size >= progressBatch || now() - progressSince >= progressFlushMs ||
+                heldChars() >= RELAY_MAX_TEXT
+            if (due) flushProgressLocked()
+        }
+    }
+
+    private fun flushProgressLocked() {
+        if (progressHold.isEmpty()) return
+        val items = progressHold.toList()
+        progressHold.clear()
+        val text = RelayEventText.clip(items.joinToString("\n") { it.text })
+        enqueue(RelayMessage(items.first().requestId, RelayKind.PROGRESS, text))
+    }
+
+    private fun heldChars(): Int {
+        if (progressHold.isEmpty()) return 0
+        return progressHold.sumOf { it.text.length } + progressHold.size - 1
+    }
+
+    private fun notedResult(replyTo: Long?, text: String): String {
+        if (replyTo == null) return text
+        val note = synchronized(lock) { resultNotes[replyTo] } ?: return text
+        return HubAttachmentText.appendResult(text, note)
+    }
 
     private fun enqueue(message: RelayMessage, bytes: ByteArray? = null, fileName: String? = null, replyTo: Long? = null) {
         synchronized(lock) {
@@ -146,7 +220,12 @@ class HubRelayMirror(
         while (true) {
             try {
                 val waitMs = synchronized(lock) {
-                    if (queue.isNotEmpty() || heartbeatDue()) 0L else heartbeatEveryMs.coerceAtLeast(1)
+                    when {
+                        queue.isNotEmpty() -> 0L
+                        progressHold.isNotEmpty() -> (progressFlushMs - (now() - progressSince)).coerceAtLeast(0L)
+                        heartbeatDue() -> 0L
+                        else -> heartbeatEveryMs.coerceAtLeast(1)
+                    }
                 }
                 if (waitMs > 0) {
                     synchronized(lock) {
@@ -154,6 +233,7 @@ class HubRelayMirror(
                     }
                     continue
                 }
+                flushProgress(force = false)
                 step()
             } catch (t: Throwable) {
                 log("loop")

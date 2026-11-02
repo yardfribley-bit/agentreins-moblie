@@ -162,6 +162,61 @@ class HubRelayMirrorTest {
         assertTrue(errors.none { it == "already member" || it?.contains("409") == true })
     }
 
+    @Test fun progressBatchesThenResultKeepsTheMissingNote() {
+        val fake = FakeRelay()
+        var clock = 0L
+        val mirror = HubRelayMirror(
+            transport = fake,
+            config = { RelayConfig(enabled = true, token = "da_test", sessionId = "ses_fixed") },
+            environment = { env },
+            now = { clock },
+            sleep = {},
+            progressBatch = 10,
+            progressFlushMs = 30_000,
+            startWorker = false,
+        )
+        mirror.armReply(250, "Missing Hub attachments:\n- fl_x (a.png): download failed")
+        mirror.claimReply("run")
+        repeat(25) { mirror.submit("run", RunEvent.State(it.toLong(), "s", "$it")) }
+        assertEquals(2, mirror.pending())
+        mirror.submit("run", RunEvent.TaskEnded(3, "succeeded", "办好了"))
+        assertEquals(4, mirror.pending())
+        mirror.drain()
+        assertEquals(4, fake.sent.size)
+        assertEquals(listOf(RelayKind.PROGRESS, RelayKind.PROGRESS, RelayKind.PROGRESS, RelayKind.RESULT), fake.sent.map { it.kind })
+        assertEquals(listOf("run:0", "run:10", "run:20", "run:25"), fake.sent.map { it.requestId })
+        assertTrue(fake.sent[0].text.contains("s 0") && fake.sent[0].text.contains("s 9"))
+        assertFalse(fake.sent[0].text.contains("s 10"))
+        assertFalse(fake.sent[0].text.contains("fl_x"))
+        val result = fake.sent.last()
+        assertTrue(result.text.contains("办好了"))
+        assertTrue(result.text.contains("fl_x"))
+        assertTrue(result.text.length <= RELAY_MAX_TEXT)
+        assertFalse(result.text.contains("content_base64"))
+
+        clock = 30_000
+        mirror.submit("run", RunEvent.State(1, "s", "later"))
+        mirror.submit("run", RunEvent.State(2, "s", "again"))
+        assertEquals(0, mirror.pending())
+        clock = 60_000
+        mirror.pump()
+        assertEquals("run:26", fake.sent.last().requestId)
+        assertTrue(fake.sent.last().text.contains("later") && fake.sent.last().text.contains("again"))
+    }
+
+    @Test fun longResultKeepsTheMissingAttachmentNote() {
+        val fake = FakeRelay()
+        val mirror = mirror(fake, RelayConfig(enabled = true, token = "da_test", sessionId = "ses_fixed"))
+        val note = "Missing Hub attachments:\n- fl_x (a.png): download failed"
+        mirror.armReply(9, note)
+        mirror.claimReply("run-1")
+        mirror.submit("run-1", RunEvent.TaskEnded(1, "succeeded", "答".repeat(9000)))
+        mirror.drain()
+        val text = fake.sent.single().text
+        assertTrue(text.endsWith(note))
+        assertTrue(text.length <= RELAY_MAX_TEXT)
+    }
+
     @Test fun heartbeatWhileRunIsActive() {
         val fake = FakeRelay()
         val mirror = mirror(fake, RelayConfig(enabled = true, token = "da_test", sessionId = "ses_fixed"), heartbeatEveryMs = 0)
@@ -210,6 +265,8 @@ class HubRelayMirrorTest {
         maxQueue = maxQueue,
         maxAttempts = maxAttempts,
         maxShot = maxShot,
+        progressBatch = 1,
+        progressFlushMs = Long.MAX_VALUE,
         startWorker = false,
     )
 
@@ -258,6 +315,11 @@ class HubRelayMirrorTest {
             calls += "upload:$name:${bytes.size}"
             return "fl_1"
         }
+
+        override fun download(mcpUrl: String, token: String, sessionId: String, fileId: String): RelayFileDownload =
+            throw RelayException(0, false, "no download")
+
+        override fun fetchUnsigned(url: String, maxBytes: Long): ByteArray = throw IOException("network")
 
         override fun heartbeat(mcpUrl: String, token: String, sessionId: String, environment: RelayEnvironment) {
             calls += "beat"

@@ -13,6 +13,8 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -126,6 +128,67 @@ class HubMcpClient(
             put("content_base64", Base64.getEncoder().encodeToString(bytes))
         }, secret = token).obj()
         return body.str("file_id") ?: body.str("id") ?: throw RelayException(200, false, "missing file id")
+    }
+
+    override fun download(mcpUrl: String, token: String, sessionId: String, fileId: String): RelayFileDownload {
+        val body = call(mcpUrl, token, "diaodu_relay_download", buildJsonObject {
+            put("session", sessionId)
+            put("file_id", fileId)
+        }, secret = token).obj() ?: throw RelayException(200, false, "empty download")
+        val encoded = body.str("content_base64")
+        val inline = if (encoded == null) null else {
+            val estimated = encoded.length.toLong() * 3 / 4
+            if (estimated > HUB_ATTACHMENT_MAX_BYTES) throw RelayException(0, false, "larger than ${HUB_ATTACHMENT_MAX_BYTES shr 20} MB")
+            try {
+                Base64.getDecoder().decode(encoded)
+            } catch (e: IllegalArgumentException) {
+                throw RelayException(200, false, "bad download")
+            }
+        }
+        if (inline != null && inline.size.toLong() > HUB_ATTACHMENT_MAX_BYTES) {
+            throw RelayException(0, false, "larger than ${HUB_ATTACHMENT_MAX_BYTES shr 20} MB")
+        }
+        return RelayFileDownload(
+            fileId = body.str("file_id") ?: fileId,
+            name = body.str("name").orEmpty(),
+            size = body["size"].long() ?: inline?.size?.toLong() ?: -1L,
+            sha256 = body.str("sha256"),
+            mime = body.str("type") ?: "application/octet-stream",
+            bytes = inline,
+            downloadUrl = if (inline != null) null else body.str("download_url"),
+        )
+    }
+
+    override fun fetchUnsigned(url: String, maxBytes: Long): ByteArray {
+        val cap = maxBytes.coerceAtMost(HUB_ATTACHMENT_MAX_BYTES)
+        if (cap <= 0) throw RelayException(0, false, "empty download")
+        val httpUrl = url.toHttpUrlOrNull() ?: throw RelayException(0, false, "bad download url")
+        if (httpUrl.scheme != "https" && httpUrl.scheme != "http") throw RelayException(0, false, "bad download url")
+        val request = Request.Builder().url(httpUrl).header("Accept", "*/*").get().build()
+        try {
+            val response = http.newCall(request).execute()
+            response.use { resp ->
+                if (!resp.isSuccessful) throw httpError(resp.code, secret = null)
+                val payload = resp.body ?: throw RelayException(200, false, "empty download")
+                val declared = payload.contentLength()
+                if (declared > cap) throw RelayException(0, false, "larger than ${cap shr 20} MB")
+                val out = java.io.ByteArrayOutputStream()
+                payload.byteStream().use { input ->
+                    val buf = ByteArray(16 * 1024)
+                    while (true) {
+                        val n = input.read(buf)
+                        if (n < 0) break
+                        if (out.size().toLong() + n > cap) throw RelayException(0, false, "larger than ${cap shr 20} MB")
+                        out.write(buf, 0, n)
+                    }
+                }
+                return out.toByteArray()
+            }
+        } catch (e: RelayException) {
+            throw e
+        } catch (e: IOException) {
+            throw IOException("network")
+        }
     }
 
     private fun uploadRest(mcpUrl: String, token: String, sessionId: String, name: String, bytes: ByteArray): String {
