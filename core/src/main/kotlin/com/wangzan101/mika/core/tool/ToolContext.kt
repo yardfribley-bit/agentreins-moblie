@@ -41,6 +41,7 @@ internal class ToolConfig(
     val userScreens: com.wangzan101.mika.core.userscreen.UserScreenSource? = null,
     /** Obsidian 库。没选文件夹或开关关着时,对应工具不提供。 */
     val vault: VaultMemory? = null,
+    val urlDownload: com.wangzan101.mika.core.relay.UrlDownloadPort? = null,
 )
 
 /**

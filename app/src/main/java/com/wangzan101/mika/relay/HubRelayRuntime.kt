@@ -12,7 +12,13 @@ import com.wangzan101.mika.core.relay.HubInbound
 import com.wangzan101.mika.core.relay.HubInstruction
 import com.wangzan101.mika.core.relay.HubInstructionFilter
 import com.wangzan101.mika.core.relay.HubOwnerLaunch
+import com.wangzan101.mika.core.relay.HubInflight
 import com.wangzan101.mika.core.relay.HubPreparedTask
+import com.wangzan101.mika.core.relay.HubResultText
+import com.wangzan101.mika.core.relay.HubRunOutcome
+import com.wangzan101.mika.core.relay.HubTerminal
+import com.wangzan101.mika.core.relay.RelayKind
+import com.wangzan101.mika.core.run.StoredRun
 import com.wangzan101.mika.core.relay.RelayConfig
 import com.wangzan101.mika.core.relay.HubMcpClient
 import com.wangzan101.mika.core.relay.HubRemoteInstruction
@@ -37,7 +43,7 @@ class HubRelayRuntime(
     private val transport: RelayTransport = HubMcpClient(log = { Log.i("HubMcp", it) }),
     startWorker: Boolean = true,
     private val busy: () -> Boolean = { false },
-    private val startRun: (String) -> Unit = {},
+    private val startRun: (HubGoal) -> Unit = {},
     private val prepare: (RelayConfig, HubInstruction) -> HubPreparedTask =
         { _, instruction -> HubPreparedTask(instruction.text, null) },
     startInbound: Boolean = true,
@@ -70,6 +76,16 @@ class HubRelayRuntime(
     private var backoffMs = 1_000L
 
     init {
+        mirror.onResultQueued = { _, seq, text ->
+            val flight = settings.inflight() ?: return@onResultQueued
+            if (flight.seq == seq) settings.setInflight(flight.copy(pendingText = text))
+        }
+        mirror.onResultSent = { id, seq ->
+            settings.markResultSent(id)
+            val flight = settings.inflight()
+            if (flight != null && flight.seq == seq) settings.setInflight(null)
+            settings.setHandledSeq(maxOf(settings.handledSeq(), seq))
+        }
         if (startInbound) Thread(::inbound, "mika-hub-inbound").apply { isDaemon = true }.start()
     }
 
@@ -86,9 +102,57 @@ class HubRelayRuntime(
     fun setClaimTasks(on: Boolean) { settings.setClaimTasks(on); bump() }
     fun setRunOwnerInstructions(on: Boolean) { settings.setRunOwnerInstructions(on); bump(); onListen() }
 
-    fun open(runId: String): RelayRun {
-        mirror.claimReply(runId)
+    fun open(runId: String, hubSeq: Long? = null): RelayRun {
+        if (hubSeq != null) mirror.claimReply(runId, hubSeq)
         return RelayRun(mirror, runId, mirror.retain())
+    }
+
+    fun bindRun(seq: Long, runKey: String) {
+        val flight = settings.inflight() ?: return
+        if (flight.seq == seq) settings.setInflight(flight.copy(runKey = runKey))
+    }
+
+    /** 把这次 Hub 运行的终态发回原会话。成功、失败、拒答、需要补充、提问都走这里。 */
+    fun deliverRunResult(seq: Long, requestId: String?, outcome: HubRunOutcome, text: String, png: ByteArray? = null) {
+        val flight = settings.inflight()
+        val note = if (flight != null && flight.seq == seq) flight.resultNote else null
+        val rawId = requestId ?: if (flight != null && flight.seq == seq) flight.requestId else null
+        val id = HubResultText.requestId(rawId, seq)
+        if (settings.wasResultSent(id)) {
+            if (flight != null && flight.seq == seq) settings.setInflight(null)
+            settings.setHandledSeq(maxOf(settings.handledSeq(), seq))
+            return
+        }
+        val kind = HubResultText.kind(outcome)
+        if (flight != null && flight.seq == seq) settings.setInflight(flight.copy(pendingKind = kind))
+        val body = HubResultText.body(outcome, text, id, note)
+        mirror.postFinal(id, body, seq, kind, png = png?.takeIf { it.size >= 8 && it[0] == 0x89.toByte() && it[1] == 0x50.toByte() }, pngName = "hub-screen.png")
+    }
+
+    /** 进程重启或服务被杀掉时，还没送达的指令改报中断，避免 Hub 一直等。 */
+    fun reportAbandoned(runs: List<StoredRun> = emptyList()) {
+        val flight = settings.inflight() ?: return
+        val seq = flight.seq
+        val id = HubResultText.requestId(flight.requestId, seq)
+        if (settings.wasResultSent(id)) {
+            settings.setInflight(null)
+            settings.setHandledSeq(maxOf(settings.handledSeq(), seq))
+            return
+        }
+        val pending = flight.pendingText
+        val matched = flight.runKey?.let { key -> runs.firstOrNull { it.id.value == key } }
+        val reply = matched?.reply
+        val succeeded = matched?.runSucceeded
+        val text = when {
+            !pending.isNullOrBlank() -> pending
+            reply != null -> {
+                val terminal = if (succeeded == false) HubTerminal.Failed else HubTerminal.Succeeded
+                HubResultText.body(HubResultText.outcome(terminal, reply), reply, id, flight.resultNote)
+            }
+            else -> HubResultText.body(HubRunOutcome.Interrupted, HubResultText.INTERRUPTED, id, flight.resultNote)
+        }
+        val kind = flight.pendingKind ?: RelayKind.RESULT
+        mirror.postFinal(id, text, seq, if (pending.isNullOrBlank() && reply == null) RelayKind.RESULT else kind)
     }
 
     fun submit(runId: String, event: RunEvent) = mirror.submit(runId, event)
@@ -156,8 +220,9 @@ class HubRelayRuntime(
         if (next != null) {
             val prepared = HubOwnerLaunch.decorate(next) { prepare(cfg, it) }
             gate.noteStarting(System.currentTimeMillis())
-            mirror.armReply(next.seq, prepared.resultNote)
-            startRun(prepared.goal)
+            settings.setInflight(HubInflight(next.seq, next.requestId, prepared.resultNote))
+            mirror.armReply(next.seq, prepared.resultNote, next.requestId)
+            startRun(HubGoal(prepared.goal, next.seq, next.requestId))
         }
         readWait = if (page.hasMore) 0 else HubInstructionFilter.MAX_WAIT_SECONDS
         return 0L
@@ -192,13 +257,17 @@ class HubRelayRuntime(
                 },
                 transport = client,
                 busy = { (app as MikaApp).taskState.busy.value },
-                startRun = { goal -> TaskService.start(app, goal, prefs.hubConversationId(), fromHub = true) },
+                startRun = { goal ->
+                    TaskService.start(app, goal.text, prefs.hubConversationId(), fromHub = true, hubSeq = goal.seq, hubRequestId = goal.requestId)
+                },
                 prepare = { cfg, instruction -> intake.prepare(cfg, instruction) },
                 onListen = { HubRelayService.sync(app) },
             )
         }
     }
 }
+
+internal data class HubGoal(val text: String, val seq: Long, val requestId: String?)
 
 /** 一次任务挂上镜像的接收方。 [close] 只停心跳,已经进队列的消息还会发。 */
 class RelayRun(

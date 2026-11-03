@@ -146,6 +146,12 @@ class TaskRun(
     internal var provenance = RunProvenance()
     /** Hub 老板指令走和聊天一样的任务,但运行记录上要标出来。 */
     internal var fromHub = false
+    internal var hubSeq: Long? = null
+    internal var hubRequestId: String? = null
+    /** 收尾时的画面。敏感屏幕不截。 */
+    internal var hubShotPng: ByteArray? = null
+    /** 账号对不上时，终态用 question 发回 Hub。 */
+    internal var hubQuestion: String? = null
     internal var triggerWindowKey: String? = null
     internal var triggerActionGoal: String? = null
     internal var triggerThreadId: String? = null
@@ -503,7 +509,9 @@ class TaskRun(
                 }.onFailure { Log.w(TAG, "run record unavailable, running without it", it) }.getOrNull()
                 val bus = RunEventBus()
                 if (handle != null) bus.subscribe(handle)
-                relayRun = runCatching { (service.application as MikaApp).hubRelay.open(handle?.runId ?: key) }
+                relayRun = runCatching {
+                    (service.application as MikaApp).hubRelay.open(handle?.runId ?: key, if (fromHub) hubSeq else null)
+                }
                     .onFailure { Log.w(TAG, "hub relay unavailable", it) }.getOrNull()
                 relayRun?.let { bus.subscribe(it) }
                 if (handle == null && relayRun == null) RunSink.NONE else bus
@@ -614,7 +622,8 @@ class TaskRun(
                 scheduleTrigger = if (provenance.origin == RunOrigin.Ui) { trigger -> TriggerRuntime.schedule(service, trigger) } else null,
                 scheduleAdmin = if (provenance.origin == RunOrigin.Ui) LocalScheduleAdmin(service) else null,
                 childHost = childRunner,
-                vault = vaultMemory)
+                vault = vaultMemory,
+                urlDownload = com.wangzan101.mika.relay.PhoneUrlDownload(service, conversationId))
             dispatcher = tools
             val agent = AgentLoop(
                 model, tools,

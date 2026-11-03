@@ -42,6 +42,7 @@ class VaultRuntime(context: Context) : VaultMemory {
     private val files = SafVaultFiles(app) { settings.state.value.treeUri?.let(Uri::parse) }
     private val library = VaultLibrary(files, { settings.state.value.subfolder })
     private val reads = ConcurrentHashMap<String, List<String>>()
+    private val searched = ConcurrentHashMap.newKeySet<String>()
     private val toolWrites = ConcurrentHashMap<String, MutableList<String>>()
 
     fun persisted(uri: Uri? = null): Boolean {
@@ -62,7 +63,10 @@ class VaultRuntime(context: Context) : VaultMemory {
         if (!searchEnabled()) return null
         return try {
             val read = library.readContext(goal)
-            if (runId != null) reads[runId] = read.paths
+            if (runId != null) {
+                reads[runId] = read.paths
+                searched.add(runId)
+            }
             touches.markRead(read.paths, runId, System.currentTimeMillis())
             settings.markRead(true, read.paths.size.toString())
             read.text
@@ -122,6 +126,8 @@ class VaultRuntime(context: Context) : VaultMemory {
             is TaskState.Failed -> VaultOutcome.Failure
             else -> VaultOutcome.Stopped
         }
+        val didSearch = searched.remove(runId)
+        val readPaths = reads.remove(runId).orEmpty()
         val written = toolWrites.remove(runId)?.toMutableList() ?: mutableListOf()
         if (prefs.writeEnabled && outcome != VaultOutcome.Stopped) {
             val draft = runCatching { ExperienceDistiller.distill(goal, events, tools) }.getOrNull()
@@ -136,7 +142,10 @@ class VaultRuntime(context: Context) : VaultMemory {
         try {
             val started = events.minOfOrNull { it.atMs } ?: System.currentTimeMillis()
             val ended = events.maxOfOrNull { it.atMs } ?: started
-            val spec = VaultRunSpec(runId, goal, source, outcome, events, reads.remove(runId).orEmpty(), written.distinct(), started, ended)
+            val spec = VaultRunSpec(
+                runId, goal, source, outcome, events, readPaths, written.distinct(), started, ended,
+                searched = didSearch,
+            )
             val saved = library.writeRun(spec)
             val path = saved.path
             if (path != null && saved.code != "capped") touches.rememberRun(runId, path)
