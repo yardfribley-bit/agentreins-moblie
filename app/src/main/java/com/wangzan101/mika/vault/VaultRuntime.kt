@@ -44,7 +44,7 @@ class VaultRuntime(context: Context) : VaultMemory {
     private val reads = ConcurrentHashMap<String, List<String>>()
     private val toolWrites = ConcurrentHashMap<String, MutableList<String>>()
 
-    fun persisted(uri: Uri = Uri.parse(settings.state.value.treeUri ?: return false)): Boolean =
+    fun persisted(uri: Uri): Boolean =
         app.contentResolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission && it.isWritePermission }
 
     fun choose(uri: Uri) {
@@ -126,7 +126,8 @@ class VaultRuntime(context: Context) : VaultMemory {
             val lesson = VaultLessons.from(goal, runId, end, draft)
             if (lesson != null) {
                 val saved = writeAppend(lesson)
-                if (saved.ok && saved.path != null) written += saved.path
+                val lessonPath = saved.path
+                if (saved.ok && lessonPath != null) written.add(lessonPath)
             }
         }
         if (!prefs.logEnabled) return
@@ -135,8 +136,9 @@ class VaultRuntime(context: Context) : VaultMemory {
             val ended = events.maxOfOrNull { it.atMs } ?: started
             val spec = VaultRunSpec(runId, goal, source, outcome, events, reads.remove(runId).orEmpty(), written.distinct(), started, ended)
             val saved = library.writeRun(spec)
-            if (saved.path != null && saved.code != "capped") touches.rememberRun(runId, saved.path)
-            settings.markWrite(saved.ok, saved.path ?: saved.code.orEmpty())
+            val runPath = saved.path
+            if (runPath != null && saved.code != "capped") touches.rememberRun(runId, runPath)
+            settings.markWrite(saved.ok, runPath ?: saved.code.orEmpty())
         } catch (e: CancellationException) {
             throw e
         } catch (e: SecurityException) {
@@ -164,10 +166,11 @@ class VaultRuntime(context: Context) : VaultMemory {
     private fun writeAppend(request: VaultAppend): VaultAppendResult = try {
         val saved = library.append(request)
         val base = request.runId.substringBefore("-tool-")
-        if (saved.ok && saved.path != null) {
-            toolWrites.getOrPut(base) { mutableListOf() }.add(saved.path)
-            touches.markWrite(listOf(saved.path), base, System.currentTimeMillis())
-            settings.markWrite(true, saved.path)
+        val path = saved.path
+        if (saved.ok && path != null) {
+            toolWrites.getOrPut(base) { mutableListOf() }.add(path)
+            touches.markWrite(listOf(path), base, System.currentTimeMillis())
+            settings.markWrite(true, path)
         } else if (!saved.ok) {
             settings.markWrite(false, saved.code ?: "error")
         }
