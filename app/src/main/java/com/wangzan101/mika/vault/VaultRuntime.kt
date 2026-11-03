@@ -42,10 +42,13 @@ class VaultRuntime(context: Context) : VaultMemory {
     private val files = SafVaultFiles(app) { settings.state.value.treeUri?.let(Uri::parse) }
     private val library = VaultLibrary(files, { settings.state.value.subfolder })
     private val reads = ConcurrentHashMap<String, List<String>>()
+    private val searched = ConcurrentHashMap.newKeySet<String>()
     private val toolWrites = ConcurrentHashMap<String, MutableList<String>>()
 
-    fun persisted(uri: Uri): Boolean =
-        app.contentResolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission && it.isWritePermission }
+    fun persisted(uri: Uri? = null): Boolean {
+        val target = uri ?: settings.state.value.treeUri?.let(Uri::parse) ?: return false
+        return app.contentResolver.persistedUriPermissions.any { it.uri == target && it.isReadPermission && it.isWritePermission }
+    }
 
     fun choose(uri: Uri) {
         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
@@ -60,7 +63,10 @@ class VaultRuntime(context: Context) : VaultMemory {
         if (!searchEnabled()) return null
         return try {
             val read = library.readContext(goal)
-            if (runId != null) reads[runId] = read.paths
+            if (runId != null) {
+                reads[runId] = read.paths
+                searched.add(runId)
+            }
             touches.markRead(read.paths, runId, System.currentTimeMillis())
             settings.markRead(true, read.paths.size.toString())
             read.text
@@ -120,25 +126,30 @@ class VaultRuntime(context: Context) : VaultMemory {
             is TaskState.Failed -> VaultOutcome.Failure
             else -> VaultOutcome.Stopped
         }
+        val didSearch = searched.remove(runId)
+        val readPaths = reads.remove(runId).orEmpty()
         val written = toolWrites.remove(runId)?.toMutableList() ?: mutableListOf()
         if (prefs.writeEnabled && outcome != VaultOutcome.Stopped) {
             val draft = runCatching { ExperienceDistiller.distill(goal, events, tools) }.getOrNull()
             val lesson = VaultLessons.from(goal, runId, end, draft)
             if (lesson != null) {
                 val saved = writeAppend(lesson)
-                val lessonPath = saved.path
-                if (saved.ok && lessonPath != null) written.add(lessonPath)
+                val path = saved.path
+                if (saved.ok && path != null) written += path
             }
         }
         if (!prefs.logEnabled) return
         try {
             val started = events.minOfOrNull { it.atMs } ?: System.currentTimeMillis()
             val ended = events.maxOfOrNull { it.atMs } ?: started
-            val spec = VaultRunSpec(runId, goal, source, outcome, events, reads.remove(runId).orEmpty(), written.distinct(), started, ended)
+            val spec = VaultRunSpec(
+                runId, goal, source, outcome, events, readPaths, written.distinct(), started, ended,
+                searched = didSearch,
+            )
             val saved = library.writeRun(spec)
-            val runPath = saved.path
-            if (runPath != null && saved.code != "capped") touches.rememberRun(runId, runPath)
-            settings.markWrite(saved.ok, runPath ?: saved.code.orEmpty())
+            val path = saved.path
+            if (path != null && saved.code != "capped") touches.rememberRun(runId, path)
+            settings.markWrite(saved.ok, path ?: saved.code.orEmpty())
         } catch (e: CancellationException) {
             throw e
         } catch (e: SecurityException) {

@@ -166,7 +166,9 @@ class TaskService : Service() {
         when (intent?.action) {
             ACTION_START -> begin(intent.getStringExtra(EXTRA_GOAL).orEmpty(), intent.getStringExtra(EXTRA_CONVERSATION),
                 allowQueue = intent.getBooleanExtra(EXTRA_QUEUE, false), messageId = intent.getStringExtra(EXTRA_MESSAGE_ID),
-                fromHub = intent.getBooleanExtra(EXTRA_FROM_HUB, false))
+                fromHub = intent.getBooleanExtra(EXTRA_FROM_HUB, false),
+                hubSeq = intent.getLongExtra(EXTRA_HUB_SEQ, -1L).takeIf { it >= 0 },
+                hubRequestId = intent.getStringExtra(EXTRA_HUB_REQUEST))
             ACTION_START_TRIGGER -> begin(intent.getStringExtra(EXTRA_GOAL).orEmpty(), intent.getStringExtra(EXTRA_CONVERSATION),
                 allowQueue = true, provenance = RunProvenance(RunOrigin.Trigger, Attendance.Unattended),
                 triggerKey = intent.getStringExtra(EXTRA_TRIGGER_KEY),
@@ -201,7 +203,7 @@ class TaskService : Service() {
     private fun begin(newGoal: String, requestedConversation: String?, allowQueue: Boolean = false,
         provenance: RunProvenance = RunProvenance(), triggerKey: String? = null,
         triggerActionGoal: String? = null, triggerThreadId: String? = null, mcpExternalId: String? = null, messageId: String? = null,
-        fromHub: Boolean = false) {
+        fromHub: Boolean = false, hubSeq: Long? = null, hubRequestId: String? = null) {
         parallel = FeatureFlags.get(this).speedFlags().parallelTasks
         // 同一对话里正在执行或排队的任务收到新原话时，交给它的 Inbox。
         requestedConversation?.let(center::byConversation)?.let { existing ->
@@ -235,6 +237,9 @@ class TaskService : Service() {
                 nameConversation(store, conversationId, newGoal, provenance)
                 r.run.provenance = provenance
                 r.run.fromHub = fromHub
+                r.run.hubSeq = hubSeq
+                r.run.hubRequestId = hubRequestId
+                if (fromHub && hubSeq != null) (application as com.wangzan101.mika.MikaApp).hubRelay.bindRun(hubSeq, r.run.key)
                 r.run.triggerWindowKey = triggerKey
                 r.run.triggerActionGoal = triggerActionGoal
                 r.run.triggerThreadId = triggerThreadId
@@ -259,6 +264,9 @@ class TaskService : Service() {
                 val run = r.run
                 run.provenance = provenance
                 run.fromHub = fromHub
+                run.hubSeq = hubSeq
+                run.hubRequestId = hubRequestId
+                if (fromHub && hubSeq != null) (application as com.wangzan101.mika.MikaApp).hubRelay.bindRun(hubSeq, run.key)
                 run.triggerWindowKey = triggerKey
                 run.triggerActionGoal = triggerActionGoal
                 run.triggerThreadId = triggerThreadId
@@ -436,6 +444,7 @@ class TaskService : Service() {
         run.handoffUnconsumed(cancelled = true)
         run.end(TaskState.Cancelled)
         recordTurn(ConversationStore.shared(this), run.conversationId, run.goal, TaskState.Cancelled, null)
+        postHubResult(run, TaskState.Cancelled)
         publishRuns()
         center.queued().forEachIndexed { i, q -> q.queue(i + 1) }
     }
@@ -639,9 +648,26 @@ class TaskService : Service() {
         return Notification.Action.Builder(null, option, pi).build()
     }
 
+    private fun postHubResult(run: TaskRun, end: TaskState, text: String? = null) {
+        if (!run.fromHub) return
+        val seq = run.hubSeq ?: return
+        val body = text ?: describe(end).second
+        val question = run.hubQuestion
+        val terminal = when (end) {
+            is TaskState.Succeeded -> com.wangzan101.mika.core.relay.HubTerminal.Succeeded
+            TaskState.Cancelled -> com.wangzan101.mika.core.relay.HubTerminal.Cancelled
+            else -> com.wangzan101.mika.core.relay.HubTerminal.Failed
+        }
+        val outcome = com.wangzan101.mika.core.relay.HubResultText.outcome(terminal, body, question)
+        runCatching {
+            (application as com.wangzan101.mika.MikaApp).hubRelay.deliverRunResult(seq, run.hubRequestId, outcome, question ?: body, run.hubShotPng)
+        }.onFailure { Log.w(TAG, "hub result failed", it) }
+    }
+
     private suspend fun notifyResult(run: TaskRun, end: TaskState, deliveryId: String): DeliveryState {
         val (title, text) = describe(end)
         val peer = ChannelPeer(LocalChannel.ID, "phone-owner", run.conversationId)
+        postHubResult(run, end, text)
         val delivered = outbox.deliver(localChannel, peer, Delivery.Result(deliveryId, run.conversationId, text, title = title))
         if (delivered.state != DeliveryState.Delivered) Log.w(TAG, "result delivery ${delivered.state}: $deliveryId")
         return delivered.state
@@ -661,8 +687,9 @@ class TaskService : Service() {
         scope.cancel()
         if (center.runs().isNotEmpty()) {
             // 标中断后当场善后(定时窗口、补送、告知、写进对话):进程还在,不等下次启动;用 App 级作用域,服务没了也做完
-            center.store.interruptUnfinished()
+            val interrupted = center.store.interruptUnfinished()
             (application as com.wangzan101.mika.MikaApp).runRecovery.settleInterrupted()
+            (application as com.wangzan101.mika.MikaApp).hubRelay.reportAbandoned(interrupted)
             taskState._state.value = TaskState.Failed(tr(R.string.task_interrupted), FailKind.Environment)
             taskState._runs.value = emptyList()
             taskState._activeConversations.value = emptyList()
@@ -737,6 +764,8 @@ class TaskService : Service() {
         const val ACTION_DECLINE = "com.wangzan101.mika.task.DECLINE"
         private const val EXTRA_GOAL = "goal"
         private const val EXTRA_FROM_HUB = "from_hub"
+        private const val EXTRA_HUB_SEQ = "hub_seq"
+        private const val EXTRA_HUB_REQUEST = "hub_request"
         private const val EXTRA_MESSAGE_ID = "message_id"
         private const val EXTRA_QUEUE = "queue"
         private const val EXTRA_CONVERSATION = "conversation"
@@ -781,13 +810,15 @@ class TaskService : Service() {
 
         /** 开始一个任务;已有任务在跑时忽略。[conversationId] 为空表示新开一个对话(编号见 [conversationId])。 */
         /** [messageId] 给了时这是任务进行中插的话,界面按它跟这句话的去向;[queue] 为 true 时别的任务在跑也排上(留下的话)。 */
-        fun start(context: Context, goal: String, conversationId: String? = null, messageId: String? = null, queue: Boolean = false, fromHub: Boolean = false) {
+        fun start(context: Context, goal: String, conversationId: String? = null, messageId: String? = null, queue: Boolean = false, fromHub: Boolean = false, hubSeq: Long? = null, hubRequestId: String? = null) {
             context.startForegroundService(
                 Intent(context, TaskService::class.java).setAction(ACTION_START).putExtra(EXTRA_GOAL, goal)
                     .apply { if (conversationId != null) putExtra(EXTRA_CONVERSATION, conversationId) }
                     .apply { if (messageId != null) putExtra(EXTRA_MESSAGE_ID, messageId) }
                     .apply { if (queue) putExtra(EXTRA_QUEUE, true) }
-                    .apply { if (fromHub) putExtra(EXTRA_FROM_HUB, true) },
+                    .apply { if (fromHub) putExtra(EXTRA_FROM_HUB, true) }
+                    .apply { if (hubSeq != null) putExtra(EXTRA_HUB_SEQ, hubSeq) }
+                    .apply { if (hubRequestId != null) putExtra(EXTRA_HUB_REQUEST, hubRequestId) },
             )
         }
 

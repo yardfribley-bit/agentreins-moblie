@@ -63,6 +63,8 @@ fun MikaSwitch(
     onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** 看起来关掉（变灰），但仍可点。没选库文件夹时用。 */
+    dimmed: Boolean = false,
 ) {
     val c = MikaTheme.colors
     val reduce = MikaTheme.reduceMotion
@@ -78,7 +80,7 @@ fun MikaSwitch(
                 else Modifier,
             )
             .size(44.dp, 26.dp)
-            .alpha(if (enabled) 1f else 0.4f)
+            .alpha(if (enabled && !dimmed) 1f else 0.4f)
             .drawBehind {
                 drawRoundRect(track, cornerRadius = CornerRadius(size.height / 2))
                 val r = 11.dp.toPx()

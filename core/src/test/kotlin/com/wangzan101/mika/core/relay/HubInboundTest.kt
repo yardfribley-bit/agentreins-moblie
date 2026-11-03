@@ -95,6 +95,13 @@ class HubInboundTest {
         assertFalse(stored.contains("http"))
         assertFalse(stored.contains("deadbeef"))
         assertEquals(plan.fresh, HubInbound.decodeQueue(stored))
+        val withId = """
+            {"events":[{"seq":4550,"kind":"message","from_owner":true,"request_id":"x-ime-github-20261103-1",
+            "message":{"kind":"instruction","text":"open the image"}}],"next_cursor":4550,"has_more":false}
+        """.trim()
+        val asked = HubInbound.plan(HubInstructionFilter.parse(Json.parseToJsonElement(withId).jsonObject), 0).fresh.single()
+        assertEquals("x-ime-github-20261103-1", asked.requestId)
+        assertEquals(asked, HubInbound.decodeQueue(HubInbound.encodeQueue(listOf(asked))).single())
         val old = HubInbound.decodeQueue("2\u001e查一下 内存")
         assertEquals(listOf(HubInstruction(2, "查一下 内存")), old)
     }

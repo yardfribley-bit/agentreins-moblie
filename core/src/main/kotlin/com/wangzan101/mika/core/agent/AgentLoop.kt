@@ -395,12 +395,13 @@ class AgentLoop(
         val labels = installed.toMap()
         val matched = knowledge?.matchTask(task, Int.MAX_VALUE, installed).orEmpty()
         val recommended = if (skills != null && recommendSkills) GuideRecommender.recommend(skills, task) else null
-        val memoryText = listOfNotNull(ProfileContext.render(profileSnapshot), block?.message, recalledTasks, experiencePlan, vaultNotes)
+        val memoryText = listOfNotNull(ProfileContext.render(profileSnapshot), block?.message, recalledTasks, experiencePlan)
             .filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }?.joinToString("\n\n")
         debugLog(CONTEXT_LOG, Redactor.text(memoryText ?: "(none)"))
         val start = ctx.start(
             task, priorTurns = context?.let { (it.parts.single() as Part.Text).text },
             memory = memoryText,
+            vault = vaultNotes?.takeIf { it.isNotBlank() },
             channel = if (knowledge != null) channelLine(matched) else null,
             knowledge = matched, knowledgeNote = toolsNote(tools.scriptsOffered()), withLinks = flags.deepLinks,
             skillsIndex = recommended?.index, indexedSkills = recommended?.ids.orEmpty(), skill = recommended?.personal,

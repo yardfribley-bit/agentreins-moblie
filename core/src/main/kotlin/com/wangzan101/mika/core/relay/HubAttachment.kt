@@ -349,11 +349,15 @@ class HubAttachmentIntake(
 /** 附件准备失败也不取消指令：正文里写上缺失，任务照样开始。 */
 object HubOwnerLaunch {
     fun decorate(instruction: HubInstruction, prepare: (HubInstruction) -> HubPreparedTask): HubPreparedTask {
-        if (instruction.attachments.isEmpty()) return HubPreparedTask(instruction.text, null)
-        return try {
-            prepare(instruction)
-        } catch (e: Exception) {
-            HubAttachmentText.failed(instruction)
+        val prepared = if (instruction.attachments.isEmpty()) {
+            HubPreparedTask(instruction.text, null)
+        } else {
+            try {
+                prepare(instruction)
+            } catch (e: Exception) {
+                HubAttachmentText.failed(instruction)
+            }
         }
+        return prepared.copy(goal = HubInstructionUrls.append(prepared.goal, instruction.text))
     }
 }
