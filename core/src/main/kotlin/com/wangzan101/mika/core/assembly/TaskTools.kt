@@ -37,6 +37,7 @@ import com.wangzan101.mika.core.trigger.TriggerDefinition
 import com.wangzan101.mika.core.trigger.ScheduleAdmin
 import com.wangzan101.mika.core.child.ChildRunHost
 import com.wangzan101.mika.core.userscreen.UserScreenSource
+import com.wangzan101.mika.core.vault.VaultMemory
 
 /**
  * 一个任务的工具:装上手机、网页、沙箱三种能力和核心工具。这是唯一同时认识几种能力的地方。
@@ -104,9 +105,11 @@ fun toolDispatcher(
     speech: com.wangzan101.mika.core.cap.phone.speech.SpeechPort? = null,
     speechSetup: com.wangzan101.mika.core.cap.phone.speech.SpeechSetup? = null,
     micSeat: com.wangzan101.mika.core.cap.phone.speech.MicSeatPort? = null,
+    /** Obsidian 库;没配或开关关着时不提供 memory_vault_*。 */
+    vault: VaultMemory? = null,
 ): ToolDispatcher {
     val config = ToolConfig(visionEnabled, skills, recordFrames, vision, inlineScreen, adaptiveVision, memory, profile, utterances, conversationId,
-        imageOps, scheduleTrigger, scheduleAdmin, runSpec, childHost, userScreens)
+        imageOps, scheduleTrigger, scheduleAdmin, runSpec, childHost, userScreens, vault)
     val providers: List<CapabilityProvider> = listOf(
         object : CapabilityProvider {
             override val id = PHONE

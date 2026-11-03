@@ -64,7 +64,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** 设置里能进入的子页面;[Home] 是设置首页。 */
-private enum class SettingsPage { Home, Usage, PhoneOps, DuringWork, Capsule, Language, Notifications, WebSites, Sandbox, Routes, Recovery, HubRelay, Developer, RunStats }
+private enum class SettingsPage { Home, Usage, PhoneOps, DuringWork, Capsule, Language, Notifications, WebSites, Sandbox, Routes, Recovery, HubRelay, Vault, Developer, RunStats }
 
 /**
  * 设置页:总状态卡 + 基本 / 隐私与数据 / 高级 / 关于四组。各子页面在这里切换(返回键先回首页),
@@ -161,6 +161,7 @@ fun SettingsScreen(
             routes = routeCount, onOpenRoutes = { page = SettingsPage.Routes },
             onOpenRecovery = { page = SettingsPage.Recovery },
             onOpenHubRelay = { page = SettingsPage.HubRelay },
+            onOpenVault = { page = SettingsPage.Vault },
             showDeveloper = showDeveloper, onOpenDeveloper = { page = SettingsPage.Developer },
             versionName = BuildConfig.VERSION_NAME, updateVersion = updateVersion, onOpenAbout = onOpenAbout,
         )
@@ -188,6 +189,7 @@ fun SettingsScreen(
         )
         SettingsPage.Recovery -> RecoveryScreen(onBack = toHome)
         SettingsPage.HubRelay -> HubRelayScreen(onBack = toHome)
+        SettingsPage.Vault -> VaultSettingsScreen(onBack = toHome)
         SettingsPage.Developer -> DeveloperOptionsScreen(
             speed, onSpeed = { flags.setSpeed(it); speed = it }, onBack = toHome,
             autonomous = autonomous, onAutonomous = onAutonomous,
@@ -251,6 +253,7 @@ fun SettingsContent(
     onOpenRoutes: () -> Unit = {},
     onOpenRecovery: () -> Unit = {},
     onOpenHubRelay: () -> Unit = {},
+    onOpenVault: () -> Unit = {},
     showDeveloper: Boolean = false,
     onOpenDeveloper: () -> Unit = {},
     versionName: String = "",
@@ -293,18 +296,16 @@ fun SettingsContent(
             }
         }
 
-        val privacyRows = onOpenMemory != null || webSitesCount != null
-        if (privacyRows) {
-            GroupLabel(stringResource(R.string.settings_privacy))
-            GroupCard {
-                var first = true
-                fun take(): Boolean = first.also { first = false }
-                onOpenMemory?.let {
-                    ListRow(MikaIcons.Heart, stringResource(R.string.memory_and_skills), stringResource(R.string.settings_memory_sub), first = take(), onClick = it) { RowChevron() }
-                }
-                webSitesCount?.let {
-                    ListRow(MikaIcons.Globe, stringResource(R.string.settings_web_logins), first = take(), onClick = onOpenWebSites) { RowValue(trPlural(R.plurals.settings_count_sites, it)); RowChevron() }
-                }
+        GroupLabel(stringResource(R.string.settings_privacy))
+        GroupCard {
+            var first = true
+            fun take(): Boolean = first.also { first = false }
+            onOpenMemory?.let {
+                ListRow(MikaIcons.Heart, stringResource(R.string.memory_and_skills), stringResource(R.string.settings_memory_sub), first = take(), onClick = it) { RowChevron() }
+            }
+            ListRow(MikaIcons.Book, stringResource(R.string.settings_vault), stringResource(R.string.settings_vault_sub), first = take(), onClick = onOpenVault) { RowChevron() }
+            webSitesCount?.let {
+                ListRow(MikaIcons.Globe, stringResource(R.string.settings_web_logins), first = take(), onClick = onOpenWebSites) { RowValue(trPlural(R.plurals.settings_count_sites, it)); RowChevron() }
             }
         }
 

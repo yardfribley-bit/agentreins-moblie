@@ -50,7 +50,7 @@ object HistoryPruner {
     )
 
     /** 模型照着做的参考资料:不按大小裁。 */
-    private val REFERENCE_VERBS = setOf(Verb.KnowledgeSearch, Verb.KnowledgeRead, Verb.SkillSearch, Verb.SkillRead, Verb.MemorySearch)
+    private val REFERENCE_VERBS = setOf(Verb.KnowledgeSearch, Verb.KnowledgeRead, Verb.SkillSearch, Verb.SkillRead, Verb.MemorySearch, Verb.VaultSearch)
     /** 没带观察的结果:读界面的动作照样按界面状态缩短。 */
     private val INTERFACE_VERBS = setOf(Verb.Observe, Verb.ListElements, Verb.Diagnose)
     private const val LONG_TEXT = 300

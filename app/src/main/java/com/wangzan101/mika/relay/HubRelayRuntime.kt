@@ -192,7 +192,7 @@ class HubRelayRuntime(
                 },
                 transport = client,
                 busy = { (app as MikaApp).taskState.busy.value },
-                startRun = { goal -> TaskService.start(app, goal, prefs.hubConversationId()) },
+                startRun = { goal -> TaskService.start(app, goal, prefs.hubConversationId(), fromHub = true) },
                 prepare = { cfg, instruction -> intake.prepare(cfg, instruction) },
                 onListen = { HubRelayService.sync(app) },
             )

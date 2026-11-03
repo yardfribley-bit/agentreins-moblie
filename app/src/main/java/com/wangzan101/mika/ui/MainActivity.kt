@@ -215,6 +215,8 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
         }
     }
     var runId by rememberSaveable { mutableStateOf<String?>(null) }
+    var vaultPath by rememberSaveable { mutableStateOf<String?>(null) }
+    var vaultMissing by rememberSaveable { mutableStateOf(false) }
     var sourceRunId by rememberSaveable { mutableStateOf<String?>(null) }
     var sourceLegacyText by rememberSaveable { mutableStateOf<String?>(null) }
     val status by monitor.status.collectAsState()
@@ -397,13 +399,22 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
             vm?.let { m ->
                 // 从结果卡片的「看看」进来:直接看技能分段
                 LaunchedEffect(m) { if (memoryRuntime.openRequest.value != null) m.select(Segment.Skills) }
-                MemoryScreen(m) { memoryRuntime.requestOpen(null); nav.back() }
+                MemoryScreen(m, { memoryRuntime.requestOpen(null); nav.back() }, onOpenVault = {
+                    vaultPath = null
+                    vaultMissing = false
+                    nav.push(Route.VaultNotes)
+                })
             }
         }
         Route.Run -> {
             val id = runId
             val vm = remember(id) { id?.let { RunTimelineViewModel(RunStore(context), it, resolveMemory = app.chat::usedMemoryTexts) } }
-            if (vm != null) RunTimelineScreen(vm, back) else LaunchedEffect(Unit) { nav.back() }
+            if (vm != null) RunTimelineScreen(vm, back, onOpenVault = {
+                val path = app.vault.runPath(id.orEmpty())
+                vaultPath = path
+                vaultMissing = path == null
+                nav.push(Route.VaultNotes)
+            }) else LaunchedEffect(Unit) { nav.back() }
         }
         Route.Source -> {
             val vm = remember(sourceRunId, sourceLegacyText) {
@@ -411,6 +422,7 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
             }
             SourceScreen(vm, back)
         }
+        Route.VaultNotes -> VaultNotesScreen(vaultPath, vaultMissing, back)
         Route.Plans -> PlansScreen(context, onBack = back, onOpenConversation = {
             app.chat.openConversation(it)
             nav.reset()

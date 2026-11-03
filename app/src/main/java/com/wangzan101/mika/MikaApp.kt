@@ -63,6 +63,7 @@ import com.wangzan101.mika.task.McpTaskHub
 import com.wangzan101.mika.task.FileChildRunStore
 import com.wangzan101.mika.task.TriggerRuntime
 import com.wangzan101.mika.relay.HubRelayRuntime
+import com.wangzan101.mika.vault.VaultRuntime
 import com.wangzan101.mika.relay.HubRelayService
 
 /**
@@ -165,6 +166,9 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
 
     /** 把任务步骤镜像到固定的 Hub Relay 会话。关着或网络失败都不影响任务。 */
     val hubRelay: HubRelayRuntime by lazy { HubRelayRuntime.create(this) }
+
+    /** Obsidian 库。没选文件夹时不读也不写,原来的记忆照常工作。 */
+    val vault: VaultRuntime by lazy { VaultRuntime(this) }
 
     /** 检查更新:查到的新版本跟进程走,侧栏、设置首页、关于页的红点看同一份。 */
     val updates: com.wangzan101.mika.about.UpdateChecker by lazy {

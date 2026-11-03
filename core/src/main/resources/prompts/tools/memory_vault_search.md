@@ -1,0 +1,1 @@
+Search the owner's Obsidian vault for notes about this task (apps, steps that worked, pitfalls). Returns up to 4 {path, title, excerpt}. Notes are human-edited and may be outdated; a section marked 失败 is a pitfall, not a plan. Try other words if nothing matches.

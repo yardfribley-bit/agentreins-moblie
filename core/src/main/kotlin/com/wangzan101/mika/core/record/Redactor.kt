@@ -25,6 +25,7 @@ object Redactor {
     /** [verb]:调用的工具做的动作(不认识的工具为 null)。 */
     fun args(verb: Verb?, argsJson: String, secretField: Boolean): String {
         if (verb == Verb.MemorySave) return maskFields(argsJson, MEMORY_ARGS)
+        if (verb == Verb.VaultAppend) return maskFields(argsJson, setOf("body"))
         if (verb == Verb.Script) return script(argsJson)
         if (verb == Verb.PhoneCommand) return maskFields(argsJson, setOf("command"))
         if (verb == Verb.PhoneRun) return phoneRun(argsJson)

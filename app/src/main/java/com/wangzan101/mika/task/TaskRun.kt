@@ -144,6 +144,8 @@ class TaskRun(
     val parallel: Boolean = false,
 ) {
     internal var provenance = RunProvenance()
+    /** Hub 老板指令走和聊天一样的任务,但运行记录上要标出来。 */
+    internal var fromHub = false
     internal var triggerWindowKey: String? = null
     internal var triggerActionGoal: String? = null
     internal var triggerThreadId: String? = null
@@ -523,6 +525,12 @@ class TaskRun(
             val experiencePlan = if (switches.useMemory) withContext(Dispatchers.IO) {
                 runCatching { com.wangzan101.mika.core.experience.ExperienceContext.render(memoryRuntime.experiences().search(goal)) }.getOrNull()
             } else null
+            val vaultMemory = (service.application as MikaApp).vault
+            val vaultNotes = withContext(Dispatchers.IO) {
+                runCatching { vaultMemory.contextFor(goal, _runId.value ?: key) }
+                    .onFailure { Log.w(TAG, "vault read failed", it) }
+                    .getOrNull()
+            }
             val utterances = memory?.let { UserUtterances() }
             // 改名前沉淀的个人技能:里面的旧工具名载入时换成现在的
             val catalog = GuideCatalog.withPersonal(skills, memoryRuntime.skills(), legacyNames()::rewrite)
@@ -569,7 +577,7 @@ class TaskRun(
                         web = web, webPacing = { PagePacing.human() }, webSitePace = { SitePace.of(catalog.sitePace(it)) },
                         webIdleScroll = { IdleScroll(Random.Default) }, sandbox = sandbox, workspace = { conversationId }, runSpec = childSpec,
                         conversationId = conversationId, inlineScreen = speed.inlineScreen,
-                        adaptiveVision = speed.adaptiveVision)
+                        adaptiveVision = speed.adaptiveVision, vault = vaultMemory)
                     AgentLoop(model, childTools, SystemPrompt.identity(), maxSteps = childSpec.stepBudget ?: AgentLoop.UNLIMITED_STEPS,
                         // 子任务跟着询问 / 自主;询问时它也过关卡,子任务里花钱的一步一律不做
                         confirmations = runApproval.gate(), approvals = runApproval, autonomous = runApproval.startedAutonomous,
@@ -598,14 +606,15 @@ class TaskRun(
                 onSandboxScript = { sandboxNote(StatusCopy.sandboxScript(sandboxOnline())) },
                 imageOps = BitmapImageOps, runSpec = runSpec,
                 userScreens = userScreens,
-                liveAudio = if (provenance.origin == RunOrigin.Ui) com.wangzan101.mika.audio.LiveAudioSession.port(service, key) else null,
+                        liveAudio = if (provenance.origin == RunOrigin.Ui) com.wangzan101.mika.audio.LiveAudioSession.port(service, key) else null,
                 liveAudioSetup = if (provenance.origin == RunOrigin.Ui) com.wangzan101.mika.audio.LiveAudioSetupStore(service) else null,
                 speech = if (provenance.origin == RunOrigin.Ui) com.wangzan101.mika.audio.SpeechRuntime.ensure(service) else null,
                 speechSetup = if (provenance.origin == RunOrigin.Ui) com.wangzan101.mika.audio.SpeechSetupStore(service) else null,
                 micSeat = if (provenance.origin == RunOrigin.Ui) com.wangzan101.mika.audio.SpeechRuntime.ensure(service) else null,
                 scheduleTrigger = if (provenance.origin == RunOrigin.Ui) { trigger -> TriggerRuntime.schedule(service, trigger) } else null,
                 scheduleAdmin = if (provenance.origin == RunOrigin.Ui) LocalScheduleAdmin(service) else null,
-                childHost = childRunner)
+                childHost = childRunner,
+                vault = vaultMemory)
             dispatcher = tools
             val agent = AgentLoop(
                 model, tools,
@@ -648,6 +657,7 @@ class TaskRun(
                 streamReplies = true,
                 recalledTasks = recalledTasks,
                 experiencePlan = experiencePlan,
+                vaultNotes = vaultNotes,
                 debugLog = { tag, message -> Log.d(tag, message) },
                 userScreens = userScreens,
                 // 同一网站、App 里连着联系别人、提交:两次之间隔一段随机的时间
@@ -896,6 +906,24 @@ class TaskRun(
             saveRoute(goal, withContext(Dispatchers.IO) { s.events(runId) }, k.dispatcher.index)
         }
         return judged
+    }
+
+    /** 把这次运行写进 Obsidian 库。库没配、或开关关着时什么都不做,原来的记忆不受影响。 */
+    suspend fun vaultFinish(end: TaskState) = withContext(Dispatchers.IO) {
+        runCatching {
+            val id = _runId.value ?: return@runCatching
+            val events = kit?.runStore?.events(id).orEmpty()
+            val source = when {
+                fromHub -> "Hub 老板指令"
+                provenance.origin == RunOrigin.Mcp -> "Hub 任务"
+                provenance.origin == RunOrigin.Trigger -> "定时任务"
+                provenance.origin == RunOrigin.Child -> "子任务"
+                else -> "应用内聊天"
+            }
+            (service.application as MikaApp).vault.finish(
+                id, kit?.agent?.taskText ?: goal, source, end, events, kit?.dispatcher?.index ?: knownTools(),
+            )
+        }.onFailure { Log.w(TAG, "vault write failed", it) }
     }
 
     /**

@@ -55,7 +55,7 @@ private val KIND_NAMES get() = listOf(tr(R.string.memory_fact), tr(R.string.memo
 
 /** 设置 →「记忆与技能」:看得见、改得了、删得掉。分三段:记忆、技能(内容在 [SkillsSection])、待确认。 */
 @Composable
-fun MemoryScreen(vm: MemoryViewModel, onBack: () -> Unit) {
+fun MemoryScreen(vm: MemoryViewModel, onBack: () -> Unit, onOpenVault: (() -> Unit)? = null) {
     BackHandler(onBack = onBack)
     val ui by vm.ui.collectAsState()
     var editing by remember { mutableStateOf<Row?>(null) }
@@ -139,6 +139,12 @@ fun MemoryScreen(vm: MemoryViewModel, onBack: () -> Unit) {
             }
         }
 
+        onOpenVault?.let { open ->
+            GroupLabel(stringResource(R.string.vault_notes))
+            GroupCard {
+                ListRow(MikaIcons.Book, stringResource(R.string.vault_memory_entry), stringResource(R.string.vault_memory_entry_sub), first = true, onClick = open) { }
+            }
+        }
         GroupLabel(stringResource(R.string.memory_switches))
         GroupCard {
             SwitchRow(stringResource(R.string.memory_use), stringResource(R.string.memory_use_sub), ui.switches.useMemory, first = true) { on -> vm.setSwitches { it.copy(useMemory = on) } }
