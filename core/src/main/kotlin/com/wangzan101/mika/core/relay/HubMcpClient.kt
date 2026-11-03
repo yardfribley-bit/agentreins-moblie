@@ -104,7 +104,7 @@ class HubMcpClient(
         attachments: List<String>,
         replyTo: Long?,
     ): Long? {
-        if (kind != RelayKind.PROGRESS && kind != RelayKind.RESULT && kind != RelayKind.QUESTION) {
+        if (kind != RelayKind.PROGRESS && kind != RelayKind.RESULT) {
             throw RelayException(0, false, "worker kind only")
         }
         val clipped = RelayEventText.clip(text)

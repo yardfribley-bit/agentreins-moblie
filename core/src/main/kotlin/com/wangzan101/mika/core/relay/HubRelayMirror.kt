@@ -37,13 +37,10 @@ class HubRelayMirror(
     private val progressHold = ArrayDeque<RelayMessage>()
     private var progressSince = 0L
     private val counters = ConcurrentHashMap<String, AtomicInteger>()
-    private class ReplyBinding(val seq: Long, val requestId: String?, val note: String?)
-    private val replies = HashMap<String, ReplyBinding>()
-    private var pendingReply: ReplyBinding? = null
-    /** 已经为这条指令排队过终态，避免 result 和 question 各发一遍。 */
-    private val resultSeqs = HashSet<Long>()
-    @Volatile var onResultQueued: (requestId: String, seq: Long, text: String) -> Unit = { _, _, _ -> }
-    @Volatile var onResultSent: (requestId: String, seq: Long) -> Unit = { _, _ -> }
+    private val replies = HashMap<String, Long>()
+    /** 指令 seq → 要附在 result 上的缺失说明。不含文件字节。 */
+    private val resultNotes = HashMap<Long, String>()
+    private var pendingReply: Long? = null
     private var checkedSession: String? = null
     private var whoamiTried = false
     @Volatile private var activeRuns = 0
@@ -53,51 +50,27 @@ class HubRelayMirror(
         if (startWorker) Thread(::loop, "mika-hub-relay").apply { isDaemon = true }.start()
     }
 
-    /** 下一次打开的运行,其最终结果要回复这条指令。[resultNote] 附在末尾，说明没下载到的附件。 */
-    fun armReply(seq: Long, resultNote: String? = null, requestId: String? = null) {
+    /** 下一次打开的运行,其最终 result 要回复这条指令。[resultNote] 附在 result 末尾，说明没下载到的附件。 */
+    fun armReply(seq: Long, resultNote: String? = null) {
         synchronized(lock) {
-            pendingReply = ReplyBinding(seq, requestId?.trim()?.ifBlank { null }, resultNote?.takeIf { it.isNotBlank() })
+            pendingReply = seq
+            if (resultNote.isNullOrBlank()) resultNotes.remove(seq) else {
+                resultNotes[seq] = resultNote
+                while (resultNotes.size > 30) {
+                    val oldest = resultNotes.keys.minOrNull() ?: break
+                    resultNotes.remove(oldest)
+                }
+            }
         }
     }
 
-    /** 运行记录开张时把挂起的回复记到这次 [runId] 上。 */
+    /** 运行记录开张时把挂起的回复号记到这次 [runId] 上。 */
     fun claimReply(runId: String) {
         synchronized(lock) {
-            val pending = pendingReply ?: return
+            val seq = pendingReply ?: return
             pendingReply = null
-            replies[runId] = pending
+            replies[runId] = seq
         }
-    }
-
-    /** 只在序号对得上时认领，别的运行开张不会把这条指令的回复抢走。 */
-    fun claimReply(runId: String, seq: Long) {
-        synchronized(lock) {
-            val pending = pendingReply ?: return
-            if (pending.seq != seq) return
-            pendingReply = null
-            replies[runId] = pending
-        }
-    }
-
-    /**
-     * 把这条指令的终态排进发送队列。同一 seq 只排一次。
-     * [png] 会先经 `diaodu_relay_upload` 再放进 attachments。
-     */
-    fun postFinal(requestId: String, text: String, replyTo: Long, kind: String = RelayKind.RESULT, fileIds: List<String> = emptyList(), png: ByteArray? = null, pngName: String? = null): Boolean {
-        val queued = synchronized(lock) {
-            if (!config().enabled) return false
-            if (replyTo in resultSeqs) return false
-            resultSeqs += replyTo
-            true
-        }
-        if (!queued) return false
-        enqueue(RelayMessage(requestId, kind, text), bytes = png, fileName = pngName, replyTo = replyTo, fileIds = fileIds)
-        try {
-            onResultQueued(requestId, replyTo, text)
-        } catch (_: Throwable) {
-            log("result queued")
-        }
-        return true
     }
 
     /** 有任务在跑时才心跳。关掉只是不再心跳,队列里的消息仍会发出。 */
@@ -124,22 +97,9 @@ class HubRelayMirror(
                 return
             }
             flushProgress(force = true)
-            val binding = if (message.kind == RelayKind.RESULT) synchronized(lock) { replies[runId] } else null
-            if (binding != null && synchronized(lock) { binding.seq in resultSeqs }) return
-            val id = binding?.requestId?.let { HubResultText.requestId(it, binding.seq) } ?: message.requestId
-            var text = message.text
-            val note = binding?.note
-            if (!note.isNullOrBlank()) text = HubAttachmentText.appendResult(text, note)
-            if (binding != null && HubResultText.isSafe(binding.requestId)) text = HubResultText.withRequestId(text, binding.requestId)
-            if (binding != null) synchronized(lock) { resultSeqs += binding.seq }
-            enqueue(RelayMessage(id, message.kind, text), replyTo = binding?.seq)
-            if (binding != null) {
-                try {
-                    onResultQueued(id, binding.seq, text)
-                } catch (_: Throwable) {
-                    log("result queued")
-                }
-            }
+            val reply = if (message.kind == RelayKind.RESULT) synchronized(lock) { replies[runId] } else null
+            val text = if (message.kind == RelayKind.RESULT) notedResult(reply, message.text) else message.text
+            enqueue(RelayMessage(message.requestId, message.kind, text), replyTo = reply)
         } catch (t: Throwable) {
             log("drop")
         }
@@ -241,17 +201,17 @@ class HubRelayMirror(
         return progressHold.sumOf { it.text.length } + progressHold.size - 1
     }
 
-    private fun enqueue(
-        message: RelayMessage,
-        bytes: ByteArray? = null,
-        fileName: String? = null,
-        replyTo: Long? = null,
-        fileIds: List<String> = emptyList(),
-    ) {
+    private fun notedResult(replyTo: Long?, text: String): String {
+        if (replyTo == null) return text
+        val note = synchronized(lock) { resultNotes[replyTo] } ?: return text
+        return HubAttachmentText.appendResult(text, note)
+    }
+
+    private fun enqueue(message: RelayMessage, bytes: ByteArray? = null, fileName: String? = null, replyTo: Long? = null) {
         synchronized(lock) {
             if (!config().enabled) return
             while (queue.size >= maxQueue) queue.removeFirst()
-            queue.addLast(Outbound(message.requestId, message.kind, message.text, bytes, fileName, replyTo = replyTo, fileIds = fileIds))
+            queue.addLast(Outbound(message.requestId, message.kind, message.text, bytes, fileName, replyTo = replyTo))
             lock.notifyAll()
         }
     }
@@ -329,14 +289,6 @@ class HubRelayMirror(
             while (true) {
                 try {
                     post(cfg, token, session, item)
-                    val replyTo = item.replyTo
-                    if ((item.kind == RelayKind.RESULT || item.kind == RelayKind.QUESTION) && replyTo != null) {
-                        try {
-                            onResultSent(item.requestId, replyTo)
-                        } catch (_: Throwable) {
-                            log("result sent")
-                        }
-                    }
                     break
                 } catch (e: RelayException) {
                     if (!rejoined && (e.status == 403 || e.status == 404) && cfg.joinCode.isNotBlank()) {
@@ -369,7 +321,7 @@ class HubRelayMirror(
         }
         val seq = transport.send(
             cfg.mcpUrl, token, session, item.kind, item.text, item.requestId,
-            attachments = (listOfNotNull(item.fileId) + item.fileIds).distinct(),
+            attachments = listOfNotNull(item.fileId),
             replyTo = item.replyTo,
         )
         lastBeat = now()
@@ -463,7 +415,6 @@ class HubRelayMirror(
         val bytes: ByteArray?,
         val fileName: String?,
         val replyTo: Long? = null,
-        val fileIds: List<String> = emptyList(),
         var fileId: String? = null,
         var attempts: Int = 0,
     )

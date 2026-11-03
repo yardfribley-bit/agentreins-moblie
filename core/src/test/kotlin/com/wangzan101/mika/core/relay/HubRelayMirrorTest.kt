@@ -217,31 +217,6 @@ class HubRelayMirrorTest {
         assertTrue(text.length <= RELAY_MAX_TEXT)
     }
 
-    @Test fun hubResultUsesTheInstructionRequestIdAndDoesNotDoubleSend() {
-        val fake = FakeRelay()
-        val mirror = mirror(fake, RelayConfig(enabled = true, token = "da_test", sessionId = "ses_fixed"))
-        mirror.armReply(4550, null, "x-ime-github-20261103-1")
-        mirror.claimReply("other", 1L)
-        mirror.claimReply("run", 4550L)
-        mirror.submit("run", RunEvent.TaskEnded(1, "failed", "请重新发送图片"))
-        assertEquals(false, mirror.postFinal("x-ime-github-20261103-1", "再次", 4550L))
-        mirror.drain()
-        val result = fake.sent.single()
-        assertEquals(RelayKind.RESULT, result.kind)
-        assertEquals("x-ime-github-20261103-1", result.requestId)
-        assertEquals(4550L, result.replyTo)
-        assertTrue(result.text.contains("request_id: x-ime-github-20261103-1"))
-    }
-
-    @Test fun abandonedInstructionCanStillBePosted() {
-        val fake = FakeRelay()
-        val mirror = mirror(fake, RelayConfig(enabled = true, token = "da_test", sessionId = "ses_fixed"))
-        assertEquals(true, mirror.postFinal("hub-result:9", "中断\n运行被中断了", 9L))
-        mirror.drain()
-        assertEquals(9L, fake.sent.single().replyTo)
-        assertEquals(RelayKind.RESULT, fake.sent.single().kind)
-    }
-
     @Test fun heartbeatWhileRunIsActive() {
         val fake = FakeRelay()
         val mirror = mirror(fake, RelayConfig(enabled = true, token = "da_test", sessionId = "ses_fixed"), heartbeatEveryMs = 0)
@@ -303,14 +278,7 @@ class HubRelayMirrorTest {
         var failForever = false
         var failStatus: Int? = null
 
-        data class Sent(
-            val requestId: String,
-            val kind: String,
-            val text: String,
-            val attachments: List<String>,
-            val sessionId: String,
-            val replyTo: Long? = null,
-        )
+        data class Sent(val requestId: String, val kind: String, val text: String, val attachments: List<String>, val sessionId: String)
 
         override fun connect(mcpUrl: String, alias: String, agentType: String): RelayIdentity {
             calls += "connect"
@@ -328,7 +296,7 @@ class HubRelayMirrorTest {
             mcpUrl: String, token: String, sessionId: String, kind: String, text: String, requestId: String,
             attachments: List<String>, replyTo: Long?,
         ): Long? {
-            sent += Sent(requestId, kind, text, attachments, sessionId, replyTo)
+            sent += Sent(requestId, kind, text, attachments, sessionId)
             if (failForever) throw IOException("down")
             val status = failStatus
             if (status != null) {

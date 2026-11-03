@@ -259,9 +259,7 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
         // 上次异常退出时留下的改动(App 被静音)在这里恢复
         scope.launch { taskRecovery.recover() }
         // 上次进程被杀时没结束的运行:现在就标为中断并告知,不等任务服务起来
-        val interrupted = runRecovery.recover()
-        if (interrupted.isNotEmpty()) Log.w("MikaTask", "${interrupted.size} runs interrupted by process restart")
-        hubRelay.reportAbandoned(interrupted)
+        runRecovery.recover().let { if (it.isNotEmpty()) Log.w("MikaTask", "${it.size} runs interrupted by process restart") }
         scope.launch(Dispatchers.IO) { runCatching { TriggerRuntime.rearm(this@MikaApp) } }
         // 上次导出写到一半被杀留下的空壳条目
         scope.launch { runCatching { ShareExporter(this@MikaApp).cleanPending() } }

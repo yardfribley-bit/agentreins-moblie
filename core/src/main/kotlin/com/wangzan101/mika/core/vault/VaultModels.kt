@@ -56,8 +56,6 @@ data class VaultRunSpec(
     val writtenPaths: List<String>,
     val startedAt: Long,
     val endedAt: Long,
-    /** 这次运行在开工前检索过库。没有命中时 [readPaths] 仍为空。 */
-    val searched: Boolean = false,
 )
 
 object VaultNotes {
@@ -124,12 +122,8 @@ object VaultRetriever {
     const val MAX_NOTES = 3
     const val MIN_SCORE = 0.28
 
-    private const val LEGEND =
-        "Notes from the Obsidian knowledge base (the owner edits these; may be outdated; when they conflict with what the user says now, follow the user; a section marked 失败 is a pitfall, not a plan):"
-
-    /** 每次检索都留下这一句，包括 0 条。模型据此知道已经查过，而不是没开阅读。 */
-    fun readLine(count: Int): String =
-        "Obsidian memory read this run: $count notes" + if (count == 0) "." else ":"
+    private const val HEADER =
+        "Notes from the owner's Obsidian vault (they edit these; may be outdated; when they conflict with what the user says now, follow the user; a section marked 失败 is a pitfall, not a plan):"
 
     fun rank(notes: List<VaultNote>, query: String, appPackage: String?, today: LocalDate, limit: Int = MAX_NOTES, includeRuns: Boolean = false): List<VaultHit> {
         val qTerms = Tokenize.terms(query, withUnigrams = true).toSet()
@@ -141,20 +135,19 @@ object VaultRetriever {
         }.sortedWith(compareByDescending<VaultHit> { it.score }.thenByDescending { it.updatedDay ?: "" }).take(limit)
     }
 
-    fun render(hits: List<VaultHit>): String {
-        val header = readLine(hits.size)
-        if (hits.isEmpty()) return header
-        val parts = mutableListOf(header, LEGEND)
+    fun render(hits: List<VaultHit>): String? {
+        if (hits.isEmpty()) return null
+        val parts = mutableListOf(HEADER)
         for (h in hits) {
             val block = VaultRedactor.redact("— ${h.path}\n${h.title}\n${h.excerpt}")
             val next = (parts + block).joinToString("\n\n")
             if (next.length > MAX_CHARS) {
-                if (parts.size == 2) parts += block.take((MAX_CHARS - header.length - LEGEND.length - 4).coerceAtLeast(0)).trimEnd() + "…"
+                if (parts.size == 1) parts += block.take((MAX_CHARS - HEADER.length - 2).coerceAtLeast(0)).trimEnd() + "…"
                 break
             }
             parts += block
         }
-        return parts.joinToString("\n\n")
+        return parts.takeIf { it.size > 1 }?.joinToString("\n\n")
     }
 
     private fun score(note: VaultNote, qTerms: Set<String>, query: String, appPackage: String?, today: LocalDate): Double {
@@ -246,9 +239,7 @@ object VaultRunLog {
             append("- 用时：").append(duration).append("\n\n")
             append("## 指令\n\n").append(goal.ifBlank { "(空)" }).append("\n\n")
             append("## 读入的笔记\n\n")
-            if (spec.readPaths.isEmpty()) {
-                append(if (spec.searched) "任务前检索过知识库，没有相关笔记。\n\n" else "这次没有读到相关笔记。\n\n")
-            }
+            if (spec.readPaths.isEmpty()) append("这次没有读到相关笔记。\n\n")
             else spec.readPaths.distinct().forEach { append("- ").append(VaultPaths.link(it)).append('\n') }
             if (spec.readPaths.isNotEmpty()) append('\n')
             append("## 步骤\n\n")

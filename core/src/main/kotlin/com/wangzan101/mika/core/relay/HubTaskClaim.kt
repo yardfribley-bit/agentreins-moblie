@@ -59,8 +59,6 @@ data class HubRelayEvent(
      * 签名下载链接不放进来：过一会儿就失效，执行前再调 `diaodu_relay_download`。
      */
     val attachments: List<HubAttachmentRef> = emptyList(),
-    /** 老板这条指令自己的 request_id。结果要原样带回，Hub 才认这是对那条指令的答复。 */
-    val requestId: String? = null,
 )
 
 data class HubRelayPage(
@@ -98,9 +96,7 @@ object HubInstructionFilter {
             val messageKind = (message?.get("kind") as? JsonPrimitive)?.contentOrNull
             val text = (message?.get("text") as? JsonPrimitive)?.contentOrNull
             val delegated = row["delegated_by"] is JsonObject
-            val requestId = (row["request_id"] as? JsonPrimitive)?.contentOrNull
-                ?: (message?.get("request_id") as? JsonPrimitive)?.contentOrNull
-            HubRelayEvent(seq, kind, fromOwner, messageKind, text, delegated, attachmentsOf(message), requestId)
+            HubRelayEvent(seq, kind, fromOwner, messageKind, text, delegated, attachmentsOf(message))
         }
         val cursor = (obj["next_cursor"] as? JsonPrimitive)?.longOrNull ?: events.lastOrNull()?.seq ?: 0L
         val more = (obj["has_more"] as? JsonPrimitive)?.booleanOrNull == true

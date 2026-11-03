@@ -139,7 +139,7 @@
     <string name="vault_write">成功后写回</string>
     <string name="vault_write_sub">做成的步骤会追加。失败会标明是坑</string>
     <string name="vault_log">运行日志写入 Obsidian</string>
-    <string name="vault_log_sub">每次运行写成一篇，在「库里的笔记」里查看</string>
+    <string name="vault_log_sub">每次运行写成一篇 Markdown,手机和电脑上都能看</string>
     <string name="vault_status">最近一次</string>
     <string name="vault_last_read">上次阅读</string>
     <string name="vault_last_write">上次写入</string>
@@ -167,10 +167,5 @@
     <string name="vault_group_other">其他</string>
     <string name="vault_memory_entry">Obsidian 笔记</string>
     <string name="vault_memory_entry_sub">库里的笔记,以及哪些运行读过、写过</string>
-    <string name="vault_intro">长期知识库就是你选的这个文件夹，应用里没有另一套库。每次做任务会先查里面的笔记，做成之后把做法写回去。笔记在子文件夹里：raw 是每次运行的记录，wiki 是整理过的概念笔记，还有 index.md 和 log.md。读过什么、写过什么，在「库里的笔记」里看。</string>
-    <string name="vault_obsidian_missing">这台手机还没装 Obsidian。可以先安装，也可以直接用一个普通文件夹当知识库。</string>
-    <string name="vault_obsidian_ready">已安装 Obsidian。点一下，选择要当作知识库的文件夹。</string>
-    <string name="vault_install_obsidian">安装 Obsidian</string>
-    <string name="vault_use_folder">用普通文件夹</string>
-    <string name="vault_footer">笔记写在所选文件夹里的子文件夹中。运行记录在 raw/runs，做法在 wiki。在「库里的笔记」查看。密码、支付密码、验证码和令牌不会写入。</string>
+    <string name="vault_footer">笔记只写在所选子文件夹里。运行记录在 raw/runs,做法在 wiki。密码、支付密码、验证码和令牌不会写入。不装插件也能在 Obsidian 里看。若用 Auto LLM Wiki,把 Raw 指到 AgentReins/raw,Wiki 指到 AgentReins/wiki。</string>
 </resources>

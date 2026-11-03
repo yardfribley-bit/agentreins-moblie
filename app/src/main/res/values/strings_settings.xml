@@ -145,7 +145,7 @@
     <string name="vault_write">Write back after success</string>
     <string name="vault_write_sub">Append steps that worked. Failures are marked as pitfalls</string>
     <string name="vault_log">Write run logs to Obsidian</string>
-    <string name="vault_log_sub">Each run becomes a note you can open in Vault notes</string>
+    <string name="vault_log_sub">Each run becomes a Markdown note you can open on this phone or on the Mac</string>
     <string name="vault_status">Latest</string>
     <string name="vault_last_read">Last read</string>
     <string name="vault_last_write">Last write</string>
@@ -173,10 +173,5 @@
     <string name="vault_group_other">Other</string>
     <string name="vault_memory_entry">Obsidian notes</string>
     <string name="vault_memory_entry_sub">Notes in the vault, and which runs read or wrote them</string>
-    <string name="vault_intro">The long-term knowledge base is the folder you choose. There is no separate library in the app. Each task looks there first, and a finished task writes reusable notes back. Inside the subfolder, raw holds each run, wiki holds concept notes, plus index.md and log.md. What was read or written is in Vault notes.</string>
-    <string name="vault_obsidian_missing">Obsidian is not installed. Install it, or use a plain folder as the knowledge base.</string>
-    <string name="vault_obsidian_ready">Obsidian is installed. Tap once to choose the folder that will be the knowledge base.</string>
-    <string name="vault_install_obsidian">Install Obsidian</string>
-    <string name="vault_use_folder">Use a plain folder</string>
-    <string name="vault_footer">Notes stay in the subfolder of the folder you choose. Run logs are in raw/runs, reusable steps in wiki. Open them in Vault notes. Passwords, payment PINs, codes and tokens are not written.</string>
+    <string name="vault_footer">Notes stay inside the subfolder you choose. Run logs go in raw/runs, reusable steps in wiki. Passwords, payment PINs, codes and tokens are not written. Plain Obsidian can open them; Auto LLM Wiki can use AgentReins/raw as Raw and AgentReins/wiki as Wiki.</string>
 </resources>

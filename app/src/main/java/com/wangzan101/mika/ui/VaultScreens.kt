@@ -25,22 +25,16 @@ import com.wangzan101.mika.ui.theme.MikaTheme
 import com.wangzan101.mika.ui.theme.MikaType
 import com.wangzan101.mika.vault.VaultNoteRow
 import com.wangzan101.mika.vault.VaultRuntime
-import com.wangzan101.mika.vault.VaultSetup
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
-import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -71,52 +65,10 @@ fun VaultSettingsScreen(onBack: () -> Unit) {
     var subfolder by remember { mutableStateOf(prefs.subfolder) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
-    var obsidianInstalled by remember { mutableStateOf(VaultSetup.installed(context.packageManager)) }
     val scope = rememberCoroutineScope()
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    DisposableEffect(lifecycle) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) obsidianInstalled = VaultSetup.installed(context.packageManager)
-        }
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
-    fun probeChosen() {
-        busy = true
-        scope.launch {
-            val result = withContext(Dispatchers.IO) { runtime.probe() }
-            message = if (result.ok) context.getString(R.string.vault_test_ok) else context.getString(R.string.vault_test_fail, result.detail ?: result.code ?: "")
-            busy = false
-        }
-    }
-    val pick = rememberLauncherForActivityResult(OpenPersistableTree()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        runtime.choose(uri)
-        probeChosen()
-    }
+    val pick = rememberLauncherForActivityResult(OpenPersistableTree()) { uri -> if (uri != null) runtime.choose(uri) }
     val chosen = prefs.treeUri != null
-    val needFolderHint = stringResource(R.string.vault_need_folder)
-    fun askForFolder(initial: Uri? = null) {
-        pick.launch(initial)
-    }
     PageScaffold(stringResource(R.string.vault_title), onBack) {
-        if (!chosen) {
-            FooterNote(stringResource(R.string.vault_intro))
-            FooterNote(if (obsidianInstalled) stringResource(R.string.vault_obsidian_ready) else stringResource(R.string.vault_obsidian_missing))
-            if (!obsidianInstalled) {
-                MikaButton(stringResource(R.string.vault_install_obsidian), {
-                    VaultSetup.openStore(context)
-                }, kind = ButtonKind.Tonal, size = ButtonSize.Small, modifier = Modifier.padding(horizontal = 16.dp))
-                MikaButton(stringResource(R.string.vault_use_folder), {
-                    VaultSetup.ensurePlainFolder(context)
-                    askForFolder(VaultSetup.plainFolderInitialUri())
-                }, kind = ButtonKind.Primary, size = ButtonSize.Small, modifier = Modifier.padding(horizontal = 16.dp))
-            } else {
-                MikaButton(stringResource(R.string.vault_pick), {
-                    askForFolder(null)
-                }, kind = ButtonKind.Primary, size = ButtonSize.Small, modifier = Modifier.padding(horizontal = 16.dp))
-            }
-        }
         GroupCard {
             ListRow(null, stringResource(R.string.vault_folder), if (chosen) prefs.displayName ?: stringResource(R.string.vault_picked) else stringResource(R.string.vault_none), first = true)
             ListRow(null, if (chosen) stringResource(R.string.vault_change) else stringResource(R.string.vault_pick), onClick = {
@@ -132,17 +84,16 @@ fun VaultSettingsScreen(onBack: () -> Unit) {
         }
         GroupLabel(stringResource(R.string.memory_switches))
         GroupCard {
-            SwitchRow(stringResource(R.string.vault_read), stringResource(R.string.vault_read_sub), chosen && prefs.readEnabled, true, chosen) {
-                if (chosen) runtime.settings.update { cur -> cur.copy(readEnabled = it) } else askForFolder()
+            SwitchRow(stringResource(R.string.vault_read), stringResource(R.string.vault_read_sub), chosen && prefs.readEnabled, true) {
+                if (chosen) runtime.settings.update { cur -> cur.copy(readEnabled = it) }
             }
-            SwitchRow(stringResource(R.string.vault_write), stringResource(R.string.vault_write_sub), chosen && prefs.writeEnabled, enabled = chosen) {
-                if (chosen) runtime.settings.update { cur -> cur.copy(writeEnabled = it) } else askForFolder()
+            SwitchRow(stringResource(R.string.vault_write), stringResource(R.string.vault_write_sub), chosen && prefs.writeEnabled) {
+                if (chosen) runtime.settings.update { cur -> cur.copy(writeEnabled = it) }
             }
-            SwitchRow(stringResource(R.string.vault_log), stringResource(R.string.vault_log_sub), chosen && prefs.logEnabled, enabled = chosen) {
-                if (chosen) runtime.settings.update { cur -> cur.copy(logEnabled = it) } else askForFolder()
+            SwitchRow(stringResource(R.string.vault_log), stringResource(R.string.vault_log_sub), chosen && prefs.logEnabled) {
+                if (chosen) runtime.settings.update { cur -> cur.copy(logEnabled = it) }
             }
         }
-        if (!chosen) FooterNote(needFolderHint)
         GroupLabel(stringResource(R.string.vault_status))
         GroupCard {
             ListRow(null, stringResource(R.string.vault_last_read), statusLine(prefs.lastReadAt, prefs.lastReadOk, prefs.lastReadDetail, true), first = true)
@@ -150,7 +101,12 @@ fun VaultSettingsScreen(onBack: () -> Unit) {
         }
         MikaButton(if (busy) stringResource(R.string.vault_testing) else stringResource(R.string.vault_test), {
             if (!chosen || busy) return@MikaButton
-            probeChosen()
+            busy = true
+            scope.launch {
+                val result = withContext(Dispatchers.IO) { runtime.probe() }
+                message = if (result.ok) context.getString(R.string.vault_test_ok) else context.getString(R.string.vault_test_fail, result.detail ?: result.code ?: "")
+                busy = false
+            }
         }, kind = ButtonKind.Tonal, size = ButtonSize.Small, modifier = Modifier.padding(horizontal = 16.dp))
         message?.let { FooterNote(it) }
         FooterNote(stringResource(R.string.vault_footer))
@@ -207,18 +163,8 @@ fun VaultNotesScreen(initialPath: String?, missingRun: Boolean = false, onBack: 
 }
 
 @Composable
-private fun SwitchRow(
-    title: String,
-    subtitle: String,
-    on: Boolean,
-    first: Boolean = false,
-    enabled: Boolean = true,
-    onChange: (Boolean) -> Unit,
-) {
-    ListRow(
-        null, title, subtitle, first = first,
-        titleColor = if (enabled) Color.Unspecified else MikaTheme.colors.ink3,
-    ) { MikaSwitch(on, onChange, enabled = true, dimmed = !enabled) }
+private fun SwitchRow(title: String, subtitle: String, on: Boolean, first: Boolean = false, onChange: (Boolean) -> Unit) {
+    ListRow(null, title, subtitle, first = first) { MikaSwitch(on, onChange) }
 }
 
 @Composable

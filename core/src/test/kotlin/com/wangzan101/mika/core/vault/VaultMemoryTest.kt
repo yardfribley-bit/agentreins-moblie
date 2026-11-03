@@ -119,17 +119,8 @@ class VaultMemoryTest {
         assertEquals(fresh.path, tied.first().path)
         assertTrue(VaultRetriever.rank(listOf(note("AgentReins/wiki/tasks/天气.md", "明天天气", null, "2026-11-03")), "微信发帖", null, today).isEmpty())
         val huge = note("AgentReins/wiki/apps/x.md", "发帖".repeat(2000), "a.b", "2026-11-03")
-        val rendered = VaultRetriever.render(VaultRetriever.rank(listOf(huge), "发帖", "a.b", today))
-        assertTrue(rendered.startsWith("Obsidian memory read this run:"))
+        val rendered = VaultRetriever.render(VaultRetriever.rank(listOf(huge), "发帖", "a.b", today))!!
         assertTrue(rendered.length <= VaultRetriever.MAX_CHARS)
-        assertEquals("Obsidian memory read this run: 0 notes.", VaultRetriever.render(emptyList()))
-    }
-
-    @Test fun emptySearchIsRecordedOnTheRunLog() {
-        val missed = VaultRunSpec("run-0", "查天气", "应用内聊天", VaultOutcome.Success, emptyList(), emptyList(), emptyList(), 0, 1000, searched = true)
-        assertTrue(VaultRunLog.render("AgentReins", missed, java.time.ZoneId.of("Asia/Shanghai")).contains("任务前检索过知识库，没有相关笔记。"))
-        val skipped = missed.copy(searched = false)
-        assertTrue(VaultRunLog.render("AgentReins", skipped, java.time.ZoneId.of("Asia/Shanghai")).contains("这次没有读到相关笔记。"))
     }
 
     @Test fun runLogRedactsAndLinks() {

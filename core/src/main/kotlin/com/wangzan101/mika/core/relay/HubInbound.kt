@@ -8,7 +8,6 @@ data class HubInstruction(
     val seq: Long,
     val text: String,
     val attachments: List<HubAttachmentRef> = emptyList(),
-    val requestId: String? = null,
 )
 
 /** Hub 事件上的一个附件。没有签名链接：链接会过期，执行时再向 Hub 要字节。 */
@@ -39,17 +38,17 @@ object HubInbound {
     fun plan(page: HubRelayPage, handled: Long): HubInboundPlan {
         val fresh = page.events.mapNotNull { event ->
             if (!HubInstructionFilter.accept(event) || event.seq <= handled) null
-            else HubInstruction(event.seq, event.text!!.trim(), event.attachments, event.requestId?.trim()?.ifBlank { null })
+            else HubInstruction(event.seq, event.text!!.trim(), event.attachments)
         }
         return HubInboundPlan(fresh.maxOfOrNull { it.seq }, fresh, page.nextCursor)
     }
 
     fun encodeQueue(items: List<HubInstruction>): String =
         items.joinToString("\n") { item ->
-            if (item.attachments.isEmpty() && item.requestId.isNullOrBlank()) {
+            if (item.attachments.isEmpty()) {
                 "${item.seq}\u001e${escape(item.text)}"
             } else {
-                json.encodeToString(QueueLine.serializer(), QueueLine(item.seq, item.text, item.attachments, item.requestId))
+                json.encodeToString(QueueLine.serializer(), QueueLine(item.seq, item.text, item.attachments))
             }
         }
 
@@ -58,7 +57,7 @@ object HubInbound {
             if (line.startsWith("{")) {
                 val row = runCatching { json.decodeFromString(QueueLine.serializer(), line) }.getOrNull()
                     ?: return@mapNotNull null
-                if (row.text.isBlank()) null else HubInstruction(row.seq, row.text, row.attachments, row.requestId)
+                if (row.text.isBlank()) null else HubInstruction(row.seq, row.text, row.attachments)
             } else {
                 val sep = line.indexOf('\u001e')
                 if (sep <= 0) return@mapNotNull null
@@ -82,12 +81,7 @@ object HubInbound {
     }
 
     @Serializable
-    private data class QueueLine(
-        val seq: Long,
-        val text: String,
-        val attachments: List<HubAttachmentRef> = emptyList(),
-        val requestId: String? = null,
-    )
+    private data class QueueLine(val seq: Long, val text: String, val attachments: List<HubAttachmentRef> = emptyList())
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = false }
 }
