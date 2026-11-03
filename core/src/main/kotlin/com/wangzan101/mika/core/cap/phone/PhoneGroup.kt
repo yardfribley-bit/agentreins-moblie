@@ -1,5 +1,9 @@
 package com.wangzan101.mika.core.cap.phone
 
+import com.wangzan101.mika.core.cap.phone.speech.ConfigureSpeech
+import com.wangzan101.mika.core.cap.phone.speech.LeaveMic
+import com.wangzan101.mika.core.cap.phone.speech.SpeakLive
+import com.wangzan101.mika.core.cap.phone.speech.TakeMic
 import com.wangzan101.mika.core.uistate.ScreenFamily
 import com.wangzan101.mika.core.uistate.tools.ScreenTool
 import com.wangzan101.mika.core.tool.AgentTool
@@ -25,7 +29,8 @@ internal interface PhoneTool : AgentTool {
  */
 internal object PhoneGroup {
     val tools: List<AgentTool> = ScreenTool.of(PHONE_FAMILY) + listOf(
-        ListenLive, ConfigureLiveAudio, PhoneQuery, PhoneFind, PhoneExtract, PhoneCollect, PhoneWait, PhoneEventTool,
+        ListenLive, ConfigureLiveAudio, SpeakLive, TakeMic, LeaveMic, ConfigureSpeech,
+        PhoneQuery, PhoneFind, PhoneExtract, PhoneCollect, PhoneWait, PhoneEventTool,
         PhoneDialog, PhoneGesture, SetWheel, PhoneRun, PhoneCommand, ListApps, LaunchApp, ShareText, OpenLink,
         SetAlarm, SetTimer, ShowAlarms, AddCalendarEvent,
     )

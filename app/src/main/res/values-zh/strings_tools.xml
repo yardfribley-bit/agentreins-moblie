@@ -57,4 +57,8 @@
     <string name="tool_clear">清空输入框</string>
     <string name="tool_listen_live">听直播</string>
     <string name="tool_configure_live_audio">配置直播语音识别</string>
+    <string name="tool_speak">出声说话</string>
+    <string name="tool_take_mic">申请上麦</string>
+    <string name="tool_leave_mic">释放麦位</string>
+    <string name="tool_configure_speech">配置出声</string>
 </resources>

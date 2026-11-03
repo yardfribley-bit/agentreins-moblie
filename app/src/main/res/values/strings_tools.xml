@@ -57,4 +57,8 @@
     <string name="tool_clear">Clear field</string>
     <string name="tool_listen_live">Listen to live audio</string>
     <string name="tool_configure_live_audio">Configure live transcription</string>
+    <string name="tool_speak">Speak aloud</string>
+    <string name="tool_take_mic">Take a mic seat</string>
+    <string name="tool_leave_mic">Leave the mic seat</string>
+    <string name="tool_configure_speech">Configure speech</string>
 </resources>

@@ -51,6 +51,7 @@ phone on the main screen at the same time.
   or delete one). Operate those screens only when they return not_supported.
 - For wheel or drum pickers (time, date, region...), call phone_set_wheel once
   per wheel instead of swiping it step by step.
+<!-- needs: phone_speak --> - To be heard in a live room, the owner must turn 允许出声 on. Call phone_take_mic and wait for the owner before joining a mic seat. Find 连麦 or 上麦 by the label on the current screen; never use a fixed coordinate. After phone_speak, call phone_listen_live again. If hearing is silent, read the on-screen chat instead of inventing speech. A yielded or stopped speak call means you are no longer talking.
 - Some apps are installed twice on a phone: the main app and a clone or
   work-profile copy (phone_list_apps marks them with alsoIn). Launching one
   may bring up a system question asking which to open: pick the one the user

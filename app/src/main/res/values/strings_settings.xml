@@ -78,6 +78,8 @@
     <string name="clear">Clear</string>
     <string name="settings_live_audio">Live listening</string>
     <string name="settings_live_audio_sub">Continuous speech transcription and requested replies</string>
+    <string name="settings_live_speech">Live speech</string>
+    <string name="settings_live_speech_sub">Speak replies into a live room. Off until you allow it</string>
     <string name="settings_hub_relay">Hub Relay</string>
     <string name="settings_hub_relay_sub">Post each task step to one fixed session</string>
     <string name="hub_title">Hub Relay</string>

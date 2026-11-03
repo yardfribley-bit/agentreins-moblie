@@ -102,6 +102,9 @@ fun toolDispatcher(
     userScreens: UserScreenSource? = null,
     liveAudio: com.wangzan101.mika.core.cap.phone.LiveAudioPort? = null,
     liveAudioSetup: com.wangzan101.mika.core.cap.phone.LiveAudioSetup? = null,
+    speech: com.wangzan101.mika.core.cap.phone.speech.SpeechPort? = null,
+    speechSetup: com.wangzan101.mika.core.cap.phone.speech.SpeechSetup? = null,
+    micSeat: com.wangzan101.mika.core.cap.phone.speech.MicSeatPort? = null,
     /** Obsidian 库;没配或开关关着时不提供 memory_vault_*。 */
     vault: VaultMemory? = null,
 ): ToolDispatcher {
@@ -110,7 +113,7 @@ fun toolDispatcher(
     val providers: List<CapabilityProvider> = listOf(
         object : CapabilityProvider {
             override val id = PHONE
-            override fun open(spec: RunSpec) = PhoneCapability(screen, deepLinks, liveAudio, liveAudioSetup)
+            override fun open(spec: RunSpec) = PhoneCapability(screen, deepLinks, liveAudio, liveAudioSetup, speech, speechSetup, micSeat)
         },
         object : CapabilityProvider {
             override val id = WEB
