@@ -173,10 +173,15 @@ internal class ModelCaller(
                         result.parts.filterIsInstance<Part.Text>().joinToString("") { it.text }
                             .takeIf(String::isNotEmpty)?.let(onText)
                     }
+                emit(RunEvent.ModelExchange(now(), using.name,
+                    ModelExchangeRecord.request(systemPrompt, sent.messages, specs, tools.index),
+                    ModelExchangeRecord.response(reply, tools.index)))
                 return reply.also { r ->
                     r.usage?.let { compressor.calibrate(sent.estimate + overhead, it.inputTokens) }
                 }
             } catch (e: ModelError.ContextTooLong) {
+                emit(RunEvent.ModelExchange(now(), using.name,
+                    ModelExchangeRecord.request(systemPrompt, sent.messages, specs, tools.index), "[request failed: context too long]"))
                 onText?.invoke("")
                 val (after, again) = CompactionPolicy.overflow(compaction, overflowRetried) {
                     compressor.overflow(history, contextTokens, overhead)
@@ -186,6 +191,8 @@ internal class ModelCaller(
                 overflowRetried = true
                 if (!again) throw e
             } catch (e: ModelError) {
+                emit(RunEvent.ModelExchange(now(), using.name,
+                    ModelExchangeRecord.request(systemPrompt, sent.messages, specs, tools.index), "[request failed: ${e::class.simpleName ?: "ModelError"}]"))
                 onText?.invoke("")
                 val wait = policy.delayFor(e, retries, taskRetryWaitMs) ?: throw e
                 retries += 1

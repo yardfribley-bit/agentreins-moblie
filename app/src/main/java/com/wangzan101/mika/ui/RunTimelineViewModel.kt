@@ -64,13 +64,16 @@ data class TimelineHeader(
     val usedMemory: List<String> = emptyList(),
     /** 这次运行的小结;记录里没有开始事件时为 null(只显示用时)。 */
     val metrics: RunMetrics? = null,
+    /** 完成时的原始结果；旧任务可能没有。 */
+    val result: String? = null,
+    val finished: Boolean = false,
 )
 
 sealed interface TimelineUi {
     data object Loading : TimelineUi
     /** 记录已被清理(只保留最近 30 次)或编号不对。 */
     data object Expired : TimelineUi
-    data class Ready(val header: TimelineHeader, val steps: List<TimelineStep>) : TimelineUi
+    data class Ready(val header: TimelineHeader, val steps: List<TimelineStep>, val modelExchanges: List<RunEvent.ModelExchange> = emptyList()) : TimelineUi
 
     companion object {
         val EXPIRED_TEXT: String get() = tr(R.string.timeline_expired)
@@ -102,8 +105,10 @@ class RunTimelineViewModel(
             modelCalls = events.count { it is RunEvent.ModelReply },
             usedMemory = resolveMemory(events.filterIsInstance<RunEvent.MemoryUsed>().lastOrNull()?.ids.orEmpty()),
             metrics = RunMetrics.of(events, runId),
+            result = (ended?.answerOrReason ?: summary?.answerOrReason)?.trim()?.takeIf { it.isNotEmpty() },
+            finished = ended != null || summary?.endedAtMs != null,
         )
-        return TimelineUi.Ready(header, steps(events, toolLabels::label))
+        return TimelineUi.Ready(header, steps(events, toolLabels::label), events.filterIsInstance<RunEvent.ModelExchange>())
     }
 
     fun screen(screenshotId: Int): File? = store.screen(runId, screenshotId)

@@ -201,6 +201,7 @@ fun ChatDrawer(
     onNew: () -> Unit,
     onPlans: () -> Unit,
     onMemory: () -> Unit,
+    onRunHistory: () -> Unit = {},
     onBrowser: () -> Unit,
     onSettings: () -> Unit,
     onOpen: (DrawerConversation) -> Unit,
@@ -235,6 +236,7 @@ fun ChatDrawer(
         Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
             NavEntry(MikaIcons.New, stringResource(R.string.chat_new), enabled = canSwitch, onClick = onNew)
             NavEntry(MikaIcons.Clock, stringResource(R.string.drawer_plans), onClick = onPlans)
+            NavEntry(MikaIcons.Clock, stringResource(R.string.run_history_title), onClick = onRunHistory)
             NavEntry(MikaIcons.Heart, stringResource(R.string.memory_and_skills), onClick = onMemory)
             NavEntry(MikaIcons.Globe, stringResource(R.string.drawer_browser), onClick = onBrowser)
         }
@@ -448,6 +450,7 @@ fun ChatWithDrawer(
     conversationTitle: (String) -> String? = { null },
     onPlans: () -> Unit,
     onMemory: () -> Unit,
+    onRunHistory: () -> Unit = {},
     onBrowser: () -> Unit,
     onSettings: () -> Unit,
     onAbout: () -> Unit = {},
@@ -544,6 +547,7 @@ fun ChatWithDrawer(
                     onNew = { close { vm.newConversation() } },
                     onPlans = { leave(onPlans) },
                     onMemory = { leave(onMemory) },
+                    onRunHistory = { leave(onRunHistory) },
                     onSettings = { leave(onSettings) },
                     onBrowser = { leave(onBrowser) },
                     onAbout = { leave(onAbout) },

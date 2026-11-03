@@ -13,6 +13,16 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 class VaultMemoryTest {
+    @Test fun longTaskReportIsRetainedAndExplicitlyMarksTruncation() {
+        val answer = "发布记录：" + "内容".repeat(12000) + "末尾"
+        val spec = VaultRunSpec("r-report", "回复帖子", "测试", VaultOutcome.Success,
+            listOf(RunEvent.TaskEnded(1, "succeeded", answer)), emptyList(), emptyList(), 0, 1000)
+        val rendered = VaultRunLog.render("AgentReins", spec, ZoneOffset.UTC)
+        assertTrue(rendered.contains(VaultRedactor.redact(answer).take(20000)))
+        assertTrue(rendered.contains("后续内容已截断"))
+        assertFalse(rendered.contains("末尾"))
+    }
+
     @Test fun redactsPaymentPinAndLeavesOrdinaryNumbers() {
         val out = VaultRedactor.redact("支付密码是258369,然后发200元,验证码 482913,密码：hunter2")
         assertFalse(out.contains("258369"))
@@ -174,6 +184,34 @@ class VaultMemoryTest {
         assertTrue(files.map.keys.any { it.contains("raw/runs") && it.endsWith(".md") && !it.endsWith("/1970-01-01.md") || it.contains("raw/runs/1970-01-01/") })
         assertTrue(files.map.getValue("AgentReins/wiki/index.md").contains("type: overview"))
         assertTrue(files.map.getValue("AgentReins/wiki/log.md").contains("Hub") || files.map.getValue("AgentReins/wiki/log.md").contains("发帖"))
+    }
+
+    @Test fun runIdsRemainDistinctAndHistoryIncludesResult() {
+        val files = MemFiles()
+        val lib = library(files)
+        fun spec(id: String, answer: String) = VaultRunSpec(id, "输入法发帖", "应用内聊天", VaultOutcome.Success,
+            listOf(RunEvent.TaskEnded(1, "succeeded", answer)), emptyList(), emptyList(), 0, 1000)
+        val a = lib.writeRun(spec("20261103-235947-a", "产品支持语音输入"))
+        val b = lib.writeRun(spec("20261103-235947-b", "第二次发帖"))
+        assertTrue(a.ok && b.ok)
+        assertFalse(a.path == b.path)
+        assertTrue(files.map.getValue(a.path!!).contains("产品支持语音输入"))
+        val history = lib.readContext("输入法发帖").text.orEmpty()
+        assertTrue(history.contains("输入法发帖"))
+        assertTrue(history.contains("产品支持语音输入"))
+    }
+
+    @Test fun historyBackfillIsIdempotentAndKeepsExistingText() {
+        val files = MemFiles()
+        val lib = library(files)
+        val spec = VaultRunSpec("20261103-235947-a", "搜索输入法", "历史任务", VaultOutcome.Success,
+            listOf(RunEvent.TaskEnded(1, "succeeded", "已找到产品帖子")), emptyList(), emptyList(), 0, 1000)
+        val first = lib.archiveHistory(spec)
+        assertTrue(first.ok)
+        val saved = files.map.getValue(first.path!!)
+        assertTrue(lib.archiveHistory(spec).ok)
+        assertEquals(saved, files.map.getValue(first.path!!))
+        assertTrue(saved.contains("已找到产品帖子"))
     }
 
     private fun library(files: MemFiles) = VaultLibrary(files, { "AgentReins" }, clock = { 0 }, zone = ZoneOffset.UTC)

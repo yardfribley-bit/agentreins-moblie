@@ -23,6 +23,10 @@ sealed interface RunEvent {
     @Serializable @SerialName("prompt_version")
     data class PromptVersion(override val atMs: Long, val hash: String) : RunEvent
 
+    /** 本地可查看的模型调用；内容已脱敏、限长，不含图片数据或认证头。 */
+    @Serializable @SerialName("model_exchange")
+    data class ModelExchange(override val atMs: Long, val model: String, val request: String, val response: String) : RunEvent
+
     /** [fallback] 表示没能列出标准,[criteria] 只是用户原话。 */
     @Serializable @SerialName("criteria")
     data class Criteria(

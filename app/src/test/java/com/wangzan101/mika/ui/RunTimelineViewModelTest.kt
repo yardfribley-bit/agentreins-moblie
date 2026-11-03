@@ -58,6 +58,19 @@ class RunTimelineViewModelTest {
         assertEquals(1, m.modelCalls)
     }
 
+    @Test fun postMaterialUsesRecordedOutcomeWithoutInventingResult() {
+        val id = run("查找帖子") {
+            event(RunEvent.TaskStarted(clock, "查找帖子", "m1"))
+            event(RunEvent.ModelReply(clock, 1, "", "phone_observe", "{}", 10, 1, null))
+        }
+        val ui = ready(id)
+        val material = taskMaterial(ui.header, ui.steps, "任务", "过程", "结果", "未记录")
+        assertTrue(material.contains("任务:查找帖子"))
+        assertTrue(material.contains("看屏幕"))
+        assertTrue(material.contains("结果:未记录"))
+        assertFalse(material.contains("已发布"))
+    }
+
     @Test fun groupsEventsIntoSteps() {
         val long = "先".repeat(100)
         val id = run("看电量") {

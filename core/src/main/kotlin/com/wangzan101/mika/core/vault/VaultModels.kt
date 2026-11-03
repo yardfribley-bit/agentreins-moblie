@@ -168,6 +168,13 @@ object VaultRetriever {
 
     private fun excerpt(note: VaultNote, qTerms: Set<String>): String {
         val (_, body) = VaultMerger.split(note.text)
+        if (VaultPaths.isRunLog(note.path)) {
+            val goal = body.substringAfter("## 指令", "").substringBefore("\n## ").trim()
+            val result = body.substringAfter("## 最终结果", "").substringBefore("\n## ").trim()
+            val steps = body.substringAfter("## 步骤", "").substringBefore("\n## ").trim()
+            return listOf("任务：$goal", result.takeIf { it.isNotBlank() }?.let { "结果：$it" }
+                ?: steps.takeIf { it.isNotBlank() }?.let { "历史步骤（结果可能未记录）：$it" }).filterNotNull().joinToString("\n").take(700)
+        }
         val owner = body.substringBefore(VaultPaths.RECORD).trim()
         val blocks = body.substringAfter(VaultPaths.RECORD, "").split(Regex("""(?=^### )""", RegexOption.MULTILINE))
             .map { it.trim() }.filter { it.startsWith("###") }
@@ -202,7 +209,7 @@ object VaultRunLog {
     fun hm(ms: Long, zone: ZoneId): String = Instant.ofEpochMilli(ms).atZone(zone).format(HM)
     fun clock(ms: Long, zone: ZoneId): String = Instant.ofEpochMilli(ms).atZone(zone).format(CLOCK)
 
-    fun shortId(runId: String): String = runId.filter { it.isLetterOrDigit() }.take(8).ifBlank { "run" }
+    fun shortId(runId: String): String = java.security.MessageDigest.getInstance("SHA-256").digest(runId.toByteArray(Charsets.UTF_8)).take(8).joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
     fun render(root: String, spec: VaultRunSpec, zone: ZoneId): String {
         val started = spec.startedAt
@@ -238,6 +245,12 @@ object VaultRunLog {
             append("- 结果：").append(outcome).append('\n')
             append("- 用时：").append(duration).append("\n\n")
             append("## 指令\n\n").append(goal.ifBlank { "(空)" }).append("\n\n")
+            val answer = spec.events.filterIsInstance<RunEvent.TaskEnded>().lastOrNull()?.answerOrReason?.let(VaultRedactor::redact)?.trim()
+            if (!answer.isNullOrBlank()) {
+                append("## 最终结果\n\n").append(answer.take(20000))
+                if (answer.length > 20000) append("\n\n（结果过长，后续内容已截断；请查看应用中的任务记录。）")
+                append("\n\n")
+            }
             append("## 读入的笔记\n\n")
             if (spec.readPaths.isEmpty()) append("这次没有读到相关笔记。\n\n")
             else spec.readPaths.distinct().forEach { append("- ").append(VaultPaths.link(it)).append('\n') }

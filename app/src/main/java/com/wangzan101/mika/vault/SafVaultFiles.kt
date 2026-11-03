@@ -47,7 +47,7 @@ class SafVaultFiles(private val context: Context, private val tree: () -> Uri?) 
 
     private fun safeFile(path: String): Boolean {
         val parts = path.split("/")
-        return (path.endsWith(".md") || path.endsWith(".md.txt")) && parts.none { it.isBlank() || it == "." || it == ".." }
+        return (path.endsWith(".md") || path.endsWith(".md.txt") || path.matches(Regex(".*\\.md \\(\\d+\\)\\.txt"))) && parts.none { it.isBlank() || it == "." || it == ".." }
     }
 
     private fun walk(tree: Uri, dir: Uri, relative: String, out: MutableList<Pair<String, String>>, limit: Int, depth: Int) {

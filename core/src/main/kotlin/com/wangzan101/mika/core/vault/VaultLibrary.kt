@@ -38,13 +38,25 @@ class VaultLibrary(
     fun notes(): List<VaultNote> = files.listNotes(rootNow()).map { (p, t) -> VaultNotes.parse(p, t) }
 
     fun readContext(goal: String, appPackage: String? = null): VaultRead {
-        val hits = VaultRetriever.rank(notes(), goal, appPackage, today())
+        val hits = VaultRetriever.rank(notes() + recentRunNotes().map { VaultNotes.parse(it.first, it.second) }, goal, appPackage, today(), includeRuns = true)
         return VaultRead(VaultRetriever.render(hits), hits.map { it.path })
     }
 
     fun search(query: String, appPackage: String?, limit: Int, includeRuns: Boolean = true): List<VaultHit> {
         val extra = if (!includeRuns) emptyList() else recentRunNotes().map { VaultNotes.parse(it.first, it.second) }
         return VaultRetriever.rank(notes() + extra, query, appPackage, today(), limit, includeRuns = includeRuns)
+    }
+
+    /** Backfill a retained run without changing indexes or overwriting existing material. */
+    fun archiveHistory(spec: VaultRunSpec): VaultAppendResult = synchronized(lock) {
+        val root = rootNow()
+        val day = VaultRunLog.day(spec.startedAt, zone)
+        val path = VaultPaths.runFile(root, day, VaultRunLog.hm(spec.startedAt, zone), VaultRunLog.shortId(spec.runId))
+        if (!VaultPaths.allowed(path, root)) return VaultAppendResult(false, code = "outside")
+        val previous = files.read(path)
+        if (previous != null) return if (previous.contains("request_id: ${spec.runId}")) VaultAppendResult(true, path, "exists") else VaultAppendResult(false, path, "collision")
+        files.write(path, VaultRunLog.render(root, spec.copy(goal = VaultRedactor.redact(spec.goal)), zone))
+        VaultAppendResult(true, path, "ok")
     }
 
     fun append(request: VaultAppend, runPath: String? = null): VaultAppendResult = synchronized(lock) {
@@ -88,7 +100,8 @@ class VaultLibrary(
                 goal = VaultRedactor.redact(spec.goal),
             ), zone)
             val existing = files.read(runPath)
-            if (existing == null || !existing.contains("request_id: ${spec.runId}")) files.write(runPath, note)
+            if (existing != null && !existing.contains("request_id: ${spec.runId}")) return VaultAppendResult(false, runPath, "collision")
+            if (existing == null) files.write(runPath, note)
         }
         val link = if (capped) "- ${VaultRunLog.stamp(spec.startedAt, zone)} 本日记录已达 ${VaultPaths.MAX_RUNS_PER_DAY} 条,这条没有单独成文" else "- ${VaultRunLog.stamp(spec.startedAt, zone)} ${VaultPaths.link(runPath, spec.goal.lineSequence().first().take(24))}"
         val dayPath = VaultPaths.dayFile(root, day)
@@ -145,13 +158,13 @@ class VaultLibrary(
 
     private fun recentRunNotes(): List<Pair<String, String>> {
         val root = rootNow()
-        val days = files.listNames(VaultPaths.runsDir(root)).filter { it.endsWith(".md") }.map { it.removeSuffix(".md") }.sortedDescending().take(3)
-        return days.flatMap { day ->
-            files.listNames("${VaultPaths.runsDir(root)}/$day").filter { it.endsWith(".md") }.take(8).mapNotNull { name ->
+        val days = files.listNames(VaultPaths.runsDir(root)).mapNotNull { Regex("^(\\d{4}-\\d{2}-\\d{2})(?:\\.md(?: \\(\\d+\\))?(?:\\.txt)?)?$").matchEntire(it)?.groupValues?.get(1) }.distinct().sortedDescending().take(90)
+        return days.asSequence().flatMap { day ->
+            files.listNames("${VaultPaths.runsDir(root)}/$day").filter { it.endsWith(".md") || it.endsWith(".md.txt") || it.matches(Regex(".*\\.md \\(\\d+\\)\\.txt")) }.sortedDescending().asSequence().take(100).mapNotNull { name ->
                 val path = "${VaultPaths.runsDir(root)}/$day/$name"
                 files.read(path)?.let { path to it }
             }
-        }
+        }.take(400).toList()
     }
 
     private fun redact(a: VaultAppend): VaultAppend {

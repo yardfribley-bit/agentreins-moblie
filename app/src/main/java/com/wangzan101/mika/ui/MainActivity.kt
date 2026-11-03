@@ -301,6 +301,7 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                 conversationTitle = { ConversationStore.shared(context).title(it) },
                 onPlans = { nav.pushFromDrawer(Route.Plans) },
                 onMemory = { nav.pushFromDrawer(Route.Memory) },
+                onRunHistory = { nav.pushFromDrawer(Route.RunHistory) },
                 onSettings = { nav.pushFromDrawer(Route.Settings) },
                 onBrowser = { nav.pushFromDrawer(Route.Browser) },
                 onAbout = { nav.pushFromDrawer(Route.About) },
@@ -405,6 +406,10 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                     nav.push(Route.VaultNotes)
                 })
             }
+        }
+        Route.RunHistory -> RunHistoryScreen(RunStore(context), back) { id ->
+            runId = id
+            nav.push(Route.Run)
         }
         Route.Run -> {
             val id = runId

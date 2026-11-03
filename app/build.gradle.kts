@@ -27,8 +27,8 @@ android {
         applicationId = "com.agentreins.x"
         minSdk = 30
         targetSdk = 35
-        versionCode = 16
-        versionName = "0.1.0"
+        versionCode = 17
+        versionName = "0.2.0"
         buildConfigField("String", "EMBEDDED_OPENROUTER_KEY", javaString(embeddedRouterKey))
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GIT_HASH", "\"$gitHash\"")
@@ -147,6 +147,6 @@ android.applicationVariants.all {
     val apkCode = versionCode
     outputs.all {
         (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName =
-            "agentreins-moblie-v${apkVersion}-build${apkCode}-${variantName}.apk"
+            "agentreins-x-v${apkVersion}-build${apkCode}-${variantName}.apk"
     }
 }

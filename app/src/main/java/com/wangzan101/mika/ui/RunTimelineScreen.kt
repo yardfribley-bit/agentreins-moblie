@@ -1,6 +1,11 @@
 package com.wangzan101.mika.ui
 
 import com.wangzan101.mika.R
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import com.wangzan101.mika.i18n.trPlural
 import androidx.compose.ui.res.stringResource
 import android.graphics.BitmapFactory
@@ -9,6 +14,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -20,10 +26,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +44,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -45,6 +57,9 @@ import com.wangzan101.mika.ui.components.EmptyNote
 import com.wangzan101.mika.ui.components.GroupCard
 import com.wangzan101.mika.ui.components.GroupLabel
 import com.wangzan101.mika.ui.components.ListRow
+import com.wangzan101.mika.ui.components.MikaButton
+import com.wangzan101.mika.ui.components.ButtonSize
+import com.wangzan101.mika.ui.components.ButtonKind
 import com.wangzan101.mika.ui.components.PageBackground
 import com.wangzan101.mika.ui.components.RowChevron
 import com.wangzan101.mika.ui.components.RowValue
@@ -56,6 +71,7 @@ import com.wangzan101.mika.ui.theme.MikaIcons
 import com.wangzan101.mika.ui.theme.MikaTheme
 import com.wangzan101.mika.ui.theme.MikaType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
@@ -65,8 +81,16 @@ import kotlinx.coroutines.withContext
 @Composable
 fun RunTimelineScreen(vm: RunTimelineViewModel, onBack: () -> Unit, onOpenVault: (() -> Unit)? = null) {
     BackHandler(onBack = onBack)
-    val ui by produceState<TimelineUi>(TimelineUi.Loading, vm) { value = withContext(Dispatchers.IO) { vm.load() } }
+    val ui by produceState<TimelineUi>(TimelineUi.Loading, vm) {
+        do {
+            val next = withContext(Dispatchers.IO) { vm.load() }
+            value = next
+            if (next !is TimelineUi.Ready || next.header.finished) break
+            delay(2000)
+        } while (true)
+    }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    var materialOpen by rememberSaveable { mutableStateOf(false) }
 
     PageBackground {
         Column(Modifier.fillMaxSize()) {
@@ -78,7 +102,12 @@ fun RunTimelineScreen(vm: RunTimelineViewModel, onBack: () -> Unit, onOpenVault:
                     Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottom + 16.dp),
                 ) {
+                    item("overview") { TaskOverview(u) }
                     item("header") { HeaderGroup(u.header, onOpenVault) }
+                    item("material") {
+                        MikaButton(stringResource(R.string.timeline_make_material), { materialOpen = true },
+                            Modifier.fillMaxWidth().padding(vertical = 12.dp), kind = ButtonKind.Tonal, size = ButtonSize.Small)
+                    }
                     if (u.steps.isNotEmpty()) {
                         item("label") { GroupLabel(trPlural(R.plurals.timeline_total_steps, u.steps.size)) }
                         item("steps") {
@@ -91,10 +120,101 @@ fun RunTimelineScreen(vm: RunTimelineViewModel, onBack: () -> Unit, onOpenVault:
                             }
                         }
                     }
+                    if (u.modelExchanges.isNotEmpty()) {
+                        item("model-label") { GroupLabel(stringResource(R.string.timeline_model_records)) }
+                        items(u.modelExchanges.size, key = { "model-$it" }) { index ->
+                            ModelExchangeRow(index + 1, u.modelExchanges[index])
+                        }
+                    }
                 }
             }
         }
     }
+    val ready = ui as? TimelineUi.Ready
+    if (materialOpen && ready != null) MaterialEditor(ready, onClose = { materialOpen = false })
+}
+
+@Composable
+private fun TaskOverview(run: TimelineUi.Ready) {
+    val c = MikaTheme.colors
+    val running = !run.header.finished
+    Column(Modifier.fillMaxWidth().padding(bottom = 12.dp).clip(RoundedCornerShape(22.dp))
+        .background(c.accentSoft).padding(18.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.size(8.dp).background(if (running) c.accent else c.ok, CircleShape))
+            Text(if (running) stringResource(R.string.timeline_live) else stringResource(R.string.timeline_recorded),
+                style = MikaType.Label, color = if (running) c.accent else c.ink2)
+        }
+        Text(stringResource(R.string.timeline_overview), Modifier.padding(top = 9.dp), style = MikaType.Title, color = c.ink)
+        Text(stringResource(R.string.timeline_overview_counts, run.steps.size, run.modelExchanges.size),
+            Modifier.padding(top = 5.dp), style = MikaType.Caption, color = c.ink2)
+        if (running) Text(stringResource(R.string.timeline_live_hint), Modifier.padding(top = 7.dp), style = MikaType.Hint, color = c.ink3)
+    }
+}
+
+@Composable
+private fun ModelExchangeRow(number: Int, exchange: com.wangzan101.mika.core.record.RunEvent.ModelExchange) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    val c = MikaTheme.colors
+    GroupCard {
+        ListRow(null, stringResource(R.string.timeline_model_record_number, number), exchange.model.ifBlank { null }, onClick = { open = !open }) { RowChevron() }
+        if (open) Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+            Text(stringResource(R.string.timeline_model_request), style = MikaType.Label, color = c.ink3)
+            Text(exchange.request, Modifier.padding(top = 4.dp), style = MikaType.Caption, color = c.ink2)
+            Text(stringResource(R.string.timeline_model_response), Modifier.padding(top = 12.dp), style = MikaType.Label, color = c.ink3)
+            Text(exchange.response, Modifier.padding(top = 4.dp), style = MikaType.Caption, color = c.ink2)
+        }
+    }
+}
+
+/** 从已记录的信息准备原始素材；不推断未记录的发布或成功状态。 */
+internal fun taskMaterial(header: TimelineHeader, steps: List<TimelineStep>, goalLabel: String, processLabel: String, resultLabel: String, missing: String): String {
+    val actions = steps.mapNotNull { step ->
+        val action = step.tool?.takeIf(String::isNotBlank) ?: step.activities.firstOrNull()?.label
+        action?.let { "- $it" }
+    }.take(12)
+    return buildString {
+        append(goalLabel).append("：").append(header.goal).append("\n\n")
+        append(processLabel).append("：\n").append(if (actions.isEmpty()) missing else actions.joinToString("\n"))
+        if (steps.size > 12) append("\n…")
+        append("\n\n").append(resultLabel).append("：").append(header.result ?: missing)
+    }.let(com.wangzan101.mika.core.vault.VaultRedactor::redact)
+}
+
+@Composable
+private fun MaterialEditor(run: TimelineUi.Ready, onClose: () -> Unit) {
+    val context = LocalContext.current
+    val title = stringResource(R.string.timeline_material_title)
+    val missing = stringResource(R.string.timeline_material_missing)
+    val initial = taskMaterial(run.header, run.steps, stringResource(R.string.timeline_material_goal),
+        stringResource(R.string.timeline_material_process), stringResource(R.string.timeline_material_result), missing)
+    var draft by rememberSaveable { mutableStateOf(initial) }
+    fun show(id: Int) = Toast.makeText(context, id, Toast.LENGTH_SHORT).show()
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text(title) },
+        text = {
+            Column {
+                Text(stringResource(R.string.timeline_material_note), style = MikaType.Caption)
+                OutlinedTextField(draft, { draft = it }, Modifier.fillMaxWidth().padding(top = 8.dp), minLines = 6, maxLines = 12)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                runCatching { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, draft), title)) }
+                    .onFailure { show(R.string.timeline_material_failed) }
+            }, enabled = draft.isNotBlank()) { Text(stringResource(R.string.timeline_material_share)) }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = {
+                    runCatching { context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(title, draft)) }
+                        .onSuccess { show(R.string.timeline_material_copied) }.onFailure { show(R.string.timeline_material_failed) }
+                }, enabled = draft.isNotBlank()) { Text(stringResource(R.string.timeline_material_copy)) }
+                TextButton(onClick = onClose) { Text(stringResource(R.string.cancel)) }
+            }
+        },
+    )
 }
 
 @Composable
@@ -115,7 +235,15 @@ private fun HeaderGroup(h: TimelineHeader, onOpenVault: (() -> Unit)?) {
             }
         }
         h.metrics?.let { RunMetricsSummary(it) }
-        ListRow(null, stringResource(R.string.timeline_outcome)) { RowValue(h.outcome, if (h.outcome == stringResource(R.string.outcome_succeeded)) ValueTone.Ok else ValueTone.Plain) }
+        ListRow(null, stringResource(R.string.timeline_outcome)) {
+            RowValue(if (h.outcome == stringResource(R.string.outcome_succeeded)) stringResource(R.string.run_history_succeeded) else h.outcome)
+        }
+        h.result?.let { result ->
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+                Text(stringResource(R.string.timeline_result), style = MikaType.Label, color = c.ink3)
+                Text(result, Modifier.padding(top = 4.dp), style = MikaType.Caption, color = c.ink2)
+            }
+        }
         onOpenVault?.let { open -> ListRow(null, stringResource(R.string.vault_open_note), onClick = open) { RowChevron() } }
         if (h.verdict != stringResource(R.string.verify_none)) ListRow(null, stringResource(R.string.timeline_check)) { RowValue(h.verdict) }
         // 小结那一行已经写了用时

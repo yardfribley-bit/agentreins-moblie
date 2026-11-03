@@ -47,7 +47,9 @@ class AgentLoopRecordTest {
             reply(call("phone_tap", """{"x":500,"y":500}""")),
             com.wangzan101.mika.core.testing.answerReply("好了"),
         )
-        val ev = run(m).events
+        val events = run(m).events
+        assertEquals(3, events.filterIsInstance<RunEvent.ModelExchange>().size)
+        val ev = events.filterNot { it is RunEvent.ModelExchange }
         assertEquals(
             // 坐标处没有元素:不可逆判定无从判断,放行并记一条 gate_unresolved
             // 最后一条不带调用的回复是回答:先字面核对,再记下代码找到的来源

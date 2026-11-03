@@ -527,6 +527,7 @@ class TaskRun(
             } else null
             val vaultMemory = (service.application as MikaApp).vault
             val vaultNotes = withContext(Dispatchers.IO) {
+                runCatching { vaultMemory.backfillHistory() }.onFailure { Log.w(TAG, "vault history backfill failed", it) }
                 runCatching { vaultMemory.contextFor(goal, _runId.value ?: key) }
                     .onFailure { Log.w(TAG, "vault read failed", it) }
                     .getOrNull()

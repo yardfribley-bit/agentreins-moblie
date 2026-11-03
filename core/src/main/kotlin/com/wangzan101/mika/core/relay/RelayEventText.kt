@@ -83,7 +83,7 @@ object RelayEventText {
             }
         })
         is RunEvent.OutcomeJudged -> result("判定：${event.outcome} ${short(event.reason, 300)}".trim())
-        is RunEvent.PromptVersion, is RunEvent.ActionTarget, is RunEvent.Compressed -> null
+        is RunEvent.PromptVersion, is RunEvent.ActionTarget, is RunEvent.Compressed, is RunEvent.ModelExchange -> null
     }
 
     private fun modelReply(event: RunEvent.ModelReply): Pair<String, String>? {

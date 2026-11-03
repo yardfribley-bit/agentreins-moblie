@@ -17,6 +17,7 @@ import com.wangzan101.mika.core.vault.VaultNote
 import com.wangzan101.mika.core.vault.VaultOutcome
 import com.wangzan101.mika.core.vault.VaultPaths
 import com.wangzan101.mika.core.vault.VaultRunSpec
+import com.wangzan101.mika.record.RunStore
 import kotlinx.coroutines.CancellationException
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -54,6 +55,29 @@ class VaultRuntime(context: Context) : VaultMemory {
     }
 
     override fun searchEnabled() = configured() && settings.state.value.readEnabled
+
+    /** Import this app's retained, completed runs once per selected vault. */
+    @Synchronized fun backfillHistory() {
+        val prefs = settings.state.value
+        if (!configured() || !prefs.logEnabled) return
+        val key = java.security.MessageDigest.getInstance("SHA-256")
+            .digest("${prefs.treeUri}|${prefs.subfolder}".toByteArray()).take(8).joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        val marker = File(app.filesDir, "vault_history_$key.done")
+        if (marker.exists()) return
+        val store = RunStore(app)
+        for (run in store.list().filter { it.endedAtMs != null }) {
+            val events = store.events(run.id)
+            val ended = events.filterIsInstance<RunEvent.TaskEnded>().lastOrNull() ?: continue
+            val outcome = when (ended.outcome) {
+                "succeeded" -> VaultOutcome.Success
+                "failed", "error" -> VaultOutcome.Failure
+                else -> VaultOutcome.Stopped
+            }
+            val spec = VaultRunSpec(run.id, run.goal, "历史任务", outcome, events, emptyList(), emptyList(), run.startedAtMs, run.endedAtMs ?: ended.atMs)
+            check(library.archiveHistory(spec).ok) { "could not archive history" }
+        }
+        marker.writeText("done")
+    }
     override fun appendEnabled() = configured() && settings.state.value.writeEnabled
 
     override fun contextFor(goal: String, runId: String?): String? {
