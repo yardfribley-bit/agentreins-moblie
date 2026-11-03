@@ -63,7 +63,7 @@ import kotlinx.coroutines.withContext
  * 下面是竖线步骤,每步一行,点有画面的步骤看当时的画面。
  */
 @Composable
-fun RunTimelineScreen(vm: RunTimelineViewModel, onBack: () -> Unit) {
+fun RunTimelineScreen(vm: RunTimelineViewModel, onBack: () -> Unit, onOpenVault: (() -> Unit)? = null) {
     BackHandler(onBack = onBack)
     val ui by produceState<TimelineUi>(TimelineUi.Loading, vm) { value = withContext(Dispatchers.IO) { vm.load() } }
     val bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -78,7 +78,7 @@ fun RunTimelineScreen(vm: RunTimelineViewModel, onBack: () -> Unit) {
                     Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = bottom + 16.dp),
                 ) {
-                    item("header") { HeaderGroup(u.header) }
+                    item("header") { HeaderGroup(u.header, onOpenVault) }
                     if (u.steps.isNotEmpty()) {
                         item("label") { GroupLabel(trPlural(R.plurals.timeline_total_steps, u.steps.size)) }
                         item("steps") {
@@ -98,7 +98,7 @@ fun RunTimelineScreen(vm: RunTimelineViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun HeaderGroup(h: TimelineHeader) {
+private fun HeaderGroup(h: TimelineHeader, onOpenVault: (() -> Unit)?) {
     val c = MikaTheme.colors
     var more by rememberSaveable { mutableStateOf(false) }
     GroupCard {
@@ -116,6 +116,7 @@ private fun HeaderGroup(h: TimelineHeader) {
         }
         h.metrics?.let { RunMetricsSummary(it) }
         ListRow(null, stringResource(R.string.timeline_outcome)) { RowValue(h.outcome, if (h.outcome == stringResource(R.string.outcome_succeeded)) ValueTone.Ok else ValueTone.Plain) }
+        onOpenVault?.let { open -> ListRow(null, stringResource(R.string.vault_open_note), onClick = open) { RowChevron() } }
         if (h.verdict != stringResource(R.string.verify_none)) ListRow(null, stringResource(R.string.timeline_check)) { RowValue(h.verdict) }
         // 小结那一行已经写了用时
         if (h.metrics == null) h.duration?.let { d -> ListRow(null, stringResource(R.string.timeline_duration)) { RowValue(d) } }

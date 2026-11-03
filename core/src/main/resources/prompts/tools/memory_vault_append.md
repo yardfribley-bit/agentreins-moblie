@@ -1,0 +1,1 @@
+Append one reusable note to the owner's Obsidian vault. One file per app or task; the new entry is dated and does not overwrite what the owner wrote. Use for a step that worked, a pitfall, or an app-specific tip. Never include passwords, PINs, payment codes, tokens, OTPs, join codes, or phone numbers.

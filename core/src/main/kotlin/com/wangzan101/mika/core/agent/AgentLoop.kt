@@ -83,7 +83,7 @@ import com.wangzan101.mika.core.general.VIEW_USER_SCREEN
 private fun batchViewNote(content: String) = Feedback.format("batch_view_note", "screen" to content)
 private val MEMORY_VERBS = setOf(Verb.MemorySearch, Verb.MemorySave)
 /** 讨论历史时仍可查本地记忆与技能资料；这些调用不会打开 App 或网站。 */
-private val DISCUSSION_LOOKUP_VERBS = setOf(Verb.MemorySearch, Verb.KnowledgeSearch, Verb.KnowledgeRead, Verb.SkillSearch, Verb.SkillRead)
+private val DISCUSSION_LOOKUP_VERBS = setOf(Verb.MemorySearch, Verb.VaultSearch, Verb.VaultAppend, Verb.KnowledgeSearch, Verb.KnowledgeRead, Verb.SkillSearch, Verb.SkillRead)
 
 /**
  * 驱动“模型 ↔ 工具”的循环,只做调度:问模型([ModelCaller])→ 交执行入口([ActionExecutor])→
@@ -156,6 +156,8 @@ class AgentLoop(
     private val recalledTasks: String? = null,
     /** 以前走通过的做法,开局当推荐计划。 */
     private val experiencePlan: String? = null,
+    /** Obsidian 库里和这次任务相关的笔记。库没配时为 null,不影响原有记忆。 */
+    private val vaultNotes: String? = null,
     /** 调试日志:注入的记忆和推荐计划(已脱敏)。默认不写。 */
     private val debugLog: (tag: String, message: String) -> Unit = { _, _ -> },
 ) {
@@ -393,7 +395,7 @@ class AgentLoop(
         val labels = installed.toMap()
         val matched = knowledge?.matchTask(task, Int.MAX_VALUE, installed).orEmpty()
         val recommended = if (skills != null && recommendSkills) GuideRecommender.recommend(skills, task) else null
-        val memoryText = listOfNotNull(ProfileContext.render(profileSnapshot), block?.message, recalledTasks, experiencePlan)
+        val memoryText = listOfNotNull(ProfileContext.render(profileSnapshot), block?.message, recalledTasks, experiencePlan, vaultNotes)
             .filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }?.joinToString("\n\n")
         debugLog(CONTEXT_LOG, Redactor.text(memoryText ?: "(none)"))
         val start = ctx.start(

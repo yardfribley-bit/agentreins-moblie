@@ -16,6 +16,7 @@ import com.wangzan101.mika.core.trigger.TriggerDefinition
 import com.wangzan101.mika.core.trigger.ScheduleAdmin
 import com.wangzan101.mika.core.child.ChildRunHost
 import com.wangzan101.mika.core.run.RunSpec
+import com.wangzan101.mika.core.vault.VaultMemory
 
 /** 本任务的配置(模型、技能、记忆、开关);能力各自的端口与开关在能力里。 */
 internal class ToolConfig(
@@ -38,6 +39,8 @@ internal class ToolConfig(
     val childHost: ChildRunHost? = null,
     /** 这个对话里用户发来的屏幕;没有时不提供 view_user_screen。 */
     val userScreens: com.wangzan101.mika.core.userscreen.UserScreenSource? = null,
+    /** Obsidian 库。没选文件夹或开关关着时,对应工具不提供。 */
+    val vault: VaultMemory? = null,
 )
 
 /**

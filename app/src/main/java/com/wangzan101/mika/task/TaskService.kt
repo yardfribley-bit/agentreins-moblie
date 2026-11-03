@@ -165,7 +165,8 @@ class TaskService : Service() {
         val run = if (intent?.hasExtra(EXTRA_RUN) == true) intent.getStringExtra(EXTRA_RUN)?.let(center::byKey) else taskState.shownRun
         when (intent?.action) {
             ACTION_START -> begin(intent.getStringExtra(EXTRA_GOAL).orEmpty(), intent.getStringExtra(EXTRA_CONVERSATION),
-                allowQueue = intent.getBooleanExtra(EXTRA_QUEUE, false), messageId = intent.getStringExtra(EXTRA_MESSAGE_ID))
+                allowQueue = intent.getBooleanExtra(EXTRA_QUEUE, false), messageId = intent.getStringExtra(EXTRA_MESSAGE_ID),
+                fromHub = intent.getBooleanExtra(EXTRA_FROM_HUB, false))
             ACTION_START_TRIGGER -> begin(intent.getStringExtra(EXTRA_GOAL).orEmpty(), intent.getStringExtra(EXTRA_CONVERSATION),
                 allowQueue = true, provenance = RunProvenance(RunOrigin.Trigger, Attendance.Unattended),
                 triggerKey = intent.getStringExtra(EXTRA_TRIGGER_KEY),
@@ -199,7 +200,8 @@ class TaskService : Service() {
 
     private fun begin(newGoal: String, requestedConversation: String?, allowQueue: Boolean = false,
         provenance: RunProvenance = RunProvenance(), triggerKey: String? = null,
-        triggerActionGoal: String? = null, triggerThreadId: String? = null, mcpExternalId: String? = null, messageId: String? = null) {
+        triggerActionGoal: String? = null, triggerThreadId: String? = null, mcpExternalId: String? = null, messageId: String? = null,
+        fromHub: Boolean = false) {
         parallel = FeatureFlags.get(this).speedFlags().parallelTasks
         // 同一对话里正在执行或排队的任务收到新原话时，交给它的 Inbox。
         requestedConversation?.let(center::byConversation)?.let { existing ->
@@ -232,6 +234,7 @@ class TaskService : Service() {
             is StartResult.Queued -> {
                 nameConversation(store, conversationId, newGoal, provenance)
                 r.run.provenance = provenance
+                r.run.fromHub = fromHub
                 r.run.triggerWindowKey = triggerKey
                 r.run.triggerActionGoal = triggerActionGoal
                 r.run.triggerThreadId = triggerThreadId
@@ -255,6 +258,7 @@ class TaskService : Service() {
                 // 清空成功标准、运行编号,状态置为「正在准备」
                 val run = r.run
                 run.provenance = provenance
+                run.fromHub = fromHub
                 run.triggerWindowKey = triggerKey
                 run.triggerActionGoal = triggerActionGoal
                 run.triggerThreadId = triggerThreadId
@@ -325,6 +329,7 @@ class TaskService : Service() {
                     else ConditionOutcome.Error((end as? TaskState.Failed)?.reason ?: tr(R.string.task_condition_interrupted))
                 TriggerRuntime.checked(this@TaskService, run.triggerWindowKey.orEmpty(), run.triggerActionGoal.orEmpty(),
                     run.triggerThreadId.orEmpty(), outcome)
+                runCatching { run.vaultFinish(end) }.onFailure { Log.w(TAG, "vault write failed", it) }
                 if (outcome is ConditionOutcome.Error) {
                     val failure = TaskState.Failed(tr(R.string.task_check_unfinished, outcome.reason), FailKind.Environment)
                     recordTurn(store, run.conversationId, run.goal, failure, run.runId.value)
@@ -361,6 +366,7 @@ class TaskService : Service() {
                         runCatching { TriggerRuntime.actionFailed(app, key, judged?.reason?.ifBlank { null } ?: describe(end).second) }
                             .onFailure { Log.w(TAG, "could not downgrade trigger result", it) }
                     }
+                    runCatching { run.vaultFinish(end) }.onFailure { Log.w(TAG, "vault write failed", it) }
                     if (run.provenance.origin == RunOrigin.Ui) runCatching { run.learnAfter(end, judged?.outcome, store) }
                         .onFailure { Log.w(TAG, "learning after run failed", it) }
                 }
@@ -730,6 +736,7 @@ class TaskService : Service() {
         const val ACTION_APPROVE = "com.wangzan101.mika.task.APPROVE"
         const val ACTION_DECLINE = "com.wangzan101.mika.task.DECLINE"
         private const val EXTRA_GOAL = "goal"
+        private const val EXTRA_FROM_HUB = "from_hub"
         private const val EXTRA_MESSAGE_ID = "message_id"
         private const val EXTRA_QUEUE = "queue"
         private const val EXTRA_CONVERSATION = "conversation"
@@ -774,12 +781,13 @@ class TaskService : Service() {
 
         /** 开始一个任务;已有任务在跑时忽略。[conversationId] 为空表示新开一个对话(编号见 [conversationId])。 */
         /** [messageId] 给了时这是任务进行中插的话,界面按它跟这句话的去向;[queue] 为 true 时别的任务在跑也排上(留下的话)。 */
-        fun start(context: Context, goal: String, conversationId: String? = null, messageId: String? = null, queue: Boolean = false) {
+        fun start(context: Context, goal: String, conversationId: String? = null, messageId: String? = null, queue: Boolean = false, fromHub: Boolean = false) {
             context.startForegroundService(
                 Intent(context, TaskService::class.java).setAction(ACTION_START).putExtra(EXTRA_GOAL, goal)
                     .apply { if (conversationId != null) putExtra(EXTRA_CONVERSATION, conversationId) }
                     .apply { if (messageId != null) putExtra(EXTRA_MESSAGE_ID, messageId) }
-                    .apply { if (queue) putExtra(EXTRA_QUEUE, true) },
+                    .apply { if (queue) putExtra(EXTRA_QUEUE, true) }
+                    .apply { if (fromHub) putExtra(EXTRA_FROM_HUB, true) },
             )
         }
 
