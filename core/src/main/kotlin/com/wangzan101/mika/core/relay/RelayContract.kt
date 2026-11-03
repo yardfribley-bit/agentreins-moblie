@@ -42,6 +42,8 @@ const val HUB_ATTACHMENT_MAX_FILES = 20
 object RelayKind {
     const val PROGRESS = "progress"
     const val RESULT = "result"
+    /** 账号对不上、需要老板补充时用。不是把任务收成 result。 */
+    const val QUESTION = "question"
 }
 
 /**

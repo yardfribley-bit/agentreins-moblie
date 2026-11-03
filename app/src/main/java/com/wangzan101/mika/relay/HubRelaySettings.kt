@@ -4,6 +4,8 @@ import android.content.SharedPreferences
 import com.wangzan101.mika.core.relay.DEFAULT_MCP_URL
 import com.wangzan101.mika.core.relay.DEFAULT_RELAY_AGENT_TYPE
 import com.wangzan101.mika.core.relay.DEFAULT_RELAY_ALIAS
+import com.wangzan101.mika.core.relay.HubInflight
+import com.wangzan101.mika.core.relay.HubInflightCodec
 import com.wangzan101.mika.core.relay.HubInstruction
 import com.wangzan101.mika.core.relay.HubInbound
 import com.wangzan101.mika.core.relay.RelayConfig
@@ -99,6 +101,23 @@ class HubRelaySettings(private val prefs: SharedPreferences, private val cipher:
 
     fun setInstructionQueue(items: List<HubInstruction>) = prefs.edit().putString(QUEUE, HubInbound.encodeQueue(items)).commit()
 
+    fun inflight(): HubInflight? = prefs.getString(INFLIGHT, null)?.let(HubInflightCodec::decode)
+
+    fun setInflight(item: HubInflight?) {
+        val edit = prefs.edit()
+        if (item == null) edit.remove(INFLIGHT) else edit.putString(INFLIGHT, HubInflightCodec.encode(item))
+        edit.commit()
+    }
+
+    fun wasResultSent(requestId: String): Boolean =
+        prefs.getString(SENT_RESULTS, "").orEmpty().lineSequence().any { it == requestId }
+
+    fun markResultSent(requestId: String) {
+        val kept = (listOf(requestId) + prefs.getString(SENT_RESULTS, "").orEmpty().lineSequence().filter { it.isNotBlank() && it != requestId })
+            .distinct().take(30)
+        prefs.edit().putString(SENT_RESULTS, kept.joinToString("\n")).commit()
+    }
+
     /** 老板指令走和聊天一样的任务管线,固定落在这一个对话里。 */
     fun hubConversationId(): String {
         val existing = prefs.getString(HUB_THREAD, null)
@@ -184,6 +203,8 @@ class HubRelaySettings(private val prefs: SharedPreferences, private val cipher:
         const val READ_CURSOR = "read_cursor"
         const val HANDLED_SEQ = "handled_seq"
         const val QUEUE = "instruction_queue"
+        const val INFLIGHT = "inflight_instruction"
+        const val SENT_RESULTS = "sent_result_ids"
         const val HUB_THREAD = "hub_thread"
         const val AGENT = "agent_id"
         const val SESSION = "session_id"

@@ -107,9 +107,10 @@ fun toolDispatcher(
     micSeat: com.wangzan101.mika.core.cap.phone.speech.MicSeatPort? = null,
     /** Obsidian 库;没配或开关关着时不提供 memory_vault_*。 */
     vault: VaultMemory? = null,
+    urlDownload: com.wangzan101.mika.core.relay.UrlDownloadPort? = null,
 ): ToolDispatcher {
     val config = ToolConfig(visionEnabled, skills, recordFrames, vision, inlineScreen, adaptiveVision, memory, profile, utterances, conversationId,
-        imageOps, scheduleTrigger, scheduleAdmin, runSpec, childHost, userScreens, vault)
+        imageOps, scheduleTrigger, scheduleAdmin, runSpec, childHost, userScreens, vault, urlDownload)
     val providers: List<CapabilityProvider> = listOf(
         object : CapabilityProvider {
             override val id = PHONE

@@ -1,0 +1,1 @@
+Download one https URL into this conversation's workspace. Images and videos are also saved to the phone gallery (Pictures/AgentReins or Movies/AgentReins). Only https is accepted, at most 32 MB. The result names the workspace path under /workspace/inbox and the gallery path. Use those paths; do not say the file is missing after a successful download.

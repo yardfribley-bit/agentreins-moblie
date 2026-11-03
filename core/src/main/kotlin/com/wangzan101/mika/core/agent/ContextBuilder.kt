@@ -102,6 +102,8 @@ class ContextBuilder(
         task: String,
         priorTurns: String? = null,
         memory: String? = null,
+        /** 开工前已经检索过的 Obsidian 知识库。0 条也要传，让模型看见这次查过。 */
+        vault: String? = null,
         channel: String? = null,
         knowledge: List<KnowledgeEntry> = emptyList(),
         knowledgeNote: String = "",
@@ -116,6 +118,7 @@ class ContextBuilder(
         val pieces = mutableListOf<Piece>()
         priorTurns?.let { pieces += Piece(ContextKind.PriorTurns, "earlier turns of this conversation", body = it, clip = Int.MAX_VALUE) }
         memory?.let { pieces += Piece(ContextKind.Memory, "memory", body = it) }
+        vault?.let { pieces += Piece(ContextKind.Memory, "obsidian", body = it) }
         channel?.let { pieces += Piece(ContextKind.Channel, "installed apps and websites", body = it) }
         val fresh = knowledge.filter { it.body != null && injected.size < budget.maxKnowledge && injected.add(it.name to it.surface) }
         fresh.forEach { pieces += knowledgePiece(it, knowledgeNote, withLinks) }
