@@ -107,6 +107,7 @@ fun toolDispatcher(
     micSeat: com.wangzan101.mika.core.cap.phone.speech.MicSeatPort? = null,
     /** Obsidian 库;没配或开关关着时不提供 memory_vault_*。 */
     vault: VaultMemory? = null,
+    disableCode: Boolean = false,
 ): ToolDispatcher {
     val config = ToolConfig(visionEnabled, skills, recordFrames, vision, inlineScreen, adaptiveVision, memory, profile, utterances, conversationId,
         imageOps, scheduleTrigger, scheduleAdmin, runSpec, childHost, userScreens, vault)
@@ -125,7 +126,7 @@ fun toolDispatcher(
                 onSandboxCommand, onSandboxProgress, onSandboxPreparing, onSandboxScript)
         },
     ) + mcpServers.map(::McpClientProvider)
-    return RunAssembler(providers).assemble(runSpec, config, stableRefs, FORMER_PREFIX, RENAMED, RETIRED, MOVED)
+    return RunAssembler(providers).assemble(runSpec, config, stableRefs, FORMER_PREFIX, RENAMED, RETIRED, MOVED, disableCode)
 }
 
 /** 改名前各能力工具名的前缀:手机的没有前缀,网页的是 browser_。 */

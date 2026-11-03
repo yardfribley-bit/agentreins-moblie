@@ -1,5 +1,8 @@
 # agentreins-moblie
 
+> **X 小助手独立分支（公开测试版 0.1.0）**：应用包名为 `com.agentreins.x`，与 AgentReins Mobile 独立安装、独立保存数据。本分支面向 X 的搜索、内容整理和互动；运行时不提供命令或代码执行工具。以下原项目文档仅供参考，历史任务导入和话题监控仍在开发中。
+
+
 简体中文 | [English](README.en.md)
 
 安卓手机 AI 自动化助手：操作 App、浏览网页、处理文件，并支持持续听直播、识别主播讲话后按要求回复。
@@ -37,7 +40,7 @@ agentreins-moblie-v0.1.14-build15-debug.apk
 <!-- 这一段由 ./gradlew updateReadme 生成，不要手改 -->
 | 类别 | 内置 |
 |---|---|
-| **App** | Android 设置、百家号、哔哩哔哩、BOSS直聘、Chrome、得到、抖音、飞书、Gmail、即刻、快手、领英、QQ邮箱、Telegram、今日头条、Uber、Uber Eats、微信、微博、WhatsApp、闲鱼、小红书、知乎 |
+| **App** | Android 设置、百家号、哔哩哔哩、BOSS直聘、Chrome、得到、抖音、飞书、Gmail、即刻、快手、领英、QQ邮箱、Telegram、今日头条、Uber、Uber Eats、微信、微博、WhatsApp、X、闲鱼、小红书、知乎 |
 | **网站** | Amazon、哔哩哔哩、Google Calendar、豆瓣、抖音、Instagram、Gmail、Google Maps、Telegram、百度贴吧、微博、搜狗微信、WhatsApp、小红书、小宇宙、YouTube、知乎、BOSS直聘 |
 | **通用做法**（技能） | 把内容整理成文字、处理 PDF 文档、查清一件事、直播连麦出声、消息与邮件 |
 <!-- generated:knowledge:end -->

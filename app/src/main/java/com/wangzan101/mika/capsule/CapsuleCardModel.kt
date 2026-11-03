@@ -189,7 +189,7 @@ object CapsuleCards {
         CapsuleKind.Done -> tr(R.string.capsule_done)
         CapsuleKind.Failed -> tr(R.string.capsule_failed)
         CapsuleKind.Cancelled -> tr(R.string.capsule_stopped)
-        CapsuleKind.Idle -> "agentreins-moblie"
+        CapsuleKind.Idle -> "X 小助手"
     }
 
     /** 这种内容旁边放不放虚拟屏小画面(还要那件事真有画面):干活中、要你接管、等条件时放。 */

@@ -71,11 +71,11 @@
 
     <!-- 用 ChatGPT 登录 -->
     <string name="chatgpt_use_plan_title">用你的 ChatGPT 套餐</string>
-    <string name="chatgpt_use_plan_body">用你 ChatGPT 套餐里包含的用量（或额度余额）完成 agentreins-moblie 里符合条件的 AI 请求。ChatGPT Plus 和 Pro 可用。agentreins-moblie 本身免费，不另外收费。</string>
+    <string name="chatgpt_use_plan_body">用你 ChatGPT 套餐里包含的用量（或额度余额）完成 X 小助手 里符合条件的 AI 请求。ChatGPT Plus 和 Pro 可用。X 小助手 本身免费，不另外收费。</string>
     <string name="chatgpt_continue">使用 ChatGPT 继续</string>
-    <string name="chatgpt_waiting">请在浏览器里完成登录，再回到 agentreins-moblie。</string>
+    <string name="chatgpt_waiting">请在浏览器里完成登录，再回到 X 小助手。</string>
     <string name="chatgpt_welcome_title">正在使用你的 ChatGPT 套餐</string>
-    <string name="chatgpt_welcome_body">agentreins-moblie 里符合条件的用量会使用你的 ChatGPT 套餐。可以在 ChatGPT 设置里管理用量。</string>
+    <string name="chatgpt_welcome_body">X 小助手 里符合条件的用量会使用你的 ChatGPT 套餐。可以在 ChatGPT 设置里管理用量。</string>
     <string name="chatgpt_got_it">知道了</string>
     <string name="chatgpt_account">账号</string>
     <string name="chatgpt_signed_in">已登录</string>
@@ -84,19 +84,19 @@
     <string name="chatgpt_manage_usage">管理用量</string>
     <string name="chatgpt_plan_note">使用 ChatGPT 套餐额度。Plus 每 5 小时的额度和其他用你套餐的 App 共用；Pro 没有 5 小时的限制。</string>
     <string name="chatgpt_signed_out_note">这台手机上已退出登录。点「使用 ChatGPT 继续」就能接着用套餐；选好的模型都还在。</string>
-    <string name="chatgpt_revoke_unconfirmed">这台手机上已退出登录，但 ChatGPT 那边没有确认。也可以在 ChatGPT 设置里断开 agentreins-moblie。</string>
+    <string name="chatgpt_revoke_unconfirmed">这台手机上已退出登录，但 ChatGPT 那边没有确认。也可以在 ChatGPT 设置里断开 X 小助手。</string>
     <string name="chatgpt_fail_denied">已取消登录。如果授权页提示「所需权限不可用」：用套餐额度需要 ChatGPT Plus 或 Pro，免费账号可以改用其他服务商的 API Key。</string>
     <string name="chatgpt_fail_mismatch">登录回来的信息和这次对不上，请再试一次。</string>
-    <string name="chatgpt_fail_no_client">ChatGPT 没有完成对 agentreins-moblie 的注册，请再试一次。</string>
+    <string name="chatgpt_fail_no_client">ChatGPT 没有完成对 X 小助手 的注册，请再试一次。</string>
     <string name="chatgpt_fail_timed_out">登录超时了，请再试一次。</string>
-    <string name="chatgpt_fail_exchange">ChatGPT 没有接受这次登录。如果这个账号不是 Plus 或 Pro，就不能把套餐额度用在 agentreins-moblie 里；否则请再试一次。</string>
+    <string name="chatgpt_fail_exchange">ChatGPT 没有接受这次登录。如果这个账号不是 Plus 或 Pro，就不能把套餐额度用在 X 小助手 里；否则请再试一次。</string>
     <string name="chatgpt_fail_id_token">核对不了你的 ChatGPT 账号，请再试一次。</string>
-    <string name="chatgpt_fail_no_plan">没有允许 agentreins-moblie 使用你的 ChatGPT 套餐。请重新登录并允许使用套餐额度（需要 Plus 或 Pro）。</string>
+    <string name="chatgpt_fail_no_plan">没有允许 X 小助手 使用你的 ChatGPT 套餐。请重新登录并允许使用套餐额度（需要 Plus 或 Pro）。</string>
     <string name="chatgpt_fail_network">连不上 ChatGPT，请检查网络后再试。</string>
-    <string name="chatgpt_page_title">agentreins-moblie</string>
-    <string name="chatgpt_page_done">已用 ChatGPT 登录，可以回到 agentreins-moblie 了。</string>
-    <string name="chatgpt_page_cancelled">已取消登录，可以回到 agentreins-moblie 了。</string>
-    <string name="chatgpt_page_back">回到 agentreins-moblie</string>
+    <string name="chatgpt_page_title">X 小助手</string>
+    <string name="chatgpt_page_done">已用 ChatGPT 登录，可以回到 X 小助手 了。</string>
+    <string name="chatgpt_page_cancelled">已取消登录，可以回到 X 小助手 了。</string>
+    <string name="chatgpt_page_back">回到 X 小助手</string>
     <string name="chatgpt_no_browser">没有找到可以登录 ChatGPT 的浏览器。</string>
     <string name="models_unverified">没测试通过，任务可能会失败</string>
     <string name="models_unverified_note">这家不提供模型列表，在用的 %1$s 还没测试通过，任务可能会失败。点「重新测试」用它试调用一次。</string>

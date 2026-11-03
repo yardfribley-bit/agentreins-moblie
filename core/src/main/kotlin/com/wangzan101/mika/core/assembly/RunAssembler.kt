@@ -21,7 +21,7 @@ internal interface CapabilityProvider {
 internal class RunAssembler(private val providers: List<CapabilityProvider>) {
     fun assemble(spec: RunSpec, config: ToolConfig, stableRefs: Boolean,
         formerPrefix: Map<String, String>, renamed: Map<String, String>,
-        retired: Map<String, String>, moved: Map<String, List<String>>): ToolDispatcher {
+        retired: Map<String, String>, moved: Map<String, List<String>>, disableCode: Boolean = false): ToolDispatcher {
         check(providers.map { it.id }.distinct().size == providers.size) { "duplicate capability provider ids" }
         val child = spec.provenance.origin == RunOrigin.Child
         val readOnly = spec.readOnly || child
@@ -35,8 +35,14 @@ internal class RunAssembler(private val providers: List<CapabilityProvider>) {
             .filter { !readOnly || it.risk == Risk.Read }
         val capabilityTools = capabilities.flatMap { it.tools() }.filter { !readOnly || it.risk == Risk.Read ||
             it.capability == "web" && it.verb == Verb.Navigate }
+            .filterNot { disableCode && it.name in X_ASSISTANT_CODE_TOOLS }
         return ToolDispatcher(capabilities, general + capabilityTools,
             listOf(CoreSections) + capabilities, config, { ctx -> Interfaces.attach(ctx, capabilities.mapNotNull { it.surface }, stableRefs) },
             formerPrefix, renamed, retired, moved)
     }
 }
+
+/** X 小助手通过手机上的其他 App 完成编程，不向模型提供任意代码执行入口。 */
+private val X_ASSISTANT_CODE_TOOLS = setOf(
+    "run_command", "run_bundled_script", "phone_system_command", "web_evaluate_js", "web_script",
+)

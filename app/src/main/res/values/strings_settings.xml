@@ -13,7 +13,7 @@
     <string name="settings_during_work_sub">Screen stays on, the app being used is muted</string>
     <string name="settings_notif_sub">When they pop up, change in system settings</string>
     <string name="settings_privacy">Privacy &amp; data</string>
-    <string name="settings_memory_sub">What agentreins-moblie remembers and the skills it learned</string>
+    <string name="settings_memory_sub">What X Assistant remembers and the skills it learned</string>
     <string name="settings_web_logins">Website sign-ins</string>
     <plurals name="settings_count_sites">
         <item quantity="one">%1$d site</item>
@@ -28,7 +28,7 @@
     </plurals>
     <string name="settings_recovery">Recovery &amp; repair</string>
     <string name="settings_developer">Developer options</string>
-    <string name="settings_about">About agentreins-moblie</string>
+    <string name="settings_about">About X Assistant</string>
     <string name="pill_unsupported">Not supported</string>
     <string name="pill_available">Ready</string>
     <string name="pill_needs_attention">Needs attention</string>
@@ -38,7 +38,7 @@
     <string name="settings_all_ready_detail">Model set up · Phone control ready</string>
     <string name="settings_status">Status</string>
     <string name="settings_a11y">Accessibility service</string>
-    <string name="settings_a11y_sub">Reads and controls agentreins-moblie’s virtual screen</string>
+    <string name="settings_a11y_sub">Reads and controls X Assistant’s virtual screen</string>
     <string name="settings_notif_progress_sub">Progress and “Needs you” alerts</string>
     <string name="settings_system_version">System version</string>
     <string name="settings_android_focus">Android %1$s · On Android 13 background work may steal focus from your screen; Android 14+ recommended</string>
@@ -50,7 +50,7 @@
     <string name="settings_keep_on">Keep screen on</string>
     <string name="settings_keep_on_sub">The screen stays on while a task runs, then goes back to normal</string>
     <string name="settings_mute">Mute the app being used</string>
-    <string name="settings_mute_sub">Apps agentreins-moblie is using stay silent; sound returns when you take over</string>
+    <string name="settings_mute_sub">Apps X Assistant is using stay silent; sound returns when you take over</string>
     <string name="settings_parallel">Tasks at once</string>
     <string name="settings_parallel_sub">Tasks from different chats each get their own virtual screen</string>
     <plurals name="settings_count_tasks">
@@ -59,13 +59,13 @@
     </plurals>
     <string name="capsule_settings_title">Floating capsule</string>
     <string name="capsule_settings_sub">See task progress on screen while using other apps</string>
-    <string name="capsule_settings_foot">The capsule is drawn using agentreins-moblie’s accessibility service that’s already on, so no extra permission is needed. If that service is off or can’t draw, you’ll still get notifications.</string>
+    <string name="capsule_settings_foot">The capsule is drawn using X Assistant’s accessibility service that’s already on, so no extra permission is needed. If that service is off or can’t draw, you’ll still get notifications.</string>
     <string name="capsule_mode_off">Off</string>
     <string name="capsule_mode_tasks">During tasks</string>
     <string name="capsule_mode_always">Always</string>
     <string name="capsule_mode_off_detail">Notifications only</string>
     <string name="capsule_mode_tasks_detail">Appears while a task runs or waits for you, and goes away a few seconds after</string>
-    <string name="capsule_mode_always_detail">Keeps a agentreins-moblie icon on screen even with no tasks</string>
+    <string name="capsule_mode_always_detail">Keeps a X Assistant icon on screen even with no tasks</string>
     <string name="routes_saved">Saved routes</string>
     <string name="loading">Loading</string>
     <plurals name="routes_count">
@@ -74,7 +74,7 @@
     </plurals>
     <string name="routes_clear_all">Clear all</string>
     <string name="routes_clear_title">Clear all saved routes?</string>
-    <string name="routes_clear_body">After clearing, agentreins-moblie works things out step by step again next time. Other settings aren’t affected.</string>
+    <string name="routes_clear_body">After clearing, X Assistant works things out step by step again next time. Other settings aren’t affected.</string>
     <string name="clear">Clear</string>
     <string name="settings_live_audio">Live listening</string>
     <string name="settings_live_audio_sub">Continuous speech transcription and requested replies</string>
@@ -100,7 +100,7 @@
     <string name="hub_alias">Alias</string>
     <string name="hub_alias_hint">Used only when the token is empty</string>
     <string name="hub_agent_type">Type</string>
-    <string name="hub_agent_type_hint">agentreins-moblie</string>
+    <string name="hub_agent_type_hint">X Assistant</string>
     <string name="hub_connect_hint">If the token is empty, alias and type are sent once through the Hub MCP tool diaodu_connect. The phone keeps the token and agent id. Do not put the token or API keys into a task.</string>
     <string name="hub_shots">Upload screenshots</string>
     <string name="hub_shots_sub">Off by default. When on, frames under 1.5 MB are attached</string>

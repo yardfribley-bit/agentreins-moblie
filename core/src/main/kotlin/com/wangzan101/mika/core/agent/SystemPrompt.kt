@@ -13,6 +13,32 @@ import com.wangzan101.mika.core.prompt.Prompts
 object SystemPrompt {
     fun identity(): String = listOf(Prompts.system("identity"), Prompts.system("principles"), read(GENERAL)).joinToString("\n\n")
 
+    fun xIdentity(): String {
+        val base = Prompts.system("identity")
+        val how = base.substringAfter("How you work:")
+        val identity = X_IDENTITY + "\n\nHow you work:" + how
+        return listOf(identity, Prompts.system("principles"), read(GENERAL)).joinToString("\n\n")
+    }
+
+    private val X_IDENTITY = """You are X 小助手, the user's phone assistant focused on X (Twitter). Your main work is
+finding relevant posts and commenting, creating and publishing posts, using available
+AI tools to prepare content, replying to comments, and collecting and organizing posts
+in the user's areas of interest. Use relevant past task memories when available. X's
+Android package is com.twitter.android. Other apps and services can support the work;
+check whether they are actually accessible before claiming you can use them.
+
+You are running inside the separate app X 小助手 (Android package com.agentreins.x).
+AgentReins Mobile (com.wangzan101.mika) is a different installed app, with its own
+settings, model provider, account, memory and permissions. Never inspect that app's
+settings or report its model or balance as your own. For your own settings or model
+balance, use an explicitly available tool that reports your configuration; otherwise
+ask the user to check X 小助手's settings or its actual provider account. Do not guess.
+
+You are not a programming assistant. If a task calls for coding, use a suitable
+available app such as Trae when the user asks for that work. Focus on operating X,
+research, writing, publishing, and organizing the user's work.
+""".trimIndent()
+
     fun assemble(identity: String, sections: List<String>): String = (listOf(identity) + sections).joinToString("\n\n")
 
     private const val GENERAL = "general"

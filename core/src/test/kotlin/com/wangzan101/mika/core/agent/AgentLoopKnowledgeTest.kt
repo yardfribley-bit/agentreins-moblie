@@ -40,6 +40,34 @@ class AgentLoopKnowledgeTest {
 
     private val finish = com.wangzan101.mika.core.testing.answerReply("ok")
 
+    @Test fun xKnowledgeIsPresentWithoutNamingApp() {
+        val store = KnowledgeStore(listOf(e("x", "com.twitter.android")))
+        val model = FakeModel(finish)
+        kotlinx.coroutines.runBlocking { AgentLoop(model, toolDispatcher(FakeScreen()), "B", knowledge = store, selfPackage = "com.agentreins.x").run("帮我搜索安全帖子") }
+        assertTrue(model.requests.last().refs().single().contains("正文x"))
+    }
+
+    @Test fun installedAppsAreGivenToModelAsCandidates() {
+        val model = FakeModel(finish)
+        kotlinx.coroutines.runBlocking {
+            AgentLoop(model, toolDispatcher(FakeScreen()), "B", knowledge = KnowledgeStore(emptyList()),
+                selfPackage = "com.agentreins.x", installedApps = { listOf("example.gemini" to "Gemini", "example.trae" to "Trae") }).run("写帖子")
+        }
+        val text = model.requests.last().joinToString("\n") { it.plainText() }
+        assertTrue(text.contains("Gemini (example.gemini)"))
+        assertTrue(text.contains("Trae (example.trae)"))
+        assertTrue(text.contains("does not establish login"))
+    }
+
+    @Test fun identifiesOriginalAppAsSeparate() {
+        val model = FakeModel(finish)
+        kotlinx.coroutines.runBlocking {
+            AgentLoop(model, toolDispatcher(FakeScreen()), "B", knowledge = KnowledgeStore(emptyList()),
+                selfPackage = "com.agentreins.x", installedApps = { listOf("com.wangzan101.mika" to "AgentReins") }).run("查余额")
+        }
+        assertTrue(model.requests.last().joinToString("\n") { it.plainText() }.contains("separate app, not your own settings"))
+    }
+
     @Test fun injectsOnTaskMatch() {
         val msgs = run("用 alpha 做点事", KnowledgeStore(listOf(e("alpha", "p.a"))), FakeScreen(), finish)
         assertEquals(listOf("alpha · p.a\n$UNAVAILABLE_TOOLS_NOTE\n正文alpha"), msgs.refs())

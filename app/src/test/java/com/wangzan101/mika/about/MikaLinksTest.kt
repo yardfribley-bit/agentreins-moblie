@@ -19,13 +19,13 @@ class MikaLinksTest {
         val lines = MikaLinks.issueBody(device).lines()
         assertEquals("- 机型：Google Pixel 8", lines[0])
         assertEquals("- 安卓版本：14（SDK 34）", lines[1])
-        assertEquals("- agentreins-moblie 版本：0.1.0（构建 65fcf92）", lines[2])
+        assertEquals("- X 小助手 版本：0.1.0（构建 65fcf92）", lines[2])
         assertTrue(lines.contains("### 遇到了什么问题"))
         assertTrue(lines.contains("### 做了哪几步"))
         assertTrue(lines.contains("### 期望是什么样"))
         // 诊断信息不自动带上:只提示用户去哪里复制
         assertTrue(lines.contains("### 诊断信息"))
-        assertTrue(lines.contains("（可选）在 agentreins-moblie「关于 › 反馈问题 › 复制诊断信息」复制后粘贴在这里"))
+        assertTrue(lines.contains("（可选）在 X 小助手「关于 › 反馈问题 › 复制诊断信息」复制后粘贴在这里"))
     }
 
     /** 型号里已经带厂商名时不重复写。 */
@@ -67,15 +67,15 @@ class MikaLinksTest {
         val t = MikaLinks.GROUP_TASK
         assertTrue(t.contains("微信号 ${MikaLinks.AUTHOR_WECHAT_ID}"))
         assertEquals("sjtdyt", MikaLinks.AUTHOR_WECHAT_ID)
-        assertTrue(t.contains("「你好，我是 agentreins-moblie 的用户，想加入 agentreins-moblie 内测体验群，麻烦拉我一下，谢谢！」"))
+        assertTrue(t.contains("「你好，我是 X 小助手 的用户，想加入 X 小助手 内测体验群，麻烦拉我一下，谢谢！」"))
         assertTrue(t.contains("不要添加好友，也不要发给别人"))
-        assertTrue(t.contains("先在「关于 agentreins-moblie」里搜索微信号 sjtdyt 加作者"))
+        assertTrue(t.contains("先在「关于 X 小助手」里搜索微信号 sjtdyt 加作者"))
         assertFalse(t.contains("王赞"))
         assertFalse(t.contains("扫码"))
         assertEquals(2, t.lines().size)
         assertEquals(
-            "打开微信，在顶部搜索里输入微信号 sjtdyt，找到这个联系人（作者），给作者发这条消息：「你好，我是 agentreins-moblie 的用户，想加入 agentreins-moblie 内测体验群，麻烦拉我一下，谢谢！」\n" +
-                "如果搜不到这个联系人，说明我还没加作者的微信：不要添加好友，也不要发给别人，直接告诉我先在「关于 agentreins-moblie」里搜索微信号 sjtdyt 加作者。",
+            "打开微信，在顶部搜索里输入微信号 sjtdyt，找到这个联系人（作者），给作者发这条消息：「你好，我是 X 小助手 的用户，想加入 X 小助手 内测体验群，麻烦拉我一下，谢谢！」\n" +
+                "如果搜不到这个联系人，说明我还没加作者的微信：不要添加好友，也不要发给别人，直接告诉我先在「关于 X 小助手」里搜索微信号 sjtdyt 加作者。",
             t,
         )
     }
@@ -87,9 +87,9 @@ class MikaLinksTest {
         val t = MikaLinks.GROUP_TASK
         assertTrue(t.contains("WeChat ID sjtdyt"))
         assertTrue(t.contains("“${MikaLinks.GROUP_REQUEST}”"))
-        assertTrue(MikaLinks.GROUP_REQUEST.startsWith("Hi, I’m a agentreins-moblie user"))
+        assertTrue(MikaLinks.GROUP_REQUEST.startsWith("Hi, I’m a X Assistant user"))
         assertTrue(t.contains("don’t add them as a friend and don’t send it to anyone else"))
-        assertTrue(t.contains("search WeChat ID sjtdyt in “About agentreins-moblie”"))
+        assertTrue(t.contains("search WeChat ID sjtdyt in “About X Assistant”"))
         assertFalse(t.contains("Wang Zan"))
         assertFalse(t.contains("QR"))
         assertEquals(2, t.lines().size)

@@ -47,7 +47,7 @@ class SafVaultFiles(private val context: Context, private val tree: () -> Uri?) 
 
     private fun safeFile(path: String): Boolean {
         val parts = path.split("/")
-        return path.endsWith(".md") && parts.none { it.isBlank() || it == "." || it == ".." }
+        return (path.endsWith(".md") || path.endsWith(".md.txt")) && parts.none { it.isBlank() || it == "." || it == ".." }
     }
 
     private fun walk(tree: Uri, dir: Uri, relative: String, out: MutableList<Pair<String, String>>, limit: Int, depth: Int) {
@@ -58,7 +58,7 @@ class SafVaultFiles(private val context: Context, private val tree: () -> Uri?) 
             if (child.dir) {
                 if (child.name == "runs" && relative.endsWith("/raw")) continue
                 walk(tree, child.uri, path, out, limit, depth + 1)
-            } else if (child.name.endsWith(".md")) {
+            } else if (child.name.endsWith(".md") || child.name.endsWith(".md.txt") || child.name.matches(Regex(".*\\.md \\(\\d+\\)\\.txt"))) {
                 readDoc(child.uri)?.let { out += path to it }
             }
         }
@@ -99,9 +99,8 @@ class SafVaultFiles(private val context: Context, private val tree: () -> Uri?) 
                 existing != null -> existing.uri
                 !create -> return null
                 last -> {
-                    val mime = if (name.endsWith(".md")) "text/plain" else "text/markdown"
-                    DocumentsContract.createDocument(resolver, parent, mime, name)
-                        ?: DocumentsContract.createDocument(resolver, parent, "text/markdown", name)
+                    DocumentsContract.createDocument(resolver, parent, "text/markdown", name)
+                        ?: DocumentsContract.createDocument(resolver, parent, "text/plain", name)
                         ?: return null
                 }
                 else -> DocumentsContract.createDocument(resolver, parent, DocumentsContract.Document.MIME_TYPE_DIR, name) ?: return null

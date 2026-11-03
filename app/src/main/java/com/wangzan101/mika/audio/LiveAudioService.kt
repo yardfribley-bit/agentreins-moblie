@@ -199,7 +199,7 @@ class LiveAudioService : Service() {
         val stop = PendingIntent.getService(this, 0, Intent(this, javaClass).setAction("stop"), PendingIntent.FLAG_IMMUTABLE)
         val open = PendingIntent.getActivity(this, 1, Intent(this, LiveAudioActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(this, "live-audio").setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("agentreins-moblie 正在监听直播").setContentText(text)
+            .setContentTitle("X 小助手 正在监听直播").setContentText(text)
             .setContentIntent(open).setOngoing(true).addAction(Notification.Action.Builder(null, "停止监听", stop).build()).build()
     }
     private fun pcmFormat() = AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT)

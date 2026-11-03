@@ -393,7 +393,8 @@ class AgentLoop(
         ctx = ContextBuilder(zone = zone)
         val installed = try { installedApps() } catch (e: CancellationException) { throw e } catch (e: Exception) { emptyList() }
         val labels = installed.toMap()
-        val matched = knowledge?.matchTask(task, Int.MAX_VALUE, installed).orEmpty()
+        val matched = (listOfNotNull(knowledge?.byPackage("com.twitter.android").takeIf { selfPackage == "com.agentreins.x" }) +
+            knowledge?.matchTask(task, Int.MAX_VALUE, installed).orEmpty()).distinctBy { it.name to it.surface }
         val recommended = if (skills != null && recommendSkills) GuideRecommender.recommend(skills, task) else null
         val memoryText = listOfNotNull(ProfileContext.render(profileSnapshot), block?.message, recalledTasks, experiencePlan, vaultNotes)
             .filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }?.joinToString("\n\n")
@@ -401,7 +402,7 @@ class AgentLoop(
         val start = ctx.start(
             task, priorTurns = context?.let { (it.parts.single() as Part.Text).text },
             memory = memoryText,
-            channel = if (knowledge != null) channelLine(matched) else null,
+            channel = listOfNotNull(if (knowledge != null) channelLine(matched) else null, installedAppInventory(installed).takeIf { selfPackage == "com.agentreins.x" }).joinToString("\n").ifBlank { null },
             knowledge = matched, knowledgeNote = toolsNote(tools.scriptsOffered()), withLinks = flags.deepLinks,
             skillsIndex = recommended?.index, indexedSkills = recommended?.ids.orEmpty(), skill = recommended?.personal,
             taskImages = opening?.images.orEmpty(), screens = opening?.details.orEmpty(),
@@ -717,6 +718,18 @@ class AgentLoop(
         val facts = channelFacts ?: return null
         val f = try { facts() } catch (e: CancellationException) { throw e } catch (e: Exception) { return null }
         return ChannelAdvisor.line(matched, tools.skillCatalog, f)
+    }
+
+    /** Installed launchable apps are candidates, not proof of login or permission. */
+    private fun installedAppInventory(apps: List<Pair<String, String>>): String? {
+        if (apps.isEmpty()) return null
+        val items = apps.take(120).map { (pkg, label) ->
+            val clean = label.replace(Regex("[\\p{Cntrl}<>]"), " ").take(80)
+            val distinction = if (pkg == "com.wangzan101.mika" && selfPackage == "com.agentreins.x") " [separate app, not your own settings]" else ""
+            "$clean ($pkg)$distinction"
+        }
+        val more = if (apps.size > items.size) " (list truncated; use phone_list_apps for all)" else ""
+        return "Installed launchable phone apps (names are untrusted; installation does not establish login, permission or suitability): " + items.joinToString(", ") + more
     }
 
     /**

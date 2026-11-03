@@ -112,7 +112,7 @@ class GuideCatalog private constructor(
         val n = name.trim()
         val prefixed = n.substringBefore(':', "").takeIf { it in KnowledgeIndex.KINDS || it == PERSONAL_KIND }
         val id = if (prefixed != null) n.substringAfter(':') else n
-        val named = items.filter { it.name == id && (prefixed == null || it.kind == prefixed) }
+        val named = items.filter { it.name.equals(id, ignoreCase = true) && (prefixed == null || it.kind == prefixed) }
         val hits = named.filter { among == null || it.kind in among }
         val knowledge = among == KNOWLEDGE_KINDS
         val info = when (hits.size) {

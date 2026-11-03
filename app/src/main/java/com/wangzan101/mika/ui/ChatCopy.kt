@@ -22,16 +22,16 @@ object ChatCopy {
     data class Example(val kind: ExampleKind, val text: String)
 
     val examples get() = listOf(
-        Example(ExampleKind.App, tr(R.string.chat_example_message)),
+        Example(ExampleKind.Web, tr(R.string.chat_example_message)),
         Example(ExampleKind.App, tr(R.string.chat_example_group_summary)),
-        Example(ExampleKind.Web, tr(R.string.chat_example_jobs)),
+        Example(ExampleKind.File, tr(R.string.chat_example_jobs)),
         Example(ExampleKind.App, tr(R.string.chat_example_music)),
-        Example(ExampleKind.Device, tr(R.string.chat_example_alarms)),
-        Example(ExampleKind.App, tr(R.string.chat_example_creator)),
+        Example(ExampleKind.Schedule, tr(R.string.chat_example_alarms)),
+        Example(ExampleKind.File, tr(R.string.chat_example_creator)),
     )
 
     /** 对话页顶栏的标题:固定是 App 名;副标题说此刻在做什么。 */
-    const val APP_TITLE = "agentreins-moblie"
+    const val APP_TITLE = "X 小助手"
 
     /** 对话的名字:第一句话(只取第一行,附件那几行不算;只发了屏幕时是「你此刻的屏幕」);空对话为空。侧栏里用它称呼对话。 */
     fun title(exchanges: List<Exchange>): String =
