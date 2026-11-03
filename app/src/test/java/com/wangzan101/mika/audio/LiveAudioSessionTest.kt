@@ -1,5 +1,7 @@
 package com.wangzan101.mika.audio
 
+import com.wangzan101.mika.core.cap.phone.speech.SpeechControl
+import com.wangzan101.mika.core.cap.phone.speech.SpeechFloor
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
 import org.junit.Assert.*
@@ -212,6 +214,43 @@ class LiveAudioSessionTest {
             assertEquals("语音识别失败", result["message"]!!.jsonPrimitive.content)
             assertFalse(result["ok"]!!.jsonPrimitive.boolean)
         } finally {
+            LiveAudioSession.end()
+        }
+    }
+    @Test fun ownSpeechIsDroppedAndAStopCommandInterrupts() {
+        SpeechFloor.clearUtterance()
+        SpeechControl.onOwnerStop = null
+        var stopped = false
+        SpeechControl.onOwnerStop = { stopped = true }
+        LiveAudioSession.begin(true)
+        try {
+            val generation = LiveAudioSession.generation
+            SpeechFloor.beginUtterance("今天天气不错", System.currentTimeMillis() - 1_000)
+            LiveAudioSession.add(System.currentTimeMillis() - 500, "今天天气不错")
+            assertEquals(0, LiveAudioSession.snapshot("task", 0, generation)["segments"]!!.jsonArray.size)
+            LiveAudioSession.add(System.currentTimeMillis(), "停止")
+            assertTrue(stopped)
+            SpeechFloor.endUtterance(System.currentTimeMillis() - 10_000)
+            LiveAudioSession.add(System.currentTimeMillis(), "有人回复了")
+            assertEquals(1, LiveAudioSession.snapshot("task", 0, generation)["segments"]!!.jsonArray.size)
+        } finally {
+            SpeechFloor.clearUtterance()
+            SpeechControl.onOwnerStop = null
+            LiveAudioSession.end()
+        }
+    }
+    @Test fun heldSeatReportsSilenceInsteadOfInventingSpeech() {
+        LiveAudioSession.begin(true)
+        SpeechFloor.seatHeld = true
+        SpeechFloor.silentStreak = 3
+        SpeechFloor.clientSilenced = false
+        try {
+            val snap = LiveAudioSession.snapshot("task", 0, LiveAudioSession.generation)
+            assertEquals("silent", snap["hearing"]!!.jsonPrimitive.content)
+            assertTrue(snap["hearingFallback"]!!.jsonPrimitive.content.contains("phone_observe"))
+        } finally {
+            SpeechFloor.seatHeld = false
+            SpeechFloor.silentStreak = 0
             LiveAudioSession.end()
         }
     }

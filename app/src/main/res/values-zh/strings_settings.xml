@@ -72,6 +72,8 @@
     <string name="clear">清除</string>
     <string name="settings_live_audio">直播监听</string>
     <string name="settings_live_audio_sub">听主播讲话，持续识别并按要求回复</string>
+    <string name="settings_live_speech">直播出声</string>
+    <string name="settings_live_speech_sub">把回复说进直播间。默认关闭，打开后才会出声</string>
     <string name="settings_hub_relay">Hub Relay</string>
     <string name="settings_hub_relay_sub">把每一步任务进度写进固定的一个会话</string>
     <string name="hub_title">Hub Relay</string>

@@ -1,0 +1,1 @@
+Ask the owner, on this phone, before taking a live-room mic seat. Then find 连麦 or 上麦 on the current screen by its label. No fixed coordinates. seated=true only after the screen shows the seat is held. Read skill live-mic if the controls are unclear.

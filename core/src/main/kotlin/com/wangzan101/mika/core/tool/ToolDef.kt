@@ -41,6 +41,11 @@ internal fun int(d: String, min: Int? = null, max: Int? = null) = buildJsonObjec
 
 internal fun bool(d: String) = buildJsonObject { put("type", "boolean"); put("description", d) }
 
+internal fun num(d: String, min: Double? = null, max: Double? = null) = buildJsonObject {
+    put("type", "number"); put("description", d)
+    min?.let { put("minimum", it) }; max?.let { put("maximum", it) }
+}
+
 internal fun strArray(d: String, max: Int) = buildJsonObject {
     put("type", "array"); put("description", d); put("maxItems", max)
     put("items", buildJsonObject { put("type", "string") })

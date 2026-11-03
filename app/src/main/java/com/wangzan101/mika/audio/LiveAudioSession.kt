@@ -4,6 +4,11 @@ import android.content.Context
 import android.content.Intent
 import com.wangzan101.mika.core.cap.phone.LiveAudioPort
 import com.wangzan101.mika.core.cap.phone.LiveListenCursor
+import com.wangzan101.mika.core.cap.phone.speech.CapturePath
+import com.wangzan101.mika.core.cap.phone.speech.Heard
+import com.wangzan101.mika.core.cap.phone.speech.OnMicHearing
+import com.wangzan101.mika.core.cap.phone.speech.SpeechControl
+import com.wangzan101.mika.core.cap.phone.speech.SpeechFloor
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.*
 
@@ -74,6 +79,16 @@ object LiveAudioSession {
             }
             return
         }
+        val now = System.currentTimeMillis()
+        val path = if (source == "microphone") CapturePath.Microphone else CapturePath.Playback
+        when (SpeechFloor.classify(text, time, now, path)) {
+            Heard.Silence, Heard.Echo -> return
+            Heard.Interrupt -> {
+                SpeechControl.onOwnerStop?.invoke()
+                return
+            }
+            Heard.Other -> if (SpeechFloor.speaking && path == CapturePath.Playback) SpeechControl.onYield?.invoke()
+        }
         lastError = null
         blankNoted = false
         status = "正在监听"
@@ -93,6 +108,14 @@ object LiveAudioSession {
         put("ok", running && lastError == null)
         put("status", if (!running) "not_listening" else if (lastError != null) "error" else "listening")
         put("message", status); put("source", source); put("dropped", dropped)
+        if (SpeechFloor.seatHeld) {
+            val advice = OnMicHearing.advise(
+                true, source == "microphone", SpeechFloor.silentStreak, lastPeak, SpeechFloor.clientSilenced,
+            )
+            put("hearing", advice.hearing)
+            put("hearingSummary", advice.summary)
+            advice.fallback?.let { put("hearingFallback", it) }
+        }
         if (!running) put("reason", reason)
         val first = segments.firstOrNull()?.id ?: (cursor.nextSegment + 1)
         put("gap", after < gapAt || after < first - 1)
