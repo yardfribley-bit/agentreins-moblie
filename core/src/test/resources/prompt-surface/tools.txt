@@ -103,12 +103,12 @@ Open an installed app on the phone's virtual display by exact package name (cold
 {"type":"object","properties":{"package":{"type":"string","description":"Exact package name, e.g. com.example.app."},"cold":{"type":"boolean","description":"Restart the app first (default false)."},"reason":{"type":"string","description":"Optional short note on why you are calling this; not used for execution."}},"required":["package"],"additionalProperties":false}
 
 ## phone_list_apps
-List apps installed for the current user as package + label. Use an exact returned package with phone_launch_app. alsoIn names the other profiles (such as an app clone or a work profile) that have the same app installed.
-{"type":"object","properties":{"reason":{"type":"string","description":"Optional short note on why you are calling this; not used for execution."}},"required":[],"additionalProperties":false}
+List apps installed for the current user as package + label. If looking for a specific app, provide query to return only names or packages containing that text; matching ignores case. An empty result applies only to that query. Omit query when the user asks for all installed apps or targeted searches are insufficient. Use an exact returned package or a package already supplied in task-relevant candidates with phone_launch_app. alsoIn names other profiles (such as an app clone or work profile) that have the same app installed.
+{"type":"object","properties":{"query":{"type":"string","description":"Optional app name or package substring; return only matches."},"reason":{"type":"string","description":"Optional short note on why you are calling this; not used for execution."}},"required":[],"additionalProperties":false}
 
 ## phone_list_apps
 List the apps installed on the phone, as package + label. Use an exact returned package with phone_launch_app.
-{"type":"object","properties":{"reason":{"type":"string","description":"Optional short note on why you are calling this; not used for execution."}},"required":[],"additionalProperties":false}
+{"type":"object","properties":{"query":{"type":"string","description":"Optional app name or package substring; return only matches."},"reason":{"type":"string","description":"Optional short note on why you are calling this; not used for execution."}},"required":[],"additionalProperties":false}
 
 ## phone_list_elements
 List what is on this screen as text, without a screenshot. Each element comes with a ref (@eN); to act on one, pass its ref together with the snapshotId of this list. Positions use the same 0-999 grid as phone_tap. When an action answers ref_expired, the screen has moved on: call phone_observe or phone_list_elements again and use the new refs.

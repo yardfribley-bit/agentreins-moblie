@@ -411,7 +411,7 @@ phone_gesture #7bfb6a51abb7
 phone_set_wheel #43bcb3f70244
 phone_run #cea4dd41713b
 phone_system_command #7206379577b0
-phone_list_apps #e24d184b5e69
+phone_list_apps #79562123c321
 phone_launch_app #b564e82a4b3b
 phone_share_text #a68241065b81
 phone_set_alarm #f84abdeb90e2

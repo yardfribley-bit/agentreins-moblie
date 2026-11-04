@@ -15,6 +15,11 @@ class RelevantAppsTest {
         assertTrue(result.contains("抖省省")); assertTrue(result.contains("美团")); assertTrue(result.contains("淘宝"))
         assertFalse(result.contains("银行")); assertFalse(result.contains("TRAE"))
     }
+    @Test fun icedCoffeeComparisonGetsShoppingCandidatesWithoutPrivateApps() {
+        val result = RelevantApps.render("想喝冰美式 帮我看一下哪边便宜", apps)
+        assertTrue(result.contains("美团")); assertTrue(result.contains("抖省省")); assertTrue(result.contains("淘宝"))
+        assertFalse(result.contains("银行")); assertFalse(result.contains("TRAE"))
+    }
     @Test fun researchAndCodingAreSeparate() {
         val search = RelevantApps.render("查询资料", apps)
         assertTrue(search.contains("Gemini")); assertTrue(search.contains("夸克")); assertFalse(search.contains("银行"))

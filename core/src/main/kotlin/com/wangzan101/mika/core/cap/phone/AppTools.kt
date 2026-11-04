@@ -33,12 +33,18 @@ internal object ListApps : PhoneTool {
     override val label = "查看已装的 App"
     override val risk = Risk.Read
     override val entry = Entry.Alone
-    override val def = ToolDef("phone_list_apps", Prompts.tool("phone_list_apps"))
+    override val def = ToolDef("phone_list_apps", Prompts.tool("phone_list_apps"),
+        mapOf("query" to str("Optional app name or package substring; return only matches.")))
 
     override suspend fun execute(a: Args, ctx: ToolContext): ToolExecution {
-        val apps = ctx.phone.screen.listApps()
+        val query = a.str("query", max = 100)?.trim()
+        val all = ctx.phone.screen.listApps()
+        val apps = if (query == null) all else all.filter { (pkg, label) ->
+            pkg.contains(query, ignoreCase = true) || label.contains(query, ignoreCase = true)
+        }
         val profiles = ctx.phone.screen.otherProfiles()
         return ok {
+            if (query != null) put("query", query)
             put("packages", JsonArray(apps.map { JsonPrimitive(it.first) }))
             put("apps", JsonArray(apps.map { (p, l) -> buildJsonObject {
                 put("package", p); put("label", l)

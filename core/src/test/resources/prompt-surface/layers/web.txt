@@ -394,7 +394,7 @@ Run consecutive actions on one screen in one call when the element list already 
 
 ## phone_list_apps
 List the apps installed on the phone, as package + label. Use an exact returned package with phone_launch_app.
-{"type":"object","properties":{"reason":{"type":"string","description":"Optional short note on why you are calling this; not used for execution."}},"required":[],"additionalProperties":false}
+{"type":"object","properties":{"query":{"type":"string","description":"Optional app name or package substring; return only matches."},"reason":{"type":"string","description":"Optional short note on why you are calling this; not used for execution."}},"required":[],"additionalProperties":false}
 
 ## phone_launch_app
 Open an installed app on the phone's virtual display by exact package name (cold=true restarts it from its initial screen). From your next call on you also get the tools that read and operate the phone screen (phone_observe, phone_tap, phone_type_text, ...).

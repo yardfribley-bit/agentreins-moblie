@@ -342,6 +342,17 @@ class ToolDispatcherTest {
         assertEquals("X", c["apps"]!!.jsonArray[0].jsonObject["label"]!!.jsonPrimitive.content)
     }
 
+    @Test fun listAppsQueryOnlyReturnsMatchingApps() = runTest {
+        val screen = object : ScreenPort by FakeScreen() {
+            override suspend fun listApps() = listOf("com.sankuai.meituan" to "美团", "com.taobao.taobao" to "淘宝", "com.example.bank" to "银行")
+        }
+        val d = toolDispatcher(screen)
+        val match = d.execute(call("phone_list_apps", """{"query":"美团"}""")).content
+        assertEquals(listOf("com.sankuai.meituan"), match["packages"]!!.jsonArray.map { it.jsonPrimitive.content })
+        assertEquals(0, d.execute(call("phone_list_apps", """{"query":"missing"}""")).content["apps"]!!.jsonArray.size)
+        assertEquals(3, d.execute(call("phone_list_apps")).content["apps"]!!.jsonArray.size)
+    }
+
     @Test fun unknownToolNamesTool() = runTest {
         assertEquals("zzz", toolDispatcher(FakeScreen()).execute(call("zzz")).content.s("tool"))
     }
