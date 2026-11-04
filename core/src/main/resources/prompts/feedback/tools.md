@@ -229,7 +229,7 @@ Not done: this task has already opened as many pages on this site as AgentReins 
 Not done: the user sent a new message before this call finished, so it stopped and nothing was done on the screen (it was only waiting, pausing before a page change or before another send or submit on the same site, or asking the vision model). Read the new message first. If this call is still needed, call it again; any pause still owed is kept first.
 
 ## failure.phone_unavailable
-AgentReins cannot operate phone apps right now (AgentReins's phone helper, set up once in AgentReins via Wireless debugging pairing, is not running, or AgentReins's accessibility service is off). Do the task with the browser or sandbox tools if they can do it; otherwise call end_not_done and tell the user what to fix.
+The phone app control channel is unavailable right now. The accessibility service may be disabled, enabled but not connected, or the wireless-debugging helper may be unavailable; the failure alone does not identify which. Explain the observed problem and check the app's phone setup instructions. For tasks relying on an installed app, its account or location, a separate built-in browser session may not have equivalent access. Use another channel only if it can actually answer the request; otherwise ask the user to restore phone access and call end_not_done. Do not guess location, login status or results.
 
 ## covered_by
 The app is open, but {{pkg}} is showing on top of it (a permission dialog, an account chooser or similar). Deal with that window first; the app did launch, so do not launch it again.

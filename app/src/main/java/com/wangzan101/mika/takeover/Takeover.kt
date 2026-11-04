@@ -17,6 +17,8 @@ import kotlinx.coroutines.sync.withLock
 interface TakeoverPort {
     /** Agent 虚拟屏最上面的任务。 */
     suspend fun agentTopTask(): Int
+    /** 主屏最上面的任务；无法确认时为 -1。 */
+    suspend fun mainTopTask(): Int = -1
     /** launch_app 打开的那个任务与包。 */
     suspend fun targetTask(): Int
     fun targetPackage(): String?
@@ -110,7 +112,8 @@ class Takeover(
     val problem: StateFlow<Problem?> = _problem.asStateFlow()
 
     /** App 在用户手上(主屏):这时它不在虚拟屏上是有意的,不算「被用户拿走」。 */
-    val handedOver: Boolean get() = _stage.value == Stage.HandedOver
+    @Volatile private var movingToUser = false
+    val handedOver: Boolean get() = _stage.value == Stage.HandedOver || movingToUser
 
     private val mutex = Mutex()
     /** 当前这次等待,和已经交还的那次;同一个状态在循环往下走之前被再次发布时不能重新进入等待。 */
@@ -123,6 +126,8 @@ class Takeover(
     private var handedWeb = false
     /** 挪到主屏的任务和它的包。 */
     private var handed = -1
+    /** 移动已发出但位置尚未确认时，只能重试这一个任务，不能改用旧目标。 */
+    private var pendingMove = -1
     private var handedPackage: String? = null
     private var handedAt = 0L
     private var timer: Job? = null
@@ -147,6 +152,7 @@ class Takeover(
                 handedWeb = false
                 queue?.leave(this)
                 handed = -1
+                pendingMove = -1
                 handedPackage = null
                 _stage.value = Stage.None
                 _problem.value = null
@@ -158,8 +164,9 @@ class Takeover(
     suspend fun handOver(key: Int? = null): Boolean = mutex.withLock {
         if (_stage.value != Stage.Waiting || !keyMatches(key)) return false
         if (queue != null && !queue.isFirst(this)) return false
-        // 先标记再挪:轮询「被挪走」的监视器可能在挪动刚完成时就看到
-        _stage.value = Stage.HandedOver
+        // 迁移时暂停挪走监视器；只有确认成功后才向用户显示已接手。
+        movingToUser = true
+        try {
         // 网页界面:把同一个标签拿到眼前,不挪任务、不动声音
         when (port.showWeb(current?.reason ?: "other", waitKey)) {
             true -> {
@@ -167,6 +174,7 @@ class Takeover(
                 stopTimer()
                 handedAt = now()
                 _problem.value = null
+                _stage.value = Stage.HandedOver
                 return true
             }
             false -> {
@@ -177,24 +185,40 @@ class Takeover(
             null -> Unit
         }
         // 挪虚拟屏最上面的任务:App 常把登录、付款页开在另一个任务里
-        val id = port.agentTopTask().takeIf { it >= 0 } ?: port.targetTask()
-        if (id >= 0) {
-            if (!port.moveToMain(id)) {
-                _stage.value = Stage.Waiting
-                _problem.value = Problem.MoveToMainFailed
-                return false
-            }
-            handed = id
-            handedPackage = port.packageOf(id) ?: port.targetPackage()
+        // 不退回 launch_app 的旧任务:付款或登录可能是另一个任务,那会把错误的页面交给用户。
+        val id = pendingMove.takeIf { it >= 0 } ?: port.agentTopTask()
+        val alreadyOnMain = id >= 0 && port.displayOf(id) == MAIN_DISPLAY
+        val requested = id >= 0 && (alreadyOnMain || port.moveToMain(id))
+        if (requested) pendingMove = id
+        if (!requested || !arrivedOnMain(id)) {
+            _stage.value = Stage.Waiting
+            _problem.value = Problem.MoveToMainFailed
+            return false
         }
+        handed = id
+        pendingMove = -1
+        handedPackage = port.packageOf(id) ?: port.targetPackage()
         stopTimer()
         handedAt = now()
         _problem.value = null
+        _stage.value = Stage.HandedOver
         handedPackage?.let {
             port.setSound(it, true)
             port.watchInput(it)
         }
         true
+        } finally {
+            movingToUser = false
+        }
+    }
+
+    /** 系统可能异步迁移窗口；仅调用成功不代表窗口已到主屏。 */
+    private suspend fun arrivedOnMain(taskId: Int): Boolean {
+        repeat(MOVE_CHECK_ATTEMPTS) { attempt ->
+            if (port.displayOf(taskId) == MAIN_DISPLAY && port.mainTopTask() == taskId) return true
+            if (attempt + 1 < MOVE_CHECK_ATTEMPTS) delay(MOVE_CHECK_INTERVAL_MS)
+        }
+        return false
     }
 
     /** 「处理好了」:Agent 先读屏核实再继续。 */
@@ -228,6 +252,7 @@ class Takeover(
         }
         if (_stage.value == Stage.HandedOver) port.stopWatching()
         handed = -1
+        pendingMove = -1
         handedPackage = null
         _stage.value = Stage.None
         _problem.value = null
@@ -307,6 +332,8 @@ class Takeover(
 
     companion object {
         private const val MAIN_DISPLAY = 0
+        private const val MOVE_CHECK_ATTEMPTS = 10
+        private const val MOVE_CHECK_INTERVAL_MS = 100L
         /** 等用户点「我来处理」的时限;接手之后不计时。 */
         const val TAKEOVER_WAIT_TIMEOUT_MS = 15 * 60_000L
     }

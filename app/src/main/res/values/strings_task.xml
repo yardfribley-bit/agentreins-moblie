@@ -30,7 +30,7 @@
     <string name="fail_no_web">Web isn’t available on this device, so the condition check can’t run</string>
     <string name="task_waiting_display">Queued: starts after the other task finishes</string>
     <string name="task_no_phone_helper">Phone control isn’t ready. Finish “Set up phone control” in X Assistant (turn on Wireless debugging and pair once). Web and file tasks aren’t affected.</string>
-    <string name="task_no_a11y">X Assistant’s accessibility service is off. Turn on X Assistant under Accessibility in system settings.</string>
+    <string name="task_no_a11y">X Assistant’s accessibility service is not connected. Check Accessibility settings: enable X Assistant if it is off, or turn it off and on again if already enabled.</string>
     <string name="task_error">Task error: %1$s</string>
     <string name="task_condition_interrupted">Condition check interrupted</string>
     <string name="task_check_unfinished">Scheduled check didn’t finish: %1$s</string>

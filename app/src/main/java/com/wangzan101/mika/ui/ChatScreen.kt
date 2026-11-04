@@ -342,6 +342,7 @@ private fun EmptyState(conversation: String?, onPick: (String) -> Unit) {
         Column(Modifier.padding(start = 8.dp, end = 8.dp, top = 52.dp)) {
             Text(ChatCopy.greeting(hour), style = MikaType.LargeTitle, color = c.ink)
             Text(ChatCopy.EMPTY_PROMPT, Modifier.padding(top = 6.dp), style = EmptyLead, color = c.ink2)
+            Text(stringResource(R.string.chat_slogan), Modifier.padding(top = 8.dp), style = MikaType.Caption, color = c.ink3)
         }
         MikaCard(Modifier.padding(top = 28.dp)) {
             ChatCopy.examples.forEachIndexed { i, ex ->
@@ -681,7 +682,8 @@ private fun StatusCard(
             val label = takeoverReasonLabel(status.reason)
             val title = if (label != null) stringResource(R.string.takeover_title_reason, stringResource(label)) else stringResource(R.string.takeover_title)
             val handedOver = stage == Takeover.Stage.HandedOver
-            val text = if (handedOver) stringResource(R.string.takeover_handed_over_hint) else status.message
+            val text = if (handedOver) stringResource(R.string.takeover_handed_over_hint) else listOfNotNull(
+                status.message.takeIf { it.isNotBlank() }, stringResource(R.string.takeover_waiting_hint)).joinToString("\n")
             // 付款的商品、金额、地址单独成行:这张卡片就是付款前的确认
             val body = listOfNotNull(text, StatusCopy.paymentLines(status.item, status.amount, status.address)).joinToString("\n")
             NeedCard(title, body, footer = { TextLink(stringResource(R.string.action_cancel_task), vm::cancel) }) {

@@ -6,6 +6,7 @@
     <string name="chat_greeting_evening">晚上好</string>
     <string name="chat_greeting_night">夜深了</string>
     <string name="chat_empty_prompt">今天想在 X 上做什么？</string>
+    <string name="chat_slogan">连接手机应用，让 AI 助手协作起来</string>
     <string name="chat_example_message">搜索我关注的话题，整理值得看的帖子</string>
     <string name="chat_example_group_summary">寻找相关帖子，结合内容写评论</string>
     <string name="chat_example_jobs">用 Gemini 或 Trae 帮我制作图文帖子草稿</string>

@@ -5,6 +5,9 @@ import com.wangzan101.mika.core.tool.HandBack
 import com.wangzan101.mika.core.tool.HandBackOutcome
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -19,15 +22,20 @@ class TakeoverControllerTest {
         val packages = mutableMapOf(1 to "a.app")
         var target = 1
         var moveToMainOk = true
+        var leaveOnAgentAfterMove = false
+        var moveGate: CompletableDeferred<Unit>? = null
         var moveBackOk = true
+        var obscuringMainTask: Int? = null
         override suspend fun agentTopTask() = displays.filterValues { it == AGENT }.keys.maxOrNull() ?: -1
+        override suspend fun mainTopTask() = obscuringMainTask ?: displays.filterValues { it == 0 }.keys.maxOrNull() ?: -1
         override suspend fun targetTask() = target
         override fun targetPackage() = if (target >= 0) "a.app" else null
         override suspend fun packageOf(taskId: Int) = packages[taskId]
         override suspend fun displayOf(taskId: Int) = displays[taskId] ?: -1
         override suspend fun moveToMain(taskId: Int): Boolean {
             log += "toMain:$taskId"
-            if (moveToMainOk) displays[taskId] = 0
+            moveGate?.await()
+            if (moveToMainOk && !leaveOnAgentAfterMove) displays[taskId] = 0
             return moveToMainOk
         }
         override suspend fun moveBack(taskId: Int): Boolean {
@@ -70,6 +78,20 @@ class TakeoverControllerTest {
         assertEquals(listOf("toMain:1", "unmute:a.app"), port.log)
         assertEquals(Takeover.Stage.HandedOver, takeover.stage.value)
         assertTrue(takeover.handedOver)
+    }
+
+    @Test
+    fun movingTaskIsNotReportedAsHandedOverUntilVerified() = test {
+        val gate = CompletableDeferred<Unit>()
+        port.moveGate = gate
+        takeover.onState(waiting)
+        val job = launch { assertTrue(takeover.handOver()) }
+        runCurrent()
+        assertEquals(Takeover.Stage.Waiting, takeover.stage.value)
+        assertTrue(takeover.handedOver) // suppress the external-move watcher during transfer
+        gate.complete(Unit)
+        job.join()
+        assertEquals(Takeover.Stage.HandedOver, takeover.stage.value)
     }
 
     @Test
@@ -150,13 +172,48 @@ class TakeoverControllerTest {
     }
 
     @Test
-    fun handOverWithNoAppStillHandsOver() = test {
+    fun handOverWithNoCurrentTaskDoesNotPretendToHandOver() = test {
         port.displays.clear()
         port.target = -1
         takeover.onState(waiting)
+        assertFalse(takeover.handOver())
+        assertEquals(Takeover.Stage.Waiting, takeover.stage.value)
+        assertEquals(Takeover.Problem.MoveToMainFailed, takeover.problem.value)
+        assertTrue(port.log.isEmpty())
+    }
+
+    @Test
+    fun missingTopTaskDoesNotHandOverAnOldTarget() = test {
+        port.displays[1] = 0
+        takeover.onState(waiting)
+        assertFalse(takeover.handOver())
+        assertEquals(Takeover.Stage.Waiting, takeover.stage.value)
+        assertTrue(port.log.isEmpty())
+    }
+
+    @Test
+    fun moveSuccessWithoutArrivalDoesNotClaimHandover() = test {
+        port.leaveOnAgentAfterMove = true
+        takeover.onState(waiting)
+        assertFalse(takeover.handOver())
+        assertEquals(Takeover.Stage.Waiting, takeover.stage.value)
+        assertEquals(Takeover.Problem.MoveToMainFailed, takeover.problem.value)
+        assertEquals(listOf("toMain:1"), port.log)
+    }
+
+    @Test
+    fun taskOnMainButBehindAnotherAppIsNotReportedAsVisible() = test {
+        port.displays[2] = AGENT
+        port.packages[2] = "payment.app"
+        port.obscuringMainTask = 8
+        takeover.onState(waiting)
+        assertFalse(takeover.handOver())
+        assertEquals(Takeover.Stage.Waiting, takeover.stage.value)
+        assertEquals(Takeover.Problem.MoveToMainFailed, takeover.problem.value)
+        port.obscuringMainTask = null
         assertTrue(takeover.handOver())
-        assertTrue(takeover.handBack())
-        assertEquals(listOf("resume:complete"), port.log)
+        assertEquals(Takeover.Stage.HandedOver, takeover.stage.value)
+        assertEquals(listOf("toMain:2", "unmute:payment.app"), port.log)
     }
 
     @Test
