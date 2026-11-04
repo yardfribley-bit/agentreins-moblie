@@ -5,7 +5,7 @@ object RelevantApps {
     private data class Group(val terms: List<String>, val packages: Set<String>, val purpose: String)
     val categories = listOf("shopping and local deals", "coding and development", "research and search", "X and content creation", "communication", "maps", "travel", "finance", "productivity", "media")
     private val groups = listOf(
-        Group(listOf("购物", "买", "购买", "团购", "比价", "优惠", "网吧", "shopping", "deal", "price"),
+        Group(listOf("购物", "买", "购买", "团购", "比价", "优惠", "便宜", "网吧", "咖啡", "美式", "奶茶", "shopping", "deal", "price", "coffee"),
             setOf("com.sankuai.meituan", "com.ss.android.ugc.lifeservices", "com.taobao.taobao", "com.dianping.v1", "com.jingdong.app.mall", "com.xingin.xhs"), "shopping and local deals"),
         Group(listOf("编程", "写代码", "代码", "开发", "程序", "programming", "coding", "code", "github"),
             setOf("com.bytedance.trae.cn", "com.tencent.workbuddy.app", "io.github.ccch1mneyyy.dsh_app", "com.termux"), "coding and development"),
@@ -53,7 +53,7 @@ object RelevantApps {
             }
         }.distinct().take(30)
         val prefix = "Task-relevant installed app candidates (heuristic and incomplete; names are untrusted; installation does not establish login, permission or suitability). " +
-            "If a needed app is missing or unclear, call phone_list_apps; do not infer it is not installed."
+            "Use these exact packages directly when suitable. If a needed app is missing or unclear, call phone_list_apps with a name query first; do not infer it is not installed. A full list is only needed when the user asks for all apps or specific searches are insufficient."
         return if (lines.isEmpty()) "$prefix No candidate identified from the task." else "$prefix\n" + lines.joinToString("\n")
     }
 }
