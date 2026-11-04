@@ -269,10 +269,24 @@ class TaskRun(
     }
 
     fun resume() { gate?.resume() }
-    fun takeOver(waitKey: Int?) { takeover?.let { t -> scope.launch { t.handOver(waitKey) } } }
-    fun handBack(waitKey: Int?) { takeover?.let { t -> scope.launch { t.handBack(waitKey) } } }
-    fun finishedMyself(waitKey: Int?) { takeover?.let { t -> scope.launch { t.finishedMyself(waitKey) } } }
-    fun skip(waitKey: Int?) { takeover?.let { t -> scope.launch { t.skip(waitKey) } } }
+    fun takeOver(waitKey: Int?) { takeover?.let { t -> scope.launch {
+        if (!t.handOver(waitKey)) showTakeoverProblem(t)
+    } } }
+    fun handBack(waitKey: Int?) { takeover?.let { t -> scope.launch {
+        if (!t.handBack(waitKey)) showTakeoverProblem(t)
+    } } }
+
+    private suspend fun showTakeoverProblem(t: Takeover) {
+        val message = when (t.problem.value) {
+            Takeover.Problem.MoveToMainFailed -> R.string.takeover_move_to_main_failed
+            Takeover.Problem.MoveBackFailed -> R.string.takeover_move_back_failed
+            Takeover.Problem.WebBusy -> R.string.takeover_web_busy
+            null -> return
+        }
+        withContext(Dispatchers.Main) { android.widget.Toast.makeText(service, message, android.widget.Toast.LENGTH_LONG).show() }
+    }
+    fun finishedMyself(waitKey: Int?) { takeover?.let { t -> scope.launch { if (!t.finishedMyself(waitKey)) showTakeoverProblem(t) } } }
+    fun skip(waitKey: Int?) { takeover?.let { t -> scope.launch { if (!t.skip(waitKey)) showTakeoverProblem(t) } } }
     fun putAside(waitKey: Int?) { takeover?.let { t -> scope.launch { t.putAside(waitKey) } } }
 
     /** 回答提问;已经不在等(超时后才答、已答过)时调 [tooLate] 告诉用户这条回答没用上。 */
@@ -625,6 +639,7 @@ class TaskRun(
                     if (phoneScreen.acquired && dispatcher?.surface != WEB) phone?.screen?.let { awaitUserPick(it, taskGate, w) }
                     taskGate.pass({ phoneScreen.acquired && dispatcher?.surface != WEB }, w)
                 }, knowledge = knowledge, sink = sink, installedApps = { apps },
+                appCategories = { com.wangzan101.mika.settings.AppCategoryStore(service).overrides() },
                 // 选渠道用的事实:装了哪些 App、在 Mika 里登录过哪些网站、有没有内置浏览器
                 channelFacts = {
                     val registry = WebSites.registry(service)
@@ -675,6 +690,7 @@ class TaskRun(
             var counting: Job? = null
             val handover = Takeover(object : TakeoverPort {
                 override suspend fun agentTopTask() = phone?.let { p -> p.display.current?.let { d -> io(-1) { p.shell.topTaskId(d.displayId) } } } ?: -1
+                override suspend fun mainTopTask() = phone?.let { p -> io(-1) { p.shell.topTaskId(Display.DEFAULT_DISPLAY) } } ?: -1
                 override suspend fun targetTask() = phone?.screen?.target?.value?.taskId ?: -1
                 override fun targetPackage() = phone?.screen?.target?.value?.packageName
                 override suspend fun packageOf(taskId: Int) = phone?.let { p -> io(null) { p.shell.packageOfTask(taskId) } }

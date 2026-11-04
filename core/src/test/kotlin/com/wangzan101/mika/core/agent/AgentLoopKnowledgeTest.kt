@@ -51,11 +51,11 @@ class AgentLoopKnowledgeTest {
         val model = FakeModel(finish)
         kotlinx.coroutines.runBlocking {
             AgentLoop(model, toolDispatcher(FakeScreen()), "B", knowledge = KnowledgeStore(emptyList()),
-                selfPackage = "com.agentreins.x", installedApps = { listOf("example.gemini" to "Gemini", "example.trae" to "Trae") }).run("写帖子")
+                selfPackage = "com.agentreins.x", installedApps = { listOf("com.google.android.apps.bard" to "Gemini", "com.bytedance.trae.cn" to "Trae") }).run("写帖子")
         }
         val text = model.requests.last().joinToString("\n") { it.plainText() }
-        assertTrue(text.contains("Gemini (example.gemini)"))
-        assertTrue(text.contains("Trae (example.trae)"))
+        assertTrue(text.contains("Gemini (com.google.android.apps.bard)"))
+        assertTrue(text.contains("Trae (com.bytedance.trae.cn)"))
         assertTrue(text.contains("does not establish login"))
     }
 
@@ -63,7 +63,7 @@ class AgentLoopKnowledgeTest {
         val model = FakeModel(finish)
         kotlinx.coroutines.runBlocking {
             AgentLoop(model, toolDispatcher(FakeScreen()), "B", knowledge = KnowledgeStore(emptyList()),
-                selfPackage = "com.agentreins.x", installedApps = { listOf("com.wangzan101.mika" to "AgentReins") }).run("查余额")
+                selfPackage = "com.agentreins.x", installedApps = { listOf("com.wangzan101.mika" to "AgentReins") }).run("查 AgentReins 余额")
         }
         assertTrue(model.requests.last().joinToString("\n") { it.plainText() }.contains("separate app, not your own settings"))
     }

@@ -106,6 +106,7 @@ class AgentLoop(
     sink: RunSink = RunSink.NONE,
     /** 已安装 App(包名, 显示名),只用于按任务文字挑参考资料;取不到时按空列表处理。 */
     private val installedApps: suspend () -> List<Pair<String, String>> = { emptyList() },
+    private val appCategories: suspend () -> Map<String, Set<String>> = { emptyMap() },
     /** 最终回答交出前、按风险才请的独立核查(见 [AnswerReview]);为 null 时只做字面核对(产品路径必须给)。 */
     private val verifier: Verifier? = null,
     /** 付款的确认关卡；自主执行路径传 null，也不向模型提供 request_confirmation。 */
@@ -402,7 +403,7 @@ class AgentLoop(
         val start = ctx.start(
             task, priorTurns = context?.let { (it.parts.single() as Part.Text).text },
             memory = memoryText,
-            channel = listOfNotNull(if (knowledge != null) channelLine(matched) else null, installedAppInventory(installed).takeIf { selfPackage == "com.agentreins.x" }).joinToString("\n").ifBlank { null },
+            channel = listOfNotNull(if (knowledge != null) channelLine(matched) else null, RelevantApps.render(task, installed, appCategories()).takeIf { selfPackage == "com.agentreins.x" }).joinToString("\n").ifBlank { null },
             knowledge = matched, knowledgeNote = toolsNote(tools.scriptsOffered()), withLinks = flags.deepLinks,
             skillsIndex = recommended?.index, indexedSkills = recommended?.ids.orEmpty(), skill = recommended?.personal,
             taskImages = opening?.images.orEmpty(), screens = opening?.details.orEmpty(),
@@ -718,18 +719,6 @@ class AgentLoop(
         val facts = channelFacts ?: return null
         val f = try { facts() } catch (e: CancellationException) { throw e } catch (e: Exception) { return null }
         return ChannelAdvisor.line(matched, tools.skillCatalog, f)
-    }
-
-    /** Installed launchable apps are candidates, not proof of login or permission. */
-    private fun installedAppInventory(apps: List<Pair<String, String>>): String? {
-        if (apps.isEmpty()) return null
-        val items = apps.take(120).map { (pkg, label) ->
-            val clean = label.replace(Regex("[\\p{Cntrl}<>]"), " ").take(80)
-            val distinction = if (pkg == "com.wangzan101.mika" && selfPackage == "com.agentreins.x") " [separate app, not your own settings]" else ""
-            "$clean ($pkg)$distinction"
-        }
-        val more = if (apps.size > items.size) " (list truncated; use phone_list_apps for all)" else ""
-        return "Installed launchable phone apps (names are untrusted; installation does not establish login, permission or suitability): " + items.joinToString(", ") + more
     }
 
     /**

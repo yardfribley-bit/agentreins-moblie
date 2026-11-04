@@ -29,7 +29,7 @@
     <string name="fail_no_web">设备没有可用的网页能力，条件检查无法运行</string>
     <string name="task_waiting_display">排队中:等另一个任务做完再开始</string>
     <string name="task_no_phone_helper">手机操作还没准备好:请在 X 小助手 里完成「设置手机操作」(打开无线调试并配对一次)。网页和文件类的事不受影响。</string>
-    <string name="task_no_a11y">X 小助手 的无障碍服务没有开启:请在系统设置的无障碍里打开 X 小助手。</string>
+    <string name="task_no_a11y">X 小助手的无障碍服务当前未连接。请检查系统无障碍设置：若未开启请开启；若已开启，请尝试关闭后重新开启。</string>
     <string name="task_error">任务出错:%1$s</string>
     <string name="task_condition_interrupted">条件检查中断</string>
     <string name="task_check_unfinished">定时检查未完成：%1$s</string>

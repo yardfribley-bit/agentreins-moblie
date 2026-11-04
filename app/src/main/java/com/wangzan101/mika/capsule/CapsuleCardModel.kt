@@ -146,7 +146,8 @@ object CapsuleCards {
         return when (val s = r.run.state) {
             is TaskState.WaitingTakeover -> CardContent.Takeover(
                 need = r.line,
-                body = listOfNotNull(s.message.trim().ifEmpty { null }, StatusCopy.paymentLines(s.item, s.amount, s.address)).joinToString("\n"),
+                body = listOfNotNull(s.message.trim().ifEmpty { null }, StatusCopy.paymentLines(s.item, s.amount, s.address),
+                    tr(if (r.kind == CapsuleKind.HandedOver) R.string.takeover_handed_over_hint else R.string.takeover_waiting_hint)).joinToString("\n"),
                 queueLine = when {
                     r.ahead > 0 -> QUEUED_AHEAD
                     r.behind > 0 -> trPlural(R.plurals.capsule_behind, r.behind)

@@ -109,7 +109,8 @@ class CapsuleCardModelTest {
         val s = TaskState.WaitingTakeover("payment", "请输入支付密码", item = "牙膏", amount = "¥19.9", address = "家")
         val first = CapsuleCards.content(card("a", s, CapsuleKind.NeedTakeover, "需要你：付款", behind = 2)) as CardContent.Takeover
         assertEquals("需要你：付款", first.need)
-        assertEquals("请输入支付密码\n商品:牙膏\n金额:¥19.9\n地址:家", first.body)
+        assertTrue(first.body.startsWith("请输入支付密码\n商品:牙膏\n金额:¥19.9\n地址:家\n"))
+        assertTrue(first.body.contains("我来处理"))
         assertEquals("处理好这件后，还有 2 件等你", first.queueLine)
         assertTrue(first.canTakeOver)
         val queued = CapsuleCards.content(card("b", s, CapsuleKind.NeedTakeover, ahead = 1)) as CardContent.Takeover

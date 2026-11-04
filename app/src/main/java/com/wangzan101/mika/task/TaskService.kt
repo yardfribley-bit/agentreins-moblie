@@ -549,7 +549,7 @@ class TaskService : Service() {
                     Takeover.Problem.MoveToMainFailed -> getString(R.string.takeover_move_to_main_failed)
                     Takeover.Problem.WebBusy -> getString(R.string.takeover_web_busy)
                     Takeover.Problem.MoveBackFailed -> getString(R.string.takeover_move_back_failed)
-                    null -> if (run.takeoverStage.value == Takeover.Stage.HandedOver) getString(R.string.takeover_handed_over_hint) else null
+                    null -> if (run.takeoverStage.value == Takeover.Stage.HandedOver) getString(R.string.takeover_handed_over_hint) else getString(R.string.takeover_waiting_hint)
                 }
                 val payment = StatusCopy.paymentLines(state.item, state.amount, state.address)
                 val behind = run.takeover?.let(takeoverQueue::behind) ?: 0

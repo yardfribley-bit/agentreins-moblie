@@ -6,6 +6,7 @@
     <string name="chat_greeting_evening">Good evening</string>
     <string name="chat_greeting_night">Up late</string>
     <string name="chat_empty_prompt">What would you like to do on X today?</string>
+    <string name="chat_slogan">Connect your apps. Bring AI assistants together.</string>
     <string name="chat_example_message">Search my interests and organize noteworthy posts</string>
     <string name="chat_example_group_summary">Find relevant posts and write thoughtful comments</string>
     <string name="chat_example_jobs">Use Gemini or Trae to draft a post with an image</string>

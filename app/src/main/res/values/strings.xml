@@ -12,8 +12,9 @@
     <string name="takeover_reason_payment">Payment</string>
     <string name="takeover_reason_decision">Your call</string>
     <string name="takeover_handed_over_hint">The app is now on your main screen. Tap “Done” when you\'re finished; if you\'ve already done the whole thing yourself, tap “I did it myself”.</string>
+    <string name="takeover_waiting_hint">Tap “I’ll handle it” to move the current page to your main screen. Opening the app from the launcher may show a different page. Check the order and amount before paying.</string>
     <string name="takeover_web_busy">A website sign-in is open in Settings. Tap “Done” there first, then tap “I’ll handle it”.</string>
-    <string name="takeover_move_to_main_failed">Couldn’t move the app to the main screen. Tap “I’ll handle it” to try again.</string>
+    <string name="takeover_move_to_main_failed">Could not confirm the current page moved to the main screen. Try “I’ll handle it” again; opening the app from the launcher may show a different page.</string>
     <string name="takeover_move_back_failed">Couldn’t move the app back to X Assistant’s screen. Try again.</string>
     <string name="action_take_over">I’ll handle it</string>
     <string name="action_hand_back">Done</string>
