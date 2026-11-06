@@ -22,6 +22,7 @@
     <string name="gate_moved_away">You opened this app. Tap Continue when you’re done</string>
     <string name="gate_move_back_failed">Couldn’t move the app back to X Assistant’s screen. Tap Continue to retry</string>
     <string name="gate_shell_down">Phone control disconnected. Tap Continue once it reconnects (or fix it in Settings)</string>
+    <string name="gate_accessibility_down">Accessibility disconnected and this task cannot safely continue. Restore the accessibility service in system settings, then start the task again. Saved work drafts will be kept.</string>
     <plurals name="queue_ahead">
         <item quantity="one">Queued: %1$d task ahead</item>
         <item quantity="other">Queued: %1$d tasks ahead</item>

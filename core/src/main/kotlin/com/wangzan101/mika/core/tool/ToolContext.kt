@@ -41,7 +41,13 @@ internal class ToolConfig(
     val userScreens: com.wangzan101.mika.core.userscreen.UserScreenSource? = null,
     /** Obsidian 库。没选文件夹或开关关着时,对应工具不提供。 */
     val vault: VaultMemory? = null,
+    val cloudHostConfigured: (() -> Boolean)? = null,
+    val cloudCommand: (suspend (String) -> CloudCommandResult)? = null,
+    val deepSeekBalance: (suspend () -> DeepSeekBalanceResult)? = null,
 )
+
+data class CloudCommandResult(val output: String, val exitCode: Int?, val timedOut: Boolean, val truncated: Boolean)
+data class DeepSeekBalanceResult(val configured: Boolean, val available: Boolean?, val balances: Map<String, String>)
 
 /**
  * 工具执行时共用的东西:配置、核查材料、能力放进来的东西([get]),以及跨工具的少量状态(被拒的付款申报、允许打开的链接……)。

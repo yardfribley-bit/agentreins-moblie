@@ -6,6 +6,6 @@ import com.wangzan101.mika.core.tool.AgentTool
 internal object GeneralGroup {
     val tools: List<AgentTool> = listOf(
         Wait, ViewPastScreens, ViewUserScreen, AskUser, RequestConfirmation, HandToUser, HandleObstacle, EndNotDone,
-        KnowledgeSearch, KnowledgeRead, SkillSearch, SkillRead, MemorySearch, MemorySave, MemoryVaultSearch, MemoryVaultAppend, ProfileEdit, ScheduleTask, SpawnAgent,
+        KnowledgeSearch, KnowledgeRead, SkillSearch, SkillRead, MemorySearch, MemorySave, MemoryVaultSearch, MemoryVaultAppend, VaultWorkWrite, VaultWorkRead, CloudHostStatus, CloudCommand, DeepSeekBalanceTool, ProfileEdit, ScheduleTask, SpawnAgent,
     )
 }

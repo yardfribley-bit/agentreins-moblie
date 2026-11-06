@@ -121,6 +121,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.util.UUID
 import com.wangzan101.mika.core.tool.ToolIndex
@@ -502,7 +504,9 @@ class TaskRun(
                 val id = phone?.display?.current?.displayId ?: return false
                 return moveTask(taskId, id)
             }
-            val taskGate = TaskGate(states.locked, shellUp) {
+            val taskGate = TaskGate(states.locked, shellUp, accessibilityAvailable = {
+                phone?.let { ScreenAccessibility.instance.value != null } ?: true
+            }) {
                 val t = phone?.screen?.target?.value
                 t != null && t.taskId >= 0 && moveBackToAgent(t.taskId)
             }
@@ -513,7 +517,11 @@ class TaskRun(
             val sink: RunSink = withContext(Dispatchers.IO) {
                 val handle = runCatching {
                     val runs = RunStore(service).also { runStore = it }
-                    runs.open(goal).also { record = it; _runId.value = it.runId }
+                    runs.open(goal).also {
+                        record = it; _runId.value = it.runId
+                        val ledger = (service.application as MikaApp).runStore
+                        ledger.get(RunId(key))?.let { prior -> ledger.save(prior.copy(recordId = it.runId)) }
+                    }
                 }.onFailure { Log.w(TAG, "run record unavailable, running without it", it) }.getOrNull()
                 val bus = RunEventBus()
                 if (handle != null) bus.subscribe(handle)
@@ -592,7 +600,8 @@ class TaskRun(
                         web = web, webPacing = { PagePacing.human() }, webSitePace = { SitePace.of(catalog.sitePace(it)) },
                         webIdleScroll = { IdleScroll(Random.Default) }, sandbox = sandbox, workspace = { conversationId }, runSpec = childSpec,
                         conversationId = conversationId, inlineScreen = speed.inlineScreen,
-                        adaptiveVision = speed.adaptiveVision, vault = vaultMemory, disableCode = true)
+                        adaptiveVision = speed.adaptiveVision, vault = vaultMemory,
+                        cloudHostConfigured = { cloudHostConfigured() }, disableCode = true)
                     AgentLoop(model, childTools, SystemPrompt.xIdentity(), maxSteps = childSpec.stepBudget ?: AgentLoop.UNLIMITED_STEPS,
                         // 子任务跟着询问 / 自主;询问时它也过关卡,子任务里花钱的一步一律不做
                         confirmations = runApproval.gate(), approvals = runApproval, autonomous = runApproval.startedAutonomous,
@@ -629,7 +638,9 @@ class TaskRun(
                 scheduleTrigger = if (provenance.origin == RunOrigin.Ui) { trigger -> TriggerRuntime.schedule(service, trigger) } else null,
                 scheduleAdmin = if (provenance.origin == RunOrigin.Ui) LocalScheduleAdmin(service) else null,
                 childHost = childRunner,
-                vault = vaultMemory)
+                vault = vaultMemory, cloudHostConfigured = { cloudHostConfigured() },
+                cloudCommand = { command -> cloudCommand(command) },
+                deepSeekBalance = { deepSeekBalance() })
             dispatcher = tools
             val agent = AgentLoop(
                 model, tools,
@@ -709,7 +720,7 @@ class TaskRun(
                     counting?.cancel()
                     val c = HandoverActivityCounter(packageName).also { counter = it }
                     // 立即订阅:接着发生的第一下操作不能漏
-                    val a11y = phone?.a11y ?: return
+                    val a11y = ScreenAccessibility.instance.value ?: return
                     counting = side.launch(start = CoroutineStart.UNDISPATCHED) {
                         a11y.eventsFor(Display.DEFAULT_DISPLAY).collect { e ->
                             c.onEvent(Display.DEFAULT_DISPLAY, e.packageName, e.eventType, e.className, e.eventTime, e.windowId to e.source?.hashCode())
@@ -720,7 +731,7 @@ class TaskRun(
                     val c = counter ?: return null
                     val pm = service.packageManager
                     val label = runCatching { pm.getApplicationLabel(pm.getApplicationInfo(c.packageName, 0)).toString() }.getOrNull()
-                    return HandoverActivity(c.inputCount, stoppedAt(phone?.a11y?.let { mainWindowTitle(it, c.packageName) }, label, c.lastActivity))
+                    return HandoverActivity(c.inputCount, stoppedAt(ScreenAccessibility.instance.value?.let { mainWindowTitle(it, c.packageName) }, label, c.lastActivity))
                 }
                 override fun stopWatching() {
                     counting?.cancel()
@@ -819,6 +830,34 @@ class TaskRun(
     }
 
     /** 手机一侧:用过手机的任务才有。 */
+    private fun cloudHostConfigured(): Boolean {
+        val prefs = service.getSharedPreferences("cloud_host_v1", android.content.Context.MODE_PRIVATE)
+        return !prefs.getString("host", null).isNullOrBlank() &&
+            !prefs.getString("user", null).isNullOrBlank() &&
+            !prefs.getString("fingerprint", null).isNullOrBlank() && prefs.contains("password")
+    }
+
+    private suspend fun deepSeekBalance(): com.wangzan101.mika.core.tool.DeepSeekBalanceResult = withContext(Dispatchers.IO) {
+        val store = (service.application as MikaApp).providers
+        val provider = store.providers.value.firstOrNull(com.wangzan101.mika.settings.DeepSeekBalance::isOfficial)
+            ?: return@withContext com.wangzan101.mika.core.tool.DeepSeekBalanceResult(false, null, emptyMap())
+        val key = store.providerKey(provider.id).orEmpty()
+        if (key.isBlank()) return@withContext com.wangzan101.mika.core.tool.DeepSeekBalanceResult(false, null, emptyMap())
+        val snapshot = com.wangzan101.mika.settings.DeepSeekBalance.fetch(key)
+        com.wangzan101.mika.core.tool.DeepSeekBalanceResult(true, snapshot.available, snapshot.entries.associate { it.currency to it.total.toPlainString() })
+    }
+
+    private suspend fun cloudCommand(command: String): com.wangzan101.mika.core.tool.CloudCommandResult = withContext(Dispatchers.IO) {
+        val prefs = service.getSharedPreferences("cloud_host_v1", android.content.Context.MODE_PRIVATE)
+        val host = requireNotNull(prefs.getString("host", null))
+        val user = requireNotNull(prefs.getString("user", null))
+        val port = requireNotNull(prefs.getString("port", null)).toInt()
+        val fingerprint = requireNotNull(prefs.getString("fingerprint", null))
+        val encrypted = java.util.Base64.getDecoder().decode(requireNotNull(prefs.getString("password", null)))
+        val password = String(com.wangzan101.mika.settings.KeystoreKeyCipher("cloud-host-v1").decrypt(encrypted), Charsets.UTF_8)
+        com.wangzan101.mika.ui.CloudSsh.command(host, port, user, password, fingerprint, command)
+    }
+
     private class PhoneSide(
         val shell: com.wangzan101.mika.shell.IMikaShell, val a11y: ScreenAccessibility, val screen: AndroidScreen,
         val display: LazyAgentDisplay, val audio: AudioMute,
@@ -877,6 +916,13 @@ class TaskRun(
 
     /** 停止后有没有可交代的:做过至少一件事,或停下时已经写出了字。 */
     fun hasStopMaterial(draft: String?): Boolean = synchronized(activityLog) { activityLog.isNotEmpty() } || !draft.isNullOrBlank()
+
+    /** Deterministic local progress for the next turn; never replay old UI actions. */
+    suspend fun continuationFacts(): List<String> = withContext(Dispatchers.IO) {
+        val id = _runId.value ?: return@withContext emptyList()
+        val events = runCatching { RunStore(service).events(id) }.getOrDefault(emptyList())
+        continuationFactsFrom(events)
+    }
 
     /**
      * 用户停止之后:按这次已经做了的事写几行交代(见 [StopSummary]),只读运行记录,不再操作任何东西。

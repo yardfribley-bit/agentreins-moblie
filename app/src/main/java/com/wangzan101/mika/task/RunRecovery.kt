@@ -42,6 +42,7 @@ class RunRecovery(
     private val triggers: TriggerOutcomes,
     private val conversations: ConversationStore,
     private val scope: CoroutineScope,
+    private val continuation: (String) -> List<String> = { emptyList() },
 ) {
     private val done = AtomicBoolean(false)
     private val lock = Mutex()
@@ -96,7 +97,8 @@ class RunRecovery(
         } else {
             val turnId = "interrupted:${run.id.value}"
             if (conversations.turns(run.threadId).none { it.runId == turnId }) {
-                conversations.append(run.threadId, Turn(run.goal, tr(R.string.recover_interrupted_turn), "failed", runId = turnId))
+                val facts = run.recordId?.let { runCatching { continuation(it) }.getOrDefault(emptyList()) }.orEmpty()
+                conversations.append(run.threadId, Turn(run.goal, tr(R.string.recover_interrupted_turn), "failed", runId = turnId, findings = facts))
             }
             outbox.deliver(channel, peer, Delivery.Notice(turnId, run.threadId,
                 tr(R.string.recover_interrupted, run.goal.take(40))))

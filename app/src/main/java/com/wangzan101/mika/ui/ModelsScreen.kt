@@ -39,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -60,6 +61,7 @@ import com.wangzan101.mika.settings.Provider
 import com.wangzan101.mika.settings.ProviderConfig
 import com.wangzan101.mika.settings.ProviderPresets
 import com.wangzan101.mika.settings.ProviderStore
+import kotlinx.coroutines.launch
 import com.wangzan101.mika.settings.RoleChoice
 import com.wangzan101.mika.ui.components.BarIconButton
 import com.wangzan101.mika.ui.components.ButtonKind
@@ -210,7 +212,7 @@ fun RolePickerContent(ui: ModelSetupUi, role: ModelRole, actions: RolePickerActi
         }
         var anyShown = false
         groups.forEach { (p, options) ->
-            val shown = options.filter { q.isEmpty() || it.id.contains(q, ignoreCase = true) }
+            val shown = options.filter { q.isEmpty() || it.id.contains(q, ignoreCase = true) || it.displayName.contains(q, ignoreCase = true) }
             val manual = p.models?.isEmpty() == true
             if (q.isNotEmpty() && shown.isEmpty()) return@forEach
             anyShown = true
@@ -220,7 +222,7 @@ fun RolePickerContent(ui: ModelSetupUi, role: ModelRole, actions: RolePickerActi
                 GroupCard {
                     shown.take(PICK_AT_MOST).forEachIndexed { i, o ->
                         RadioRow(
-                            o.id, selected = ui.picked(role, p.id, o.id), onClick = { actions.pick(p.id, o.id) }, first = i == 0,
+                            o.displayName.takeIf { it.isNotBlank() && !it.equals(o.id, ignoreCase = true) }?.let { "$it · ${o.id}" } ?: o.id, selected = ui.picked(role, p.id, o.id), onClick = { actions.pick(p.id, o.id) }, first = i == 0,
                             titleStyle = ModelIdStyle, below = { Tags(o, forVision = role == ModelRole.Vision) },
                         )
                     }
@@ -282,6 +284,7 @@ class ProviderDetailActions(
     val signIn: () -> Unit = {},
     val signOut: () -> Unit = {},
     val manageUsage: () -> Unit = {},
+    val checkBalance: suspend () -> String = { "余额查询不可用" },
 )
 
 /**
@@ -294,6 +297,9 @@ fun ProviderDetailContent(ui: ModelSetupUi, p: Provider, actions: ProviderDetail
     var changingKey by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var using by remember { mutableStateOf<ModelOption?>(null) }
+    var balance by remember(p.id) { mutableStateOf<String?>(null) }
+    var checkingBalance by remember(p.id) { mutableStateOf(false) }
+    val balanceScope = rememberCoroutineScope()
     val state = ui.listing[p.id]
     val list = ui.sortedOptions(p)
     Page(p.name, onBack) {
@@ -318,6 +324,20 @@ fun ProviderDetailContent(ui: ModelSetupUi, p: Provider, actions: ProviderDetail
             }
         }
         (state as? ListState.Failed)?.let { FooterNote(ModelSetupCopy.failed(it.message), color = c.bad) }
+
+        if (com.wangzan101.mika.settings.DeepSeekBalance.isOfficial(p)) {
+            GroupLabel("DeepSeek 余额")
+            GroupCard {
+                ListRow(null, "账户余额", balance ?: "尚未查询", first = true, onClick = {
+                    if (!checkingBalance) balanceScope.launch {
+                        checkingBalance = true
+                        balance = runCatching { actions.checkBalance() }.getOrDefault("查询失败，请检查网络和 API Key")
+                        checkingBalance = false
+                    }
+                }) { RowValue(if (checkingBalance) "查询中" else "查询", ValueTone.Link) }
+            }
+            FooterNote("后台约每 12 小时检查一次；低于 ¥5 或 $1 时提醒。查询失败不会视为余额不足。")
+        }
 
         GroupLabel(ModelsCopy.MODELS)
         if (list.isNotEmpty()) {
@@ -488,6 +508,9 @@ private fun ModelRow(o: ModelOption, roles: List<ModelRole>, first: Boolean, onC
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Column(Modifier.weight(1f)) {
+                if (o.displayName.isNotBlank() && !o.displayName.equals(o.id, ignoreCase = true)) {
+                    Text(o.displayName, style = MikaType.Body, color = MikaTheme.colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 Text(o.id, style = ModelIdStyle, color = MikaTheme.colors.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Box(Modifier.padding(top = 4.dp)) { Tags(o, accent = false) }
             }

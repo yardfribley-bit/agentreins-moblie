@@ -64,7 +64,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** 设置里能进入的子页面;[Home] 是设置首页。 */
-private enum class SettingsPage { Home, Usage, PhoneOps, DuringWork, Capsule, Language, Notifications, WebSites, Sandbox, Routes, Recovery, HubRelay, Vault, Developer, RunStats, AppCategories }
+private enum class SettingsPage { Home, Usage, PhoneOps, DuringWork, Capsule, Language, Notifications, WebSites, Sandbox, Routes, Recovery, HubRelay, Vault, Developer, RunStats, AppCategories, CloudHost }
 
 /**
  * 设置页:总状态卡 + 基本 / 隐私与数据 / 高级 / 关于四组。各子页面在这里切换(返回键先回首页),
@@ -160,9 +160,14 @@ fun SettingsScreen(
             webSitesCount = webSites?.sites?.size, onOpenWebSites = { page = SettingsPage.WebSites },
             sandbox = sandboxStatus, onOpenSandbox = { page = SettingsPage.Sandbox },
             routes = routeCount, onOpenRoutes = { page = SettingsPage.Routes },
+            replayEnabled = speed.replay, onReplayEnabled = { enabled ->
+                speed = speed.copy(replay = enabled)
+                flags.setSpeed(speed)
+            },
             onOpenRecovery = { page = SettingsPage.Recovery },
             onOpenHubRelay = { page = SettingsPage.HubRelay },
             onOpenVault = { page = SettingsPage.Vault },
+            onOpenCloudHost = { page = SettingsPage.CloudHost },
             showDeveloper = showDeveloper, onOpenDeveloper = { page = SettingsPage.Developer },
             versionName = BuildConfig.VERSION_NAME, updateVersion = updateVersion, onOpenAbout = onOpenAbout,
         )
@@ -192,6 +197,7 @@ fun SettingsScreen(
         SettingsPage.Recovery -> RecoveryScreen(onBack = toHome)
         SettingsPage.HubRelay -> HubRelayScreen(onBack = toHome)
         SettingsPage.Vault -> VaultSettingsScreen(onBack = toHome)
+        SettingsPage.CloudHost -> CloudHostScreen(onBack = toHome)
         SettingsPage.Developer -> DeveloperOptionsScreen(
             speed, onSpeed = { flags.setSpeed(it); speed = it }, onBack = toHome,
             autonomous = autonomous, onAutonomous = onAutonomous,
@@ -254,9 +260,12 @@ fun SettingsContent(
     /** 已记住的操作路线条数;为空(还没读出来)时不显示这一行。 */
     routes: Int? = null,
     onOpenRoutes: () -> Unit = {},
+    replayEnabled: Boolean = false,
+    onReplayEnabled: (Boolean) -> Unit = {},
     onOpenRecovery: () -> Unit = {},
     onOpenHubRelay: () -> Unit = {},
     onOpenVault: () -> Unit = {},
+    onOpenCloudHost: () -> Unit = {},
     showDeveloper: Boolean = false,
     onOpenDeveloper: () -> Unit = {},
     versionName: String = "",
@@ -284,6 +293,7 @@ fun SettingsContent(
                 RowChevron()
             }
             ListRow(MikaIcons.Phone, "应用分类", "确认手机应用的用途", onClick = onOpenAppCategories) { RowChevron() }
+            ListRow(MikaIcons.Globe, "云工作台", "配置自己的云主机并测试 SSH 连接", onClick = onOpenCloudHost) { RowChevron() }
             ListRow(MikaIcons.Moon, stringResource(R.string.settings_during_work), stringResource(R.string.settings_during_work_sub), onClick = onOpenDuringWork) { RowChevron() }
             ListRow(MikaIcons.Message, CapsuleSettingsCopy.TITLE, CapsuleSettingsCopy.SUBTITLE, onClick = onOpenCapsule) {
                 RowValue(CapsuleSettingsCopy.label(capsuleMode))
@@ -319,6 +329,9 @@ fun SettingsContent(
         GroupCard {
             var first = true
             fun take(): Boolean = first.also { first = false }
+            ListRow(MikaIcons.Route, stringResource(R.string.settings_experience_replay), stringResource(R.string.settings_experience_replay_sub), first = take(), onClick = { onReplayEnabled(!replayEnabled) }) {
+                com.wangzan101.mika.ui.components.MikaSwitch(replayEnabled, onReplayEnabled)
+            }
             if (sandboxRow != null) {
                 ListRow(MikaIcons.Terminal, stringResource(R.string.settings_sandbox), first = take(), onClick = onOpenSandbox) {
                     RowValue(sandboxValue(sandboxRow)); RowChevron()

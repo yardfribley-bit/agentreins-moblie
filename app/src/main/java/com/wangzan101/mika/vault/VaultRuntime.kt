@@ -113,6 +113,23 @@ class VaultRuntime(context: Context) : VaultMemory {
         return writeAppend(request)
     }
 
+    override fun writeWorkPart(noteId: String, partId: String, body: String): VaultAppendResult {
+        if (!appendEnabled()) return VaultAppendResult(false, code = "disabled")
+        return try { library.writeWorkPart(noteId, partId, body) }
+        catch (e: CancellationException) { throw e }
+        catch (e: Exception) { VaultAppendResult(false, code = "vault_unavailable") }
+    }
+
+    override fun readWorkPart(noteId: String, partId: String): String? {
+        if (!searchEnabled()) return null
+        return library.readWorkPart(noteId, partId)
+    }
+
+    override fun listWorkParts(noteId: String): List<String> {
+        if (!searchEnabled()) return emptyList()
+        return library.listWorkParts(noteId)
+    }
+
     fun probe(): VaultAppendResult {
         if (!configured()) return VaultAppendResult(false, code = "no_folder", detail = "no_folder")
         val id = "probe-" + System.currentTimeMillis()

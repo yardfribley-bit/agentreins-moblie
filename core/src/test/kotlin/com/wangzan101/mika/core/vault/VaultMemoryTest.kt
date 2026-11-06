@@ -13,6 +13,21 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 class VaultMemoryTest {
+    @Test fun workDraftPartsAreRecoverableAndNeverOverwrite() {
+        val files = MemFiles()
+        val lib = library(files)
+        val original = "# 引言\n" + "安全文章内容".repeat(900)
+        val first = lib.writeWorkPart("article-123", "01-intro", original)
+        assertTrue(first.ok)
+        assertEquals(original, lib.readWorkPart("article-123", "01-intro"))
+        assertEquals("exists", lib.writeWorkPart("article-123", "01-intro", original).code)
+        assertEquals("conflict", lib.writeWorkPart("article-123", "01-intro", "覆盖原文").code)
+        assertEquals(original, lib.readWorkPart("article-123", "01-intro"))
+        assertTrue(lib.writeWorkPart("article-123", "02-body", "正文第二节").ok)
+        assertEquals(listOf("01-intro.md", "02-body.md"), lib.listWorkParts("article-123"))
+        assertEquals("invalid_id", lib.writeWorkPart("../elsewhere", "part", "内容").code)
+        assertEquals("sensitive_content", lib.writeWorkPart("article-123", "03-secret", "密码：hunter2").code)
+    }
     @Test fun longTaskReportIsRetainedAndExplicitlyMarksTruncation() {
         val answer = "发布记录：" + "内容".repeat(12000) + "末尾"
         val spec = VaultRunSpec("r-report", "回复帖子", "测试", VaultOutcome.Success,

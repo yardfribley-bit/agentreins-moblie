@@ -34,7 +34,7 @@ internal object WebSearch : WebTool {
         val links = page.links.mapNotNull { (title, raw) ->
             resultUrl(raw)?.let { title.trim() to it }
         }.filter { it.first.isNotBlank() }.distinctBy { it.second }.take(15)
-        if (links.isEmpty()) return fail("no_search_results", "No usable links were returned. The search page may be blocked or have changed; check it in the browser.")
+        if (links.isEmpty()) return fail("no_search_results", "No usable links were returned. The search page may be blocked or have changed; this does not mean no information exists. Try an appropriate installed search app; do not repeat blind retries.")
         val seen = webRead("搜索结果 $query\n" + links.joinToString("\n") { "${it.first}: ${it.second}" }, page.url, page.title)
         return ok {
             put("query", query)

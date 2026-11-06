@@ -101,6 +101,15 @@ fun ModelSetupScreen(store: ProviderStore, onboarding: Boolean, onBack: () -> Un
             retest = { vm.retest(provider.id) },
             signIn = vm::signInWithChatGpt, signOut = { vm.signOutChatGpt(provider.id) },
             manageUsage = { openInBrowser(context, ChatGptAuth.USAGE_URL) },
+            checkBalance = {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val key = store.providerKey(provider.id).orEmpty()
+                    if (key.isBlank()) "请先配置 DeepSeek API Key" else runCatching {
+                        val result = com.wangzan101.mika.settings.DeepSeekBalance.fetch(key)
+                        result.entries.joinToString(" · ") { "${it.currency} ${it.total.toPlainString()}" } + if (!result.available) "（不可用）" else ""
+                    }.getOrElse { "查询失败，请检查网络和 API Key" }
+                }
+            },
         )
         if (allModels) {
             BackHandler { allModels = false }

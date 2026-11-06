@@ -38,6 +38,21 @@ class RouteMatcherTest {
         assertEquals(1, m.requests.size)
     }
 
+    @Test fun uniqueExactNoSlotMatchSkipsModel() = runTest {
+        val exact = memo.copy(template = "打开备忘录", slots = 0)
+        val m = FakeModel()
+        assertEquals(RouteChoice(exact, emptyList()), RouteMatcher(m, MemRoutes(exact), null).choose("打开备忘录"))
+        assertTrue(m.requests.isEmpty())
+    }
+
+    @Test fun ambiguousExactMatchesStillConsultModel() = runTest {
+        val first = memo.copy(id = "one", template = "打开备忘录", slots = 0)
+        val second = first.copy(id = "two")
+        val m = FakeModel(text("""{"route":null}"""))
+        assertNull(RouteMatcher(m, MemRoutes(first, second), null).choose("打开备忘录"))
+        assertEquals(1, m.requests.size)
+    }
+
     @Test fun slotNotInGoalRejected() = runTest {
         val m = FakeModel(text("""{"route": 1, "slots": ["明天开会"]}"""))
         assertNull(RouteMatcher(m, MemRoutes(memo), null).choose(goal))

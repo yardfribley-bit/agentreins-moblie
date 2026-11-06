@@ -26,6 +26,23 @@ class RelevantAppsTest {
         val code = RelevantApps.render("写代码", apps)
         assertTrue(code.contains("TRAE")); assertFalse(code.contains("淘宝"))
     }
+    @Test fun articleWorkIncludesResearchAndCreationApps() {
+        val candidates = apps + ("com.tencent.mp" to "公众号助手")
+        val result = RelevantApps.render("开始写这个微信公众号文章", candidates)
+        assertTrue(result.contains("公众号助手"))
+        assertTrue(result.contains("Gemini"))
+        assertTrue(result.contains("夸克"))
+        assertFalse(result.contains("银行"))
+        assertTrue(RelevantApps.render("给文章配图", candidates).contains("Gemini"))
+    }
+    @Test fun fiveCoreWorkflowsSuggestTheirDestinationApps() {
+        val candidates = apps + listOf("com.twitter.android" to "X", "com.hpbr.bosszhipin" to "BOSS直聘", "com.ss.android.ugc.aweme" to "抖音", "com.tencent.mp" to "公众号助手")
+        assertTrue(RelevantApps.render("刷 X", candidates).contains("com.twitter.android"))
+        assertTrue(RelevantApps.render("找工作看职位", candidates).contains("BOSS直聘"))
+        assertTrue(RelevantApps.render("比较外卖", candidates).contains("美团"))
+        assertTrue(RelevantApps.render("进入直播间", candidates).contains("抖音"))
+        assertTrue(RelevantApps.render("写公众号文章", candidates).contains("公众号助手"))
+    }
     @Test fun explicitlyNamedAndUnknownTasksRetainFallback() {
         assertTrue(RelevantApps.render("打开我的工具", apps).contains("custom.app"))
         val result = RelevantApps.render("做一件事", apps)

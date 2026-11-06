@@ -40,6 +40,11 @@ class RouteMatcher(private val model: ChatModel, val store: RouteStore, private 
     suspend fun choose(goal: String): RouteChoice? {
         val list = candidates(goal)
         if (list.isEmpty()) return null
+        // A unique, literal, zero-slot match needs no semantic inference. Replayer
+        // still checks current screen anchors and operation guards.
+        // Parameterized or ambiguous matches continue through the model path.
+        val exact = list.filter { it.slots == 0 && it.template == goal }
+        if (exact.size == 1) return RouteChoice(exact.single(), emptyList())
         val text = list.withIndex().joinToString("\n", "用户原话:$goal\n\n做法模板:\n") { (i, r) -> "${i + 1}. ${r.template}" }
         val reply = try {
             withTimeoutOrNull(TIMEOUT_MS) { model.complete(PROMPT, listOf(Message(Role.User, listOf(Part.Text(text)), Author.Mika)), emptyList()) } ?: return null

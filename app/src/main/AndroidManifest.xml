@@ -73,6 +73,8 @@
         <receiver android:name=".audio.SpeechControlReceiver" android:exported="false" />
         <service android:name=".audio.LiveAudioService" android:exported="false"
             android:foregroundServiceType="mediaProjection|microphone" />
+        <service android:name=".settings.DeepSeekBalanceJob" android:exported="true"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <!-- 界面只有一个:从桌面、通知、别的 App 或命令打开都回到这一个(新的打开交给 onNewIntent),不在上面叠出第二个 -->
         <activity
             android:name=".ui.MainActivity"

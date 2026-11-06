@@ -76,7 +76,7 @@ import kotlin.math.roundToInt
  * 虚拟屏到第一次 launch_app 才建:之前读屏是一块空屏,其余动作失败 [NO_APP_OPEN],都不会去建屏。
  */
 class AndroidScreen(
-    private val a11y: ScreenAccessibility,
+    private val initialA11y: ScreenAccessibility,
     private val shell: IMikaShell,
     private val display: LazyAgentDisplay,
     /** 剪贴板暂时换成 Mika 的文字时为 true,还原后为 false;任务服务据此记下,进程意外结束后下次启动还原。 */
@@ -94,6 +94,10 @@ class AndroidScreen(
     /** 手势的节奏:落指前的停顿、按住时长、落点偏差、滑动的弧线和快慢(见 [GesturePacing])。 */
     private val pacing: GesturePacing = GesturePacing.human(),
 ) : ScreenPort {
+    // Android may reconnect the service with a new instance while the task is alive.
+    // Never keep operating through the disconnected instance.
+    private val a11y: ScreenAccessibility
+        get() = ScreenAccessibility.instance.value ?: throw PhoneUnavailable("无障碍服务暂时断开，请恢复后继续任务")
     /** 屏还没建时为 -1;只在确认屏已建好之后用。 */
     private val displayId get() = display.current?.displayId ?: -1
     private val opened get() = display.current != null
@@ -134,7 +138,17 @@ class AndroidScreen(
         if (!opened) return@withContext ScreenSnapshot(snapshotId(), null, emptyList(), display.width, display.height, hasWindow = false)
         // 上一个动作过了一会儿才开到用户主屏上的:先挪回来再读(只在模型要读的这一屏上做,不在判效果的那一眼里做)
         val late = if (register) lateSpill() else null
-        val r = read()
+        var r = read()
+        // Window roots may temporarily be null while an app switches pages. Wait briefly
+        // for a fresh tree; never reuse stale nodes for a later action.
+        if (register && r.entries.isEmpty() && frameBlack() != true) {
+            repeat(2) {
+                if (r.entries.isEmpty()) {
+                    delay(250)
+                    r = read()
+                }
+            }
+        }
         val after = treeHash()
         val snap = NodeSnapshot(snapshotId(), r.entries)
         if (register) ids.put(snap)

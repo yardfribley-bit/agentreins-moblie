@@ -110,6 +110,22 @@ class TaskGateTest {
     }
 
     @Test
+    fun accessibilityLossBlocksPhoneActionsButNotWebActions() = runTest {
+        val disconnected = TaskGate(locked, shellUp, accessibilityAvailable = { false }) { true }
+        var passed = false
+        launch { disconnected.pass { reported += it }; passed = true }
+        runCurrent()
+        assertFalse(passed)
+        assertEquals(TaskState.Held(TaskGate.paused(TaskGate.ACCESSIBILITY_DOWN)), reported.last())
+        disconnected.resume()
+        runCurrent()
+        assertFalse(passed)
+        disconnected.pass({ false }) { reported += it }
+        assertEquals(null, reported.last())
+        coroutineContext.cancelChildren()
+    }
+
+    @Test
     fun movedAwayMeansOnMainAndNotOnAgentDisplay() {
         assertTrue(DeviceStateWatcher.isMovedAway(agentTop = 5, mainTop = 7, taskId = 7))
         assertFalse(DeviceStateWatcher.isMovedAway(agentTop = 7, mainTop = 3, taskId = 7))

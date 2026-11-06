@@ -115,7 +115,9 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
             override fun interrupted(key: String, reason: String) = TriggerRuntime.interrupted(app, key, reason)
             override fun delivered(key: String) = TriggerRuntime.delivered(app, key)
             override fun actionFailed(key: String, reason: String) = TriggerRuntime.actionFailed(app, key, reason)
-        }, conversations, scope)
+        }, conversations, scope, continuation = { id ->
+            com.wangzan101.mika.task.continuationFactsFrom(com.wangzan101.mika.record.RunStore(app).events(id))
+        })
     }
 
     /** 站点登记表(登录过的网站等):设置页和标签池共用。 */
@@ -250,6 +252,7 @@ class MikaApp : Application(), WebOwner, SandboxOwner, TaskEnvironment.Owner, Ph
         // 界面以外的文字(通知、服务、悬浮胶囊)按 App 语言取
         AppLanguage.applyDefaultLocale(this)
         UiText.source = ResourceTexts { AppLanguage.resources(this) }
+        runCatching { com.wangzan101.mika.settings.DeepSeekBalanceJob.schedule(this) }
         registerActivityLifecycleCallbacks(foreground)
         capsule.start()
         // 内置助手的真实现,并开始看着助手(Mika 进程起来后,还活着的助手会自己交接 Binder)

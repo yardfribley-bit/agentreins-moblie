@@ -27,8 +27,8 @@ android {
         applicationId = "com.agentreins.x"
         minSdk = 30
         targetSdk = 35
-        versionCode = 17
-        versionName = "0.2.0"
+        versionCode = 18
+        versionName = "0.3.0"
         buildConfigField("String", "EMBEDDED_OPENROUTER_KEY", javaString(embeddedRouterKey))
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GIT_HASH", "\"$gitHash\"")
@@ -74,6 +74,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core"))
+    implementation("com.github.mwiede:jsch:2.28.8")
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.material3)

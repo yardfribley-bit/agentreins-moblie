@@ -22,6 +22,7 @@
     <string name="gate_moved_away">你打开了这个 App,用完点继续</string>
     <string name="gate_move_back_failed">没能把 App 挪回 X 小助手 的屏幕,点继续再试一次</string>
     <string name="gate_shell_down">手机操作断开了,等它重新连上(或到设置里处理)后点继续</string>
+    <string name="gate_accessibility_down">无障碍服务已断开，当前任务无法安全继续。请在系统设置中恢复无障碍服务，然后重新发起任务；已保存的工作底稿不会删除。</string>
     <plurals name="queue_ahead">
         <item quantity="other">排队中:前面还有 %1$d 个任务</item>
     </plurals>

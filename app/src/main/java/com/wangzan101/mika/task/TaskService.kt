@@ -322,7 +322,8 @@ class TaskService : Service() {
             val stopRunId = run.runId.value?.takeIf { end == TaskState.Cancelled && !run.conditionCheck && run.hasStopMaterial(draft) }
             stopRunId?.let { id -> taskState._summarizing.update { it + id } }
             run.end(end)
-            if (!run.conditionCheck) recordTurn(store, run.conversationId, run.goal, end, run.runId.value, run.sharedFiles.value, run.joinedSteers(), run.usedGroups, run.carriedFacts)
+            val continuation = if (end == TaskState.Cancelled || end is TaskState.Failed) runCatching { run.continuationFacts() }.getOrDefault(emptyList()) else emptyList()
+            if (!run.conditionCheck) recordTurn(store, run.conversationId, run.goal, end, run.runId.value, run.sharedFiles.value, run.joinedSteers(), run.usedGroups, continuation + run.carriedFacts)
             stopRunId?.let { summarizeStop(run, it, draft, store) }
             if (run.conditionCheck) {
                 val outcome = if (end is TaskState.Succeeded) ConditionOutcome.parse(end.answer)

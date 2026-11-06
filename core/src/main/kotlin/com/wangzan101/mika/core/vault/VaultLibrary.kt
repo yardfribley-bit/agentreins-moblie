@@ -19,6 +19,9 @@ interface VaultMemory {
     fun search(query: String, appPackage: String?, limit: Int = 4): List<VaultHit>
     fun append(request: VaultAppend): VaultAppendResult
     fun contextFor(goal: String, runId: String?): String?
+    fun writeWorkPart(noteId: String, partId: String, body: String): VaultAppendResult = VaultAppendResult(false, code = "unsupported")
+    fun readWorkPart(noteId: String, partId: String): String? = null
+    fun listWorkParts(noteId: String): List<String> = emptyList()
 }
 
 /**
@@ -34,6 +37,33 @@ class VaultLibrary(
     private val lock = Any()
 
     fun rootNow() = VaultPaths.normalizeRoot(root())
+
+    private fun workDir(noteId: String): String? = noteId.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }
+        ?.let { "${rootNow()}/work/$it" }
+    private fun workPath(noteId: String, partId: String): String? = workDir(noteId)?.let { dir ->
+        partId.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.let { "$dir/$it.md" }
+    }
+
+    /** Create-only parts protect user edits; retrying identical text is idempotent. */
+    fun writeWorkPart(noteId: String, partId: String, body: String): VaultAppendResult = synchronized(lock) {
+        val path = workPath(noteId, partId) ?: return VaultAppendResult(false, code = "invalid_id")
+        if (body.isBlank() || body.length > 12000) return VaultAppendResult(false, code = "invalid_body")
+        val normalized = java.text.Normalizer.normalize(body, java.text.Normalizer.Form.NFKC)
+        if (VaultRedactor.redact(body) != normalized) return VaultAppendResult(false, code = "sensitive_content")
+        val prior = files.read(path)
+        if (prior != null) return if (prior == body) VaultAppendResult(true, path, "exists") else VaultAppendResult(false, path, "conflict")
+        files.write(path, body)
+        if (files.read(path) != body) return VaultAppendResult(false, path, "verify_failed")
+        VaultAppendResult(true, path, "ok")
+    }
+
+    fun readWorkPart(noteId: String, partId: String): String? = synchronized(lock) {
+        workPath(noteId, partId)?.let(files::read)
+    }
+
+    fun listWorkParts(noteId: String): List<String> = synchronized(lock) {
+        workDir(noteId)?.let(files::listNames).orEmpty().filter { it.matches(Regex("[A-Za-z0-9_-]{1,64}\\.md")) }.sorted()
+    }
 
     fun notes(): List<VaultNote> = files.listNotes(rootNow()).map { (p, t) -> VaultNotes.parse(p, t) }
 

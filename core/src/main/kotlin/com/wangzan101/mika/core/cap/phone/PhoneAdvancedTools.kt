@@ -289,7 +289,11 @@ internal object PhoneGesture : PhoneTool {
     ), listOf("paths"))
 
     override suspend fun execute(a: Args, ctx: ToolContext): ToolExecution {
-        val paths = a.o["paths"] as? JsonArray ?: throw ArgError("paths", "required")
+        val rawPaths = a.o["paths"] as? JsonArray ?: throw ArgError("paths", "required")
+        // Models sometimes send a single path directly as [[x,y],[x,y]].
+        // Accept that unambiguous form without changing two-finger paths.
+        val paths = if (rawPaths.firstOrNull() is JsonArray &&
+            (rawPaths.first() as JsonArray).firstOrNull() is JsonPrimitive) JsonArray(listOf(rawPaths)) else rawPaths
         if (paths.size !in 1..2) throw ArgError("paths", "must contain 1 or 2 paths")
         val screen = ctx.lastOrSnapshot()
         val pixels = paths.mapIndexed { p, raw ->

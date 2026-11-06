@@ -32,6 +32,7 @@ class FileRunStateStore(private val file: File) : RunStore {
                     o["roundInProgress"]?.jsonPrimitive?.content == "true",
                     o["triggerWindowKey"]?.jsonPrimitive?.contentOrNull,
                     o["runSucceeded"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull(),
+                    o["recordId"]?.jsonPrimitive?.contentOrNull,
                 )
             }
         }.onFailure {
@@ -51,6 +52,7 @@ class FileRunStateStore(private val file: File) : RunStore {
             put("roundInProgress", r.roundInProgress)
             put("triggerWindowKey", r.triggerWindowKey)
             put("runSucceeded", r.runSucceeded)
+            put("recordId", r.recordId)
         } }).toString()
         val temp = File(file.parentFile, file.name + ".tmp")
         FileOutputStream(temp).use { out -> out.write(json.toByteArray(Charsets.UTF_8)); out.fd.sync() }

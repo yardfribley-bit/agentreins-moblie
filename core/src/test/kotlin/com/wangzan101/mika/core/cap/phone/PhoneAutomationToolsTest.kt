@@ -252,6 +252,21 @@ class PhoneAutomationToolsTest {
         assertTrue(paths[0][0].first < paths[1][0].first)
     }
 
+    @Test fun gestureAcceptsFlatSingleFingerPath() = runTest {
+        var paths: List<List<Pair<Int, Int>>> = emptyList()
+        val screen = object : ScreenPort by FakeScreen() {
+            override suspend fun snapshot(): ScreenSnapshot = tree()
+            override suspend fun gesture(p: List<List<Pair<Int, Int>>>, durationMs: Long): ActionResult {
+                paths = p; return ActionResult.Ok(changed = true)
+            }
+        }
+        val dispatcher = toolDispatcher(screen)
+        val args = Args(PhoneGesture.def, Json.parseToJsonElement("""{"paths":[[400,500],[400,500]],"durationMs":900}""").jsonObject)
+        assertEquals("true", PhoneGesture.execute(args, dispatcher.ctx).content["ok"]!!.jsonPrimitive.content)
+        assertEquals(1, paths.size)
+        assertEquals(paths[0][0], paths[0][1])
+    }
+
     @Test fun eventWatchReturnsSeveralNotificationsFromOneSubscription() = runTest {
         var requested = ""
         val screen = object : ScreenPort by FakeScreen() {

@@ -11,6 +11,7 @@ data class StoredRun(
     val roundInProgress: Boolean = false,
     val triggerWindowKey: String? = null,
     val runSucceeded: Boolean? = null,
+    val recordId: String? = null,
 )
 
 interface RunStore {

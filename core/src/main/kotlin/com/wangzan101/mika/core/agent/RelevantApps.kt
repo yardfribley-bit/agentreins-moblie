@@ -5,20 +5,21 @@ object RelevantApps {
     private data class Group(val terms: List<String>, val packages: Set<String>, val purpose: String)
     val categories = listOf("shopping and local deals", "coding and development", "research and search", "X and content creation", "communication", "maps", "travel", "finance", "productivity", "media")
     private val groups = listOf(
-        Group(listOf("购物", "买", "购买", "团购", "比价", "优惠", "便宜", "网吧", "咖啡", "美式", "奶茶", "shopping", "deal", "price", "coffee"),
+        Group(listOf("购物", "买", "购买", "团购", "比价", "优惠", "便宜", "外卖", "网吧", "咖啡", "美式", "奶茶", "shopping", "deal", "price", "coffee"),
             setOf("com.sankuai.meituan", "com.ss.android.ugc.lifeservices", "com.taobao.taobao", "com.dianping.v1", "com.jingdong.app.mall", "com.xingin.xhs"), "shopping and local deals"),
         Group(listOf("编程", "写代码", "代码", "开发", "程序", "programming", "coding", "code", "github"),
             setOf("com.bytedance.trae.cn", "com.tencent.workbuddy.app", "io.github.ccch1mneyyy.dsh_app", "com.termux"), "coding and development"),
-        Group(listOf("搜索", "查询", "查一下", "查找", "调查", "调研", "资料", "search", "research", "look up"),
-            setOf("com.google.android.apps.bard", "com.quark.browser", "com.baidu.searchbox", "com.honor.browser", "com.openai.chatgpt", "com.deepseek.chat"), "research and search"),
-        Group(listOf("发帖", "帖子", "推文", "评论", "回复", "推销", "post", "tweet", "twitter", "x.com"),
-            setOf("com.twitter.android", "com.google.android.apps.bard", "com.bytedance.trae.cn", "com.larus.nova", "com.deepseek.chat"), "X and content creation"),
+        Group(listOf("搜索", "查询", "查一下", "查找", "调查", "调研", "资料", "公众号", "文章", "写作", "grok", "search", "research", "look up"),
+            setOf("com.google.android.apps.bard", "com.quark.browser", "com.baidu.searchbox", "com.honor.browser", "com.openai.chatgpt", "com.deepseek.chat", "ai.x.grok", "ai.x.grok.bot"), "research and search"),
+        Group(listOf("刷x", "刷 x", "发帖", "帖子", "推文", "评论", "回复", "推销", "公众号", "文章", "写作", "配图", "生图", "图片", "海报", "简历", "招聘", "求职", "post", "tweet", "twitter", "x.com", "illustration", "image generation"),
+            setOf("com.twitter.android", "com.tencent.mp", "com.google.android.apps.bard", "com.bytedance.trae.cn", "com.larus.nova", "com.deepseek.chat", "ai.x.grok", "ai.x.grok.bot"), "X and content creation"),
         Group(listOf("聊天", "消息", "微信", "邮件", "短信", "chat", "email"), setOf("com.tencent.mm", "com.tencent.mobileqq", "com.google.android.gm"), "communication"),
         Group(listOf("地图", "路线", "导航", "map"), setOf("com.autonavi.minimap", "com.tencent.map", "com.baidu.BaiduMap"), "maps"),
         Group(listOf("出行", "打车", "火车", "机票", "travel"), setOf("com.sdu.didi.psnger", "com.MobileTicket", "ctrip.android.view", "com.jingyao.easybike"), "travel"),
         Group(listOf("银行", "付款", "支付", "finance", "bank"), setOf("com.eg.android.AlipayGphone", "com.unionpay"), "finance"),
         Group(listOf("笔记", "文档", "表格", "办公", "note", "document"), setOf("md.obsidian", "cn.wps.moffice_eng", "com.yinxiang"), "productivity"),
-        Group(listOf("视频", "音乐", "video", "music"), setOf("com.google.android.youtube", "com.luna.music", "com.ss.android.ugc.aweme"), "media"),
+        Group(listOf("视频", "音乐", "抖音", "直播", "主播", "video", "music", "livestream"), setOf("com.google.android.youtube", "com.luna.music", "com.ss.android.ugc.aweme"), "media"),
+        Group(listOf("招聘", "求职", "找工作", "职位", "岗位", "简历", "boss", "job", "resume"), setOf("com.hpbr.bosszhipin"), "productivity"),
     )
 
     fun suggestedCategories(pkg: String, label: String = ""): Set<String> {

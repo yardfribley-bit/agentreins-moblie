@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.update
 class TaskGate(
     private val locked: StateFlow<Boolean>,
     private val shellAvailable: StateFlow<Boolean>,
+    private val accessibilityAvailable: () -> Boolean = { true },
     private val moveBack: suspend () -> Boolean,
 ) {
     private val movedAway = MutableStateFlow(false)
@@ -45,6 +46,9 @@ class TaskGate(
             when {
                 onPhone && !shellAvailable.value -> {
                     pauseUntilResume(SHELL_DOWN, setWaiting)
+                }
+                onPhone && !accessibilityAvailable() -> {
+                    pauseUntilResume(ACCESSIBILITY_DOWN, setWaiting)
                 }
                 onPhone && movedAway.value -> {
                     pauseUntilResume(MOVED_AWAY, setWaiting, seen = resumesAtMove)
@@ -95,5 +99,6 @@ class TaskGate(
         val MOVED_AWAY: String get() = tr(R.string.gate_moved_away)
         val MOVE_BACK_FAILED: String get() = tr(R.string.gate_move_back_failed)
         val SHELL_DOWN: String get() = tr(R.string.gate_shell_down)
+        val ACCESSIBILITY_DOWN: String get() = tr(R.string.gate_accessibility_down)
     }
 }

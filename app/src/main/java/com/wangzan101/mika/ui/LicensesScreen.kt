@@ -66,6 +66,7 @@ object Licenses {
         Entry("scrcpy", "Apache-2.0", "以 shell 身份取得系统上下文的做法仿照 scrcpy,相关源文件头部保留出处。"),
         Entry("Alpine Linux", "各软件包各自的许可证", RUNTIME_NOTE),
         Entry("XZ for Java", "0BSD", "版本 1.10,首次启动时解压自带的运行环境。https://tukaani.org/xz/java.html"),
+        Entry("JSch", "BSD-3-Clause", "版本 2.28.8，用于连接用户配置的 SSH 主机。完整许可见应用内 licenses/JSch.txt 及项目第三方许可说明。"),
         Entry("commonmark-java", "BSD-2-Clause", "版本 0.30.1(含表格、删除线扩展),把回答里的 Markdown 解析成结构后显示。Copyright (c) 2015, Atlassian Pty Ltd. https://github.com/commonmark/commonmark-java"),
     )
 }

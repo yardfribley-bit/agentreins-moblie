@@ -57,6 +57,11 @@ import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -244,7 +249,7 @@ fun ChatScreen(
             },
         ) {
             if (ui.exchanges.isEmpty() && ui.blocked == null) {
-                item("empty") { EmptyState(ui.conversationId) { input = it } }
+                item("empty") { EmptyState(ui.conversationId, onRunTask = { vm.send(it, check) }) }
             }
             ui.exchanges.forEachIndexed { i, ex ->
                 val backgroundNote = i == ui.exchanges.lastIndex && ui.operatingPhone
@@ -333,11 +338,37 @@ private fun LazyListState.nearTail(thresholdPx: Int): Boolean {
 
 // ---------- 空对话 ----------
 
-/** 问候、一句「想让 Mika 做什么？」和一列示例;点示例把它填进输入框,改好了再发。 */
+/** 以简短表单收集任务目标和必要上下文，确认后才发送。 */
 @Composable
-private fun EmptyState(conversation: String?, onPick: (String) -> Unit) {
+private fun EmptyState(conversation: String?, onRunTask: (String) -> Boolean) {
     val c = MikaTheme.colors
     val hour = remember(conversation) { LocalTime.now().hour }
+    var form by remember { mutableIntStateOf(-1) }
+    var main by remember { mutableStateOf("") }
+    var detail by remember { mutableStateOf("") }
+    var style by remember { mutableStateOf("") }
+    if (form >= 0) {
+        val titles = listOf(R.string.task_form_x_title, R.string.task_form_jobs_title, R.string.task_form_deals_title, R.string.task_form_live_title, R.string.task_form_article_title)
+        val mains = listOf(R.string.task_form_x_main, R.string.task_form_jobs_main, R.string.task_form_deals_main, R.string.task_form_live_main, R.string.task_form_article_main)
+        val details = listOf(R.string.task_form_x_detail, R.string.task_form_jobs_detail, R.string.task_form_deals_detail, R.string.task_form_live_detail, R.string.task_form_article_detail)
+        val mainLabels = listOf(R.string.task_field_topic_account, R.string.task_field_job, R.string.task_field_product, R.string.task_field_live, R.string.task_field_topic)
+        val detailLabels = listOf(R.string.task_field_action, R.string.task_field_criteria, R.string.task_field_deals, R.string.task_field_live_action, R.string.task_field_sources)
+        val goals = listOf(R.string.task_form_x_goal, R.string.task_form_jobs_goal, R.string.task_form_deals_goal, R.string.task_form_live_goal, R.string.task_form_article_goal)
+        val unspecified = stringResource(R.string.task_form_unspecified)
+        val goal = if (form == 4 || form == 1) stringResource(goals[form], main.trim(), detail.trim().ifBlank { unspecified }, style.trim().ifBlank { unspecified })
+            else stringResource(goals[form], main.trim(), detail.trim().ifBlank { unspecified })
+        AlertDialog(
+            onDismissRequest = { form = -1 },
+            title = { Text(stringResource(titles[form])) },
+            text = { Column(Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(value = main, onValueChange = { if (it.length <= 300) main = it }, label = { Text(stringResource(mainLabels[form])) }, placeholder = { Text(stringResource(mains[form])) }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = detail, onValueChange = { if (it.length <= 1000) detail = it }, label = { Text(stringResource(detailLabels[form])) }, placeholder = { Text(stringResource(details[form])) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                if (form == 4 || form == 1) OutlinedTextField(value = style, onValueChange = { if (it.length <= 1000) style = it }, label = { Text(stringResource(if (form == 1) R.string.task_field_resume else R.string.task_field_style)) }, placeholder = { Text(stringResource(if (form == 1) R.string.task_form_jobs_resume else R.string.task_form_article_style)) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+            } },
+            confirmButton = { TextButton(enabled = main.isNotBlank(), onClick = { if (onRunTask(goal)) { form = -1; main = ""; detail = ""; style = "" } }) { Text(stringResource(R.string.task_form_start)) } },
+            dismissButton = { TextButton(onClick = { form = -1 }) { Text(stringResource(R.string.chat_deals_cancel)) } },
+        )
+    }
     Column(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(start = 8.dp, end = 8.dp, top = 52.dp)) {
             Text(ChatCopy.greeting(hour), style = MikaType.LargeTitle, color = c.ink)
@@ -346,7 +377,7 @@ private fun EmptyState(conversation: String?, onPick: (String) -> Unit) {
         }
         MikaCard(Modifier.padding(top = 28.dp)) {
             ChatCopy.examples.forEachIndexed { i, ex ->
-                ExampleRow(exampleIcon(ex.kind), ex.text, first = i == 0) { onPick(ex.text) }
+                ExampleRow(exampleIcon(ex.kind), ex.text, first = i == 0) { main = ""; detail = ""; style = ""; form = i }
             }
         }
     }
@@ -358,6 +389,7 @@ private fun exampleIcon(kind: ChatCopy.ExampleKind): ImageVector = when (kind) {
     ChatCopy.ExampleKind.File -> MikaIcons.Doc
     ChatCopy.ExampleKind.Schedule -> MikaIcons.Clock
     ChatCopy.ExampleKind.Device -> MikaIcons.Alarm
+    ChatCopy.ExampleKind.Deals -> MikaIcons.Globe
 }
 
 @Composable

@@ -26,11 +26,10 @@ class ChatCopyTest {
         assertEquals("夜深了", ChatCopy.greeting(23))
     }
 
-    @Test fun sixDistinctNonBlankExamples() {
-        assertEquals(6, ChatCopy.examples.size)
-        assertEquals(6, ChatCopy.examples.map { it.text }.filter { it.isNotBlank() }.toSet().size)
-        assertEquals("搜索我关注的话题，整理值得看的帖子", ChatCopy.examples.first().text)
-        assertEquals("帮我设置 X 话题定时搜索，先问我关注什么和搜索频率", ChatCopy.examples[4].text)
+    @Test fun homeOffersFiveTaskPrompts() {
+        assertEquals(5, ChatCopy.examples.size)
+        assertEquals(5, ChatCopy.examples.map { it.text }.toSet().size)
+        assertEquals("刷 X：搜索话题、整理帖子、写评论", ChatCopy.examples.first().text)
     }
 
     @Test fun titleIsTheFirstLineOfTheFirstMessage() {

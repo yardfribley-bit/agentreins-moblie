@@ -18,16 +18,15 @@ object ChatCopy {
     val EMPTY_PROMPT get() = tr(R.string.chat_empty_prompt)
 
     /** 空对话里的示例;点一下填进输入框,用户改好了再发。[kind] 决定配哪个线条图标。 */
-    enum class ExampleKind { App, Web, File, Schedule, Device }
+    enum class ExampleKind { App, Web, File, Schedule, Device, Deals }
     data class Example(val kind: ExampleKind, val text: String)
 
     val examples get() = listOf(
-        Example(ExampleKind.Web, tr(R.string.chat_example_message)),
-        Example(ExampleKind.App, tr(R.string.chat_example_group_summary)),
-        Example(ExampleKind.File, tr(R.string.chat_example_jobs)),
-        Example(ExampleKind.App, tr(R.string.chat_example_music)),
-        Example(ExampleKind.Schedule, tr(R.string.chat_example_alarms)),
-        Example(ExampleKind.File, tr(R.string.chat_example_creator)),
+        Example(ExampleKind.App, tr(R.string.chat_core_x)),
+        Example(ExampleKind.App, tr(R.string.chat_core_jobs)),
+        Example(ExampleKind.Deals, tr(R.string.chat_core_deals)),
+        Example(ExampleKind.App, tr(R.string.chat_core_live)),
+        Example(ExampleKind.File, tr(R.string.chat_core_wechat)),
     )
 
     /** 对话页顶栏的标题:固定是 App 名;副标题说此刻在做什么。 */

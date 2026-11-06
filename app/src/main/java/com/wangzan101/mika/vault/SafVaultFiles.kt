@@ -111,9 +111,15 @@ class SafVaultFiles(private val context: Context, private val tree: () -> Uri?) 
 
     private fun readDoc(uri: Uri): String? = resolver.openInputStream(uri)?.use { input ->
         BufferedReader(InputStreamReader(input, Charsets.UTF_8)).use { reader ->
-            val buf = CharArray(48_000)
-            val n = reader.read(buf)
-            if (n <= 0) "" else String(buf, 0, n)
+            val buf = CharArray(4096)
+            val text = StringBuilder()
+            while (text.length < 48_000) {
+                val n = reader.read(buf, 0, minOf(buf.size, 48_000 - text.length))
+                if (n < 0) break
+                if (n == 0) continue
+                text.append(buf, 0, n)
+            }
+            text.toString()
         }
     }
 }
