@@ -40,6 +40,14 @@ class RedactorNetworkTest {
         assertFalse(out.contains("abc"))
     }
 
+    @Test fun longJsonValuesDoNotOverflowAndStillMaskSecrets() {
+        val longText = "文章内容".repeat(6000)
+        val out = body("""{"content":"$longText","password":"secret"}""")
+        assertTrue(out.contains(longText))
+        assertTrue(out.contains("\"password\":\"***\""))
+        assertFalse(out.contains("secret"))
+    }
+
     @Test fun jwtAndHighEntropyStringsAreMasked() {
         val jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
         assertEquals("""{"x":"***"}""", body("""{"x":"$jwt"}"""))

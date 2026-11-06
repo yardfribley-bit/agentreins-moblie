@@ -192,7 +192,7 @@ object Redactor {
         return if (fragment == null) base else base + "#" + if ('=' in fragment) maskParams(fragment, bareKey = true) else fragment
     }
 
-    private val JSON_PAIR = Regex(""""((?:[^"\\]|\\.){1,100})"(\s*:\s*)("(?:[^"\\]|\\.)*"|-?\d[\d.eE+\-]*|true|false|null)""")
+    private val JSON_PAIR = Regex(""""((?:[^"\\]++|\\.){1,100})"(\s*:\s*)("(?:[^"\\]++|\\.)*+"|-?\d[\d.eE+\-]*|true|false|null)""")
     private val FORM = Regex("""^[^\s{}\[\]"<>]+=[^\s]*$""")
 
     private fun maskBody(b: String): String {
