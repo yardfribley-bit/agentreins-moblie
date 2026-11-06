@@ -45,8 +45,10 @@ class VaultRuntime(context: Context) : VaultMemory {
     private val reads = ConcurrentHashMap<String, List<String>>()
     private val toolWrites = ConcurrentHashMap<String, MutableList<String>>()
 
-    fun persisted(uri: Uri): Boolean =
-        app.contentResolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission && it.isWritePermission }
+    fun persisted(uri: Uri? = null): Boolean {
+        val target = uri ?: settings.state.value.treeUri?.let(Uri::parse) ?: return false
+        return app.contentResolver.persistedUriPermissions.any { it.uri == target && it.isReadPermission && it.isWritePermission }
+    }
 
     fun choose(uri: Uri) {
         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
