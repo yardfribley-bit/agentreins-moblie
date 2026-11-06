@@ -90,6 +90,7 @@ class AgentDisplay(
                 }
                 bmp!!.copyPixelsFromBuffer(plane.buffer.rewind())
                 hasFrame = true
+                com.wangzan101.mika.recording.VideoRecordingService.offerTargetFrame(this, bmp, width, height)
                 val preview = Bitmap.createBitmap(previewWidth, previewHeight, Bitmap.Config.ARGB_8888)
                 Canvas(preview).drawBitmap(bmp, Rect(0, 0, width, height), Rect(0, 0, previewWidth, previewHeight), paint)
                 _frames.value = preview

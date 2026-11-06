@@ -34,8 +34,9 @@ internal object ChangeWait {
         quietForMs: () -> Long,
         treeChanged: () -> Boolean,
         beforeFrame: IntArray?,
+        capMs: Long = CAP_MS,
     ): Boolean {
-        val deadline = now() + CAP_MS
+        val deadline = now() + capMs.coerceAtLeast(POLL_MS)
         var prev = frame()
         var wait = POLL_MS
         while (true) {

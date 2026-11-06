@@ -244,7 +244,8 @@ internal class ScreenSession(
      */
     suspend fun withScreen(r: ToolExecution): ToolExecution {
         val cur = try {
-            screen.waitStable(INLINE_SETTLE_MS)
+            // Only this timed game uses a shorter post-action settle window.
+            screen.waitStable(if (lastSnapshot?.packageName == "com.qqgame.hlddz") 250L else INLINE_SETTLE_MS)
             snapshot()
             stabilizer!!.latest!!
         } catch (e: CancellationException) {
@@ -453,7 +454,8 @@ internal class ScreenSession(
     private suspend fun readTree(s: ScreenSnapshot): TreeRead {
         val tree = TreeAdequacy.ofTree(s)
         if (tree.quality == TreeQuality.Adequate || tree.quality == TreeQuality.Protected) return TreeRead(tree, null, null).also { lastTree = it.tree }
-        val (ocr, status) = visibleText(s, if (tree.poor) OCR_WAIT_POOR_MS else OCR_WAIT_MS)
+        val timeout = if (s.packageName == "com.qqgame.hlddz") 2200L else if (tree.poor) OCR_WAIT_POOR_MS else OCR_WAIT_MS
+        val (ocr, status) = visibleText(s, timeout)
         val checked = TreeAdequacy.withText(tree, ocr)
         lastTree = checked
         // 树不够用、屏上文字也一行没有:照实说为什么,模型才知道该看图找,而不是再读一次

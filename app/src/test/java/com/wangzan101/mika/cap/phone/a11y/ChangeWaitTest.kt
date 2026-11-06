@@ -18,14 +18,21 @@ class ChangeWaitTest {
         val treeChangedAt: Long = Long.MAX_VALUE,
     ) {
         var now = 0L
-        suspend fun run(before: IntArray?) = ChangeWait.awaitStableChange(
+        suspend fun run(before: IntArray?, capMs: Long = ChangeWait.CAP_MS) = ChangeWait.awaitStableChange(
             now = { now },
             sleep = { now += it },
             frame = { frameAt(now) },
             quietForMs = { now - lastEventAt(now) },
             treeChanged = { now >= treeChangedAt },
             beforeFrame = before,
+            capMs = capMs,
         )
+    }
+
+    @Test fun timedGameCapDoesNotInventAChange() = runTest {
+        val f = Fake(frameAt = { before })
+        assertFalse(f.run(before, capMs = 700))
+        assertTrue(f.now in 700..850)
     }
 
     @Test fun slowPageChangeIsReportedAfterFramesSettle() = runTest {

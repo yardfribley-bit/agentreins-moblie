@@ -273,6 +273,7 @@ fun SettingsContent(
     onOpenAbout: () -> Unit = {},
 ) {
     val check = Prerequisites.check(status, hasMainModel = mainModel != null)
+    val context = LocalContext.current
     PageScaffold(stringResource(R.string.settings_title), onBack) {
         StatusSummary(check, onProblem)
 
@@ -293,6 +294,9 @@ fun SettingsContent(
                 RowChevron()
             }
             ListRow(MikaIcons.Phone, "应用分类", "确认手机应用的用途", onClick = onOpenAppCategories) { RowChevron() }
+            ListRow(MikaIcons.Phone, "录制视频", "录制小助手界面或任务操作画面", onClick = {
+                context.startActivity(android.content.Intent(context, com.wangzan101.mika.recording.VideoRecordingActivity::class.java))
+            }) { RowChevron() }
             ListRow(MikaIcons.Globe, "云工作台", "配置自己的云主机并测试 SSH 连接", onClick = onOpenCloudHost) { RowChevron() }
             ListRow(MikaIcons.Moon, stringResource(R.string.settings_during_work), stringResource(R.string.settings_during_work_sub), onClick = onOpenDuringWork) { RowChevron() }
             ListRow(MikaIcons.Message, CapsuleSettingsCopy.TITLE, CapsuleSettingsCopy.SUBTITLE, onClick = onOpenCapsule) {

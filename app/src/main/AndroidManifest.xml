@@ -64,6 +64,9 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity android:name=".audio.LiveAudioActivity" android:exported="false" />
+        <activity android:name=".recording.VideoRecordingActivity" android:exported="false" />
+        <service android:name=".recording.VideoRecordingService" android:exported="false"
+            android:foregroundServiceType="mediaProjection|dataSync" />
         <activity android:name=".audio.SpeechActivity" android:exported="false" />
         <activity
             android:name=".audio.MicConsentActivity"

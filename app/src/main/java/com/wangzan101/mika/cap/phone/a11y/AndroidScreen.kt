@@ -187,6 +187,13 @@ class AndroidScreen(
      */
     override suspend fun readVisibleText(): List<VisibleTextLine>? = withContext(Dispatchers.IO) {
         if (!opened || frameBlack() == true) return@withContext null
+        if (_target.value?.packageName == "com.qqgame.hlddz") {
+            // Timed game turns cannot wait for animations to settle. Discard OCR when
+            // the whole page changes during recognition; never reuse a stale result.
+            val before = frameSignature()
+            val result = display.current?.latestFrameBitmap()?.let { PhoneOcr.read(it) }
+            return@withContext result?.takeUnless { FrameMath.pageChanged(before, frameSignature()) }
+        }
         StillFrameRead.read(SystemClock::uptimeMillis, { delay(it) }, ::frameSignature) {
             display.current?.latestFrameBitmap()?.let { PhoneOcr.read(it) }
         }
@@ -1174,6 +1181,7 @@ class AndroidScreen(
             quietForMs = clock::quietForMs,
             treeChanged = { treeHash() != beforeTree },
             beforeFrame = beforeFrame,
+            capMs = if (_target.value?.packageName == "com.qqgame.hlddz") 700L else ChangeWait.CAP_MS,
         )
 
     /** 前台不是目标 App、也不是它调起的系统页面或系统选择器时,返回当前前台包名及是否由目标 App 打开。 */

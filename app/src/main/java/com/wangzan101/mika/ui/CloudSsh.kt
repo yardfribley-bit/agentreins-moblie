@@ -87,7 +87,7 @@ internal object CloudSsh {
     fun test(host: String, port: Int, user: String, password: String, fingerprint: String): String {
         val session = connect(host, port, user, password, fingerprint)
         session.disconnect()
-        return "SSH 连接成功；尚未部署云端任务"
+        return "SSH 连接成功；可以在聊天中安排一次性云端后台任务"
     }
 
     suspend fun command(host: String, port: Int, user: String, password: String, fingerprint: String, command: String): CloudCommandResult {

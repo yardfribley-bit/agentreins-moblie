@@ -62,7 +62,7 @@ fun CloudHostScreen(onBack: () -> Unit) {
             dismissButton = { TextButton(onClick = { candidate = null }) { Text("取消") } })
     }
     PageScaffold("云工作台", onBack) {
-        StateCard(MikaIcons.Info, "连接自己的云主机", "输入地址和账号即可开始。首次连接时会请你确认服务器身份；此版本暂不部署长期任务。", TileTone.Warn)
+        StateCard(MikaIcons.Info, "连接自己的云主机", "连接后可以让小助手在服务器执行一次性后台任务，并凭任务编号查询结果。手机断开后任务可继续运行；服务器重启后不会自动恢复，暂不支持定时调度。", TileTone.Warn)
         GroupCard {
             InputRow("地址", host, { if (host != it) fingerprint = ""; host = it }, "域名或 IP", first = true, keyboard = KeyboardType.Uri)
             InputRow("端口", port, { if (port != it) fingerprint = ""; port = it }, "22", keyboard = KeyboardType.Number)
