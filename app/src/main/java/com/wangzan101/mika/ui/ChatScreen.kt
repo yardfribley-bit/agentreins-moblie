@@ -157,6 +157,8 @@ fun ChatScreen(
     /** 任务要用手机而手机操作没准备好:最后一轮下面放一行去设置。 */
     phoneSetupNeeded: Boolean = false,
     openPhoneSetup: () -> Unit = {},
+    /** 无障碍服务没连上时，从失败或暂停卡片打开系统无障碍设置（主屏，不要求服务已连接）。 */
+    openAccessibility: () -> Unit = {},
     /** 按运行记录取依据的来处(「来源」胶囊和点开后的截图);读盘的活由调用方放到后台线程。 */
     loadSource: suspend (runId: String) -> EvidenceSource? = { null },
     openSource: (runId: String?, legacyText: String?) -> Unit = { _, _ -> },
@@ -746,8 +748,12 @@ private fun StatusCard(
             CardButton(stringResource(R.string.chat_allow_once), primary = true, onClick = { vm.approve(status.key) })
         }
         is ExchangeStatus.Paused -> NeedCard(stringResource(R.string.chat_paused), status.why) {
+            val accessibilityDown = status.why == stringResource(R.string.gate_accessibility_down)
             CardButton(stringResource(R.string.action_cancel_task), onClick = vm::cancel)
-            CardButton(stringResource(R.string.chat_continue), primary = true, onClick = vm::resume)
+            if (accessibilityDown) {
+                CardButton(stringResource(R.string.phone_step_a11y_action), primary = true, onClick = openAccessibility)
+            }
+            CardButton(stringResource(R.string.chat_continue), primary = !accessibilityDown, onClick = vm::resume)
         }
         is ExchangeStatus.Done -> Column(Modifier.fillMaxWidth().padding(bottom = 12.dp).answerSurface()) {
             status.unverifiedLine?.let { line ->
@@ -768,6 +774,11 @@ private fun StatusCard(
                 Text(stringResource(R.string.chat_not_done), style = MikaType.BodyStrong, color = MikaTheme.colors.ink)
             }
             Text(status.reason, Modifier.padding(top = 4.dp), style = CardBody, color = MikaTheme.colors.ink2)
+            if (status.reason == stringResource(R.string.task_no_a11y)) {
+                Row(Modifier.padding(top = 12.dp).fillMaxWidth()) {
+                    CardButton(stringResource(R.string.phone_step_a11y_action), primary = true, onClick = openAccessibility)
+                }
+            }
         }
         // 停止后补上的交代当作这一轮的回答,排在「已停止」下面;还在写时一行小字
         is ExchangeStatus.Cancelled -> Column(Modifier.fillMaxWidth().padding(bottom = 10.dp)) {

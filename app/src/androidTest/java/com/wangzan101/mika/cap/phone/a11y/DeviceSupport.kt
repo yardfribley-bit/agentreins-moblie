@@ -1,6 +1,7 @@
 package com.wangzan101.mika.cap.phone.a11y
 
 import android.app.UiAutomation
+import android.content.ComponentName
 import android.os.ParcelFileDescriptor
 import androidx.test.platform.app.InstrumentationRegistry
 import com.wangzan101.mika.cap.phone.display.AgentDisplay
@@ -17,7 +18,15 @@ import com.wangzan101.mika.a11y.MikaAccessibilityService
 /** 真机测试共用:shell 连接、无障碍服务、虚拟屏上的 AndroidScreen。需要内置助手在运行(已配对、无线调试开着)且 Mika 无障碍服务已开启。 */
 object DeviceSupport {
     const val SETTINGS = "com.android.settings"
-    const val TEST_PACKAGE = "com.wangzan101.mika.test"
+    /** 测试 APK 的 applicationId（默认是被测应用的 applicationId 加 .test），不是 namespace。 */
+    val TEST_PACKAGE: String
+        get() = InstrumentationRegistry.getInstrumentation().context.packageName
+
+    /** 被测应用的无障碍组件。类在 namespace 下，包名是 applicationId。 */
+    fun accessibilityComponent(): String {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext
+        return ComponentName(app, MikaAccessibilityService::class.java).flattenToString()
+    }
     private var connection: ShellBinding? = null
     private val phone get() = PhoneServices.of(InstrumentationRegistry.getInstrumentation().targetContext)
 
@@ -70,7 +79,7 @@ object DeviceSupport {
     private fun rebindAccessibility() {
         if (ScreenAccessibility.instance.value != null) return
         val key = "enabled_accessibility_services"
-        val mika = "com.wangzan101.mika/${MikaAccessibilityService::class.java.name}"
+        val mika = accessibilityComponent()
         val enabled = sh("settings get secure $key").trim().split(':')
         if (mika !in enabled) return
         try {

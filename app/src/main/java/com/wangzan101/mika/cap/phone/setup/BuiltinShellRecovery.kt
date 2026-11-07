@@ -4,11 +4,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.NonCancellable
+import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.os.Build
 import android.provider.Settings
+import com.wangzan101.mika.a11y.MikaAccessibilityService
 import com.wangzan101.mika.cap.phone.a11y.ScreenAccessibility
 import com.wangzan101.mika.core.shell.A11yObservation
 import com.wangzan101.mika.core.shell.AccessibilityList
@@ -50,11 +52,23 @@ class BuiltinShellRecovery(
 ) {
     private val app = context.applicationContext
 
+    /**
+     * 无障碍服务在系统设置里的组件名。类在 namespace（com.wangzan101.mika）下，
+     * 包名是 applicationId，两者可以不同；不能写成 applicationId/.a11y.…。
+     */
+    private val accessibilityComponent: String =
+        ComponentName(app, MikaAccessibilityService::class.java).flattenToString()
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var started = false
 
     val permissions: RecoveryPermissions by lazy {
-        RecoveryPermissions({ runner.takeIf { control.status.value != BuiltinShellStatus.NotPaired } }, settings, app.packageName)
+        RecoveryPermissions(
+            { runner.takeIf { control.status.value != BuiltinShellStatus.NotPaired } },
+            settings,
+            app.packageName,
+            accessibilityComponent,
+        )
     }
 
     /**
@@ -73,7 +87,7 @@ class BuiltinShellRecovery(
     /** 和 [RecoveryPermissions.restartAccessibility] 同样的步骤,只是由 App 自己写系统设置:没有就加上,有却没绑定就去掉再加回。 */
     private suspend fun restartDirectly(gapMs: Long): PermissionResult = withContext(Dispatchers.IO) {
         val cr = app.contentResolver
-        val me = PermissionCommands.accessibilityService(app.packageName)
+        val me = accessibilityComponent
         fun read() = Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
         fun write(list: String) {
             Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, list.ifEmpty { null })
@@ -114,7 +128,7 @@ class BuiltinShellRecovery(
     /** 系统列表里有没有 Mika(跟着系统设置的变化)和服务实例是否连着(跟着连上、断开)。 */
     private fun serviceObservations(): StateFlow<A11yObservation> {
         val cr = app.contentResolver
-        val me = PermissionCommands.accessibilityService(app.packageName)
+        val me = accessibilityComponent
         fun enabled() = AccessibilityList.contains(Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES), me)
         val listChanges = callbackFlow {
             val observer = object : ContentObserver(null) {

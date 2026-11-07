@@ -8,13 +8,15 @@ package com.wangzan101.mika.core.tool
  */
 object LinkPolicy {
     const val APP_DETAILS = "android.settings.APPLICATION_DETAILS_SETTINGS"
+    /** 系统无障碍设置。打开它不需要本应用的无障碍服务已经连上。 */
+    const val ACCESSIBILITY_SETTINGS = "android.settings.ACCESSIBILITY_SETTINGS"
 
     val SETTINGS_ACTIONS: Set<String> = setOf(
         "android.settings.SETTINGS", "android.settings.WIFI_SETTINGS", "android.settings.BLUETOOTH_SETTINGS",
         "android.settings.DISPLAY_SETTINGS", "android.settings.SOUND_SETTINGS", "android.settings.BATTERY_SAVER_SETTINGS",
         APP_DETAILS, "android.settings.APPLICATION_SETTINGS", "android.settings.DATE_SETTINGS",
         "android.settings.LOCALE_SETTINGS", "android.settings.DEVICE_INFO_SETTINGS", "android.settings.LOCATION_SOURCE_SETTINGS",
-        "android.settings.INTERNAL_STORAGE_SETTINGS", "android.settings.ACCESSIBILITY_SETTINGS",
+        "android.settings.INTERNAL_STORAGE_SETTINGS", ACCESSIBILITY_SETTINGS,
     )
 
     private val BLOCKED_SCHEMES = setOf("intent", "file", "content", "javascript")
