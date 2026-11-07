@@ -11,6 +11,7 @@ import com.wangzan101.mika.shell.IMikaShell
 import com.wangzan101.mika.cap.phone.PhoneServices
 import com.wangzan101.mika.cap.phone.shell.BuiltinShellConnection
 import com.wangzan101.mika.cap.phone.shell.ShellService
+import com.wangzan101.mika.core.shell.HelperHandoff
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -33,7 +34,8 @@ class AgentDisplayTest {
     // 整个测试类共用一条连接,与 App 里长期持有一条连接的用法一致
     companion object {
         private const val SETTINGS = "com.android.settings"
-        private const val SHELL_PROCESS = "com.wangzan101.mika:helper"
+        private fun shellProcessName() =
+            HelperHandoff.processName(InstrumentationRegistry.getInstrumentation().targetContext.packageName)
         private lateinit var connection: BuiltinShellConnection
 
         @BeforeClass
@@ -217,7 +219,7 @@ class AgentDisplayTest {
     fun reconnectsAfterShellProcessDies() {
         val before = shell
         val pid = shellPid()
-        assertNotNull("no $SHELL_PROCESS process", pid)
+        assertNotNull("no ${shellProcessName()} process", pid)
         shellCommand("kill $pid")
         val after = pollUntil(30_000) {
             connection.shell.value?.takeIf { it.asBinder() != before.asBinder() && it.asBinder().pingBinder() }
@@ -230,7 +232,7 @@ class AgentDisplayTest {
 
     private fun shellPid(): Int? = shellCommand("ps -A -o PID,NAME").lines()
         .map { it.trim().split(Regex("\\s+")) }
-        .firstOrNull { it.size == 2 && it[1] == SHELL_PROCESS }
+        .firstOrNull { it.size == 2 && it[1] == shellProcessName() }
         ?.get(0)?.toIntOrNull()
 
     private fun shellCommand(cmd: String): String {

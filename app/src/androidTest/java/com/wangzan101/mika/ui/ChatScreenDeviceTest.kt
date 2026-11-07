@@ -119,11 +119,17 @@ class ChatScreenDeviceTest {
     private fun topResumed(dump: String): String? =
         dump.lineSequence().firstOrNull { it.contains("topResumedActivity") || it.contains("mResumedActivity") }
 
-    /** 前台那个 Activity 是不是本 App 的 [cls](dumpsys 里写成「包名/.相对类名」)。 */
+    /**
+     * 前台那个 Activity 是不是本 App 的 [cls]。
+     * dumpsys 用 ComponentName 的短写：类名以 applicationId 开头才写成「包名/.相对类名」，
+     * applicationId 和 namespace 不同时是「包名/完整类名」。
+     */
     private fun onTop(cls: Class<*>): Boolean {
         val line = topResumed(sh("dumpsys activity activities")) ?: return false
-        val short = "${context.packageName}/" + cls.name.removePrefix(context.packageName)
-        return line.contains("$short ") || line.contains("${context.packageName}/${cls.name} ")
+        val pkg = context.packageName
+        val full = "$pkg/${cls.name}"
+        val short = if (cls.name.startsWith("$pkg.")) "$pkg/${cls.name.removePrefix(pkg)}" else full
+        return line.contains("$full ") || line.contains("$short ")
     }
 
     private fun awaitState(predicate: (TaskState) -> Boolean): TaskState =

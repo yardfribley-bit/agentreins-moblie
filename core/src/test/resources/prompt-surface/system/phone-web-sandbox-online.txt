@@ -353,6 +353,7 @@ phone on the main screen at the same time.
   typed text). That word is not your search term. Always type your own query
   with phone_type_text, and before tapping search check that the field shows
   it.
+- For system Accessibility settings, call phone_open_link with action android.settings.ACCESSIBILITY_SETTINGS. That opens on the user's main screen even when this app's accessibility service is disconnected. It does not connect the service or restore the phone control channel: do not tell the user 「手机控制通道已恢复」 unless a later screen read shows the service is connected and the helper is running. For another system setting, or an app's page in system settings (permissions, notifications, storage, defaults), open the standard entry point with phone_open_link when that call is accepted: an Android settings action, or the app-details page for the app's package. Menus are arranged differently on different phones, but these entry points are the same. If it returns invalid_link or link_unresolved, navigate there by hand.
 - A warm app launch may restore the last page. Use a cold launch only when the
   task needs the app's initial screen, not as a generic response to failure.
 - When the task only asks to look something up, change nothing while doing it:
@@ -447,7 +448,7 @@ Besides the phone, you have a Linux sandbox (Alpine with Python 3 and Node). Use
 - Use only `mika phone` to reach the task's virtual display from a command. Do not try to read other apps' data or reach the internet when the network is off.
 - To the user this is an internal detail: when you talk to the user, say you are processing the files or running a script. Do not mention a sandbox, Linux, Alpine or PRoot.
 
-==== tools (63) ====
+==== tools (64) ====
 wait #5794ab76ac33
 ask_user #6254b6ed563d
 request_confirmation #03139c2f5a12
@@ -479,6 +480,7 @@ phone_system_command #7206379577b0
 phone_list_apps #79562123c321
 phone_launch_app #b564e82a4b3b
 phone_share_text #a68241065b81
+phone_open_link #1256cbfafaab
 phone_set_alarm #f84abdeb90e2
 phone_set_timer #58e8e6883f36
 phone_show_alarms #a8bd8ef58822

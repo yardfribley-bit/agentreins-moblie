@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import androidx.test.platform.app.InstrumentationRegistry
 import java.util.concurrent.CopyOnWriteArrayList
 import com.wangzan101.mika.shell.ShellProbeActivity
 
@@ -67,7 +68,12 @@ class ShellProbe(private val context: Context) : AutoCloseable {
 
     companion object {
         const val BROADCAST = ShellProbeActivity.BROADCAST
-        const val COMPONENT = "com.wangzan101.mika.test/com.wangzan101.mika.shell.ShellProbeActivity"
+        /** 测试包的 applicationId 加探针页的真实类名。applicationId 和 namespace 可以不同。 */
+        val COMPONENT: String
+            get() {
+                val pkg = InstrumentationRegistry.getInstrumentation().context.packageName
+                return "$pkg/${ShellProbeActivity::class.java.name}"
+            }
         const val LINK = "mika-parity://probe"
 
         const val RESUMED = ShellProbeActivity.RESUMED

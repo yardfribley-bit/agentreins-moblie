@@ -10,9 +10,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RecoveryPermissionsTest {
-    // 包名由调用方给,不是写死的
+    // 包名由调用方给,不是写死的。类名跟包名走时，组件名是 applicationId/完整类名。
     private val pkg = "org.example.app"
-    private val mika = PermissionCommands.accessibilityService(pkg)
+    private val mika = PermissionCommands.accessibilityService(pkg, "$pkg.a11y.MikaAccessibilityService")
     private val other = "com.example.reader/.ReaderService"
 
     private class Store(initial: RecoveryConsent = RecoveryConsent()) : RecoveryConsentStore {
@@ -78,7 +78,7 @@ class RecoveryPermissionsTest {
     fun turningOnRunsItsCommandsAndRecordsIt() = runTest {
         val shell = FakeShell(a11y = other)
         val store = Store(RecoveryConsent(declined = all))
-        val p = RecoveryPermissions({ shell }, store, pkg)
+        val p = RecoveryPermissions({ shell }, store, pkg, mika)
 
         assertEquals(PermissionResult.Done, p.set(a11y, true))
         assertEquals(PermissionCommands.writeAccessibility("$other:$mika"), shell.ran)
@@ -93,7 +93,7 @@ class RecoveryPermissionsTest {
     fun switchOffRevertsOnlyThatOneThingAndRemembersTheChoice() = runTest {
         val shell = FakeShell(a11y = "$other:$mika")
         val store = Store(RecoveryConsent(applied = setOf(a11y, battery, restore), declined = setOf(autoOn)))
-        val p = RecoveryPermissions({ shell }, store, pkg)
+        val p = RecoveryPermissions({ shell }, store, pkg, mika)
 
         assertEquals(PermissionResult.Done, p.set(battery, false))
         assertEquals(listOf(PermissionCommands.whitelistRemove(pkg)), shell.ran)
@@ -112,7 +112,7 @@ class RecoveryPermissionsTest {
     @Test
     fun withoutRunnerChoicesAreRecordedButNothingRuns() = runTest {
         val store = Store(RecoveryConsent(declined = setOf(a11y)))
-        val p = RecoveryPermissions({ null }, store, pkg)
+        val p = RecoveryPermissions({ null }, store, pkg, mika)
         // 打开:先记下要,提示先完成设置,等连接可用时补上
         assertEquals(PermissionResult.NoRunner, p.set(a11y, true))
         assertTrue(store.consent.value.wants(a11y))
@@ -125,14 +125,14 @@ class RecoveryPermissionsTest {
     @Test
     fun withoutRunnerAnAppliedOneCannotBeTurnedOff() = runTest {
         val store = Store(RecoveryConsent(applied = setOf(battery)))
-        assertEquals(PermissionResult.NoRunner, RecoveryPermissions({ null }, store, pkg).set(battery, false))
+        assertEquals(PermissionResult.NoRunner, RecoveryPermissions({ null }, store, pkg, mika).set(battery, false))
         assertEquals(RecoveryConsent(applied = setOf(battery)), store.consent.value)
     }
 
     @Test
     fun failedCommandKeepsTheOldState() = runTest {
         val store = Store(RecoveryConsent(declined = setOf(restore)))
-        val p = RecoveryPermissions({ FakeShell(failOn = "pm grant") }, store, pkg)
+        val p = RecoveryPermissions({ FakeShell(failOn = "pm grant") }, store, pkg, mika)
         val r = p.set(restore, true)
         assertTrue(r is PermissionResult.Failed)
         assertEquals(RecoveryConsent(declined = setOf(restore)), store.consent.value)
@@ -141,7 +141,7 @@ class RecoveryPermissionsTest {
     @Test
     fun runnerThatThrowsIsAFailureNotACrash() = runTest {
         val store = Store()
-        val p = RecoveryPermissions({ ShellCommandRunner { error("connection closed") } }, store, pkg)
+        val p = RecoveryPermissions({ ShellCommandRunner { error("connection closed") } }, store, pkg, mika)
         assertTrue(p.set(battery, true) is PermissionResult.Failed)
         assertEquals(RecoveryConsent(), store.consent.value)
     }
@@ -151,7 +151,7 @@ class RecoveryPermissionsTest {
         val shell = FakeShell(a11y = other)
         // 电池白名单用户亲手关掉了;要修改系统设置授权的两项早已生效
         val store = Store(RecoveryConsent(applied = setOf(restore, autoOn), declined = setOf(battery)))
-        val p = RecoveryPermissions({ shell }, store, pkg)
+        val p = RecoveryPermissions({ shell }, store, pkg, mika)
 
         assertEquals(PermissionResult.Done, p.applyPending())
         assertEquals(PermissionCommands.writeAccessibility("$other:$mika"), shell.ran)
@@ -167,7 +167,7 @@ class RecoveryPermissionsTest {
     @Test
     fun applyPendingWithoutRunnerDoesNothing() = runTest {
         val store = Store()
-        val p = RecoveryPermissions({ null }, store, pkg)
+        val p = RecoveryPermissions({ null }, store, pkg, mika)
         assertEquals(PermissionResult.NoRunner, p.applyPending())
         assertEquals(RecoveryConsent(), store.consent.value)
         assertTrue(p.autoFailed.value.isEmpty())
@@ -177,7 +177,7 @@ class RecoveryPermissionsTest {
     fun applyPendingRecordsFailuresQuietlyAndClearsThemLater() = runTest {
         var shell = FakeShell(failOn = "deviceidle")
         val store = Store()
-        val p = RecoveryPermissions({ shell }, store, pkg)
+        val p = RecoveryPermissions({ shell }, store, pkg, mika)
 
         assertTrue(p.applyPending() is PermissionResult.Failed)
         // 一项失败不挡住其余几项
@@ -195,7 +195,7 @@ class RecoveryPermissionsTest {
         val shell = FakeShell()
         val status = MutableStateFlow<BuiltinShellStatus>(BuiltinShellStatus.NotPaired)
         val store = Store(RecoveryConsent(declined = setOf(a11y, restore, autoOn)))
-        val p = RecoveryPermissions({ shell }, store, pkg)
+        val p = RecoveryPermissions({ shell }, store, pkg, mika)
         val job = launch { p.applyWhenRunning(status) }
 
         runCurrent()
@@ -222,7 +222,7 @@ class RecoveryPermissionsTest {
     fun unpairRevokesEverythingThatWasApplied() = runTest {
         val shell = FakeShell(a11y = "$mika:$other")
         val store = Store(RecoveryConsent(applied = all))
-        val p = RecoveryPermissions({ shell }, store, pkg)
+        val p = RecoveryPermissions({ shell }, store, pkg, mika)
 
         assertEquals(PermissionResult.Done, p.revokeAll())
         assertEquals(RecoveryConsent(), store.consent.value)
@@ -235,7 +235,7 @@ class RecoveryPermissionsTest {
     fun theTwoSwitchesThatTurnOnWirelessDebuggingShareOnePermission() = runTest {
         val shell = FakeShell()
         val store = Store(RecoveryConsent(applied = setOf(restore, autoOn)))
-        val p = RecoveryPermissions({ shell }, store, pkg)
+        val p = RecoveryPermissions({ shell }, store, pkg, mika)
 
         // 另一项还要用修改系统设置的授权:关掉这一项只记下,不收回
         assertEquals(PermissionResult.Done, p.set(restore, false))
@@ -254,7 +254,7 @@ class RecoveryPermissionsTest {
     @Test
     fun unpairRevokesTheSharedPermissionOnce() = runTest {
         val shell = FakeShell()
-        val p = RecoveryPermissions({ shell }, Store(RecoveryConsent(applied = setOf(restore, autoOn))), pkg)
+        val p = RecoveryPermissions({ shell }, Store(RecoveryConsent(applied = setOf(restore, autoOn))), pkg, mika)
         assertEquals(PermissionResult.Done, p.revokeAll())
         assertEquals(listOf(PermissionCommands.revokeWriteSecureSettings(pkg)), shell.ran)
     }
@@ -263,7 +263,7 @@ class RecoveryPermissionsTest {
     fun unpairLeavesAloneWhatMikaNeverTurnedOn() = runTest {
         // 用户自己在系统里开的无障碍、自己加的电池白名单,不是这里给的,解除配对不去动
         val shell = FakeShell(a11y = "$mika:$other")
-        val p = RecoveryPermissions({ shell }, Store(), pkg)
+        val p = RecoveryPermissions({ shell }, Store(), pkg, mika)
         p.revokeAll()
         assertEquals(listOf(PermissionCommands.revokeWriteSecureSettings(pkg)), shell.ran)
     }
@@ -272,7 +272,7 @@ class RecoveryPermissionsTest {
     fun unpairThenRePairKeepsTheUsersChoices() = runTest {
         val shell = FakeShell(a11y = other)
         val store = Store(RecoveryConsent(applied = setOf(a11y, restore), declined = setOf(battery)))
-        val p = RecoveryPermissions({ shell }, store, pkg)
+        val p = RecoveryPermissions({ shell }, store, pkg, mika)
 
         p.revokeAll()
         // 收回的是生效状态,不是用户的选择:没关掉的不会因此变成「亲手关掉」
@@ -288,12 +288,12 @@ class RecoveryPermissionsTest {
     @Test
     fun unpairClearsAppliedEvenWithoutRunnerOrOnFailure() = runTest {
         val store = Store(RecoveryConsent(applied = setOf(a11y, restore)))
-        assertEquals(PermissionResult.NoRunner, RecoveryPermissions({ null }, store, pkg).revokeAll())
+        assertEquals(PermissionResult.NoRunner, RecoveryPermissions({ null }, store, pkg, mika).revokeAll())
         assertEquals(RecoveryConsent(), store.consent.value)
 
         val store2 = Store(RecoveryConsent(applied = setOf(battery, restore)))
         val shell = FakeShell(failOn = "deviceidle")
-        assertTrue(RecoveryPermissions({ shell }, store2, pkg).revokeAll() is PermissionResult.Failed)
+        assertTrue(RecoveryPermissions({ shell }, store2, pkg, mika).revokeAll() is PermissionResult.Failed)
         assertEquals(RecoveryConsent(), store2.consent.value)
         // 一项失败不挡住其余几项
         assertTrue(PermissionCommands.revokeWriteSecureSettings(pkg) in shell.ran)
@@ -317,7 +317,7 @@ class RecoveryPermissionsTest {
     fun restartAccessibilityRemovesThenAddsBackKeepingOthers() = runTest {
         val shell = FakeShell(a11y = "$other:$mika:com.example.b/.B")
         val store = Store(RecoveryConsent(applied = setOf(a11y)))
-        val p = RecoveryPermissions({ shell }, store, pkg)
+        val p = RecoveryPermissions({ shell }, store, pkg, mika)
 
         assertEquals(PermissionResult.Done, p.restartAccessibility(gapMs = 1_000))
         assertEquals(
@@ -332,22 +332,33 @@ class RecoveryPermissionsTest {
     @Test
     fun restartAccessibilityWhenMikaIsTheOnlyService() = runTest {
         val shell = FakeShell(a11y = mika)
-        assertEquals(PermissionResult.Done, RecoveryPermissions({ shell }, Store(), pkg).restartAccessibility(0))
+        assertEquals(PermissionResult.Done, RecoveryPermissions({ shell }, Store(), pkg, mika).restartAccessibility(0))
         assertEquals(PermissionCommands.writeAccessibility("") + PermissionCommands.writeAccessibility(mika), shell.ran)
     }
 
     @Test
     fun restartAccessibilityAddsItBackWhenMissing() = runTest {
         val shell = FakeShell(a11y = other)
-        assertEquals(PermissionResult.Done, RecoveryPermissions({ shell }, Store(), pkg).restartAccessibility(0))
+        assertEquals(PermissionResult.Done, RecoveryPermissions({ shell }, Store(), pkg, mika).restartAccessibility(0))
         assertEquals(PermissionCommands.writeAccessibility("$other:$mika"), shell.ran)
-        assertEquals(PermissionResult.NoRunner, RecoveryPermissions({ null }, Store(), pkg).restartAccessibility(0))
+        assertEquals(PermissionResult.NoRunner, RecoveryPermissions({ null }, Store(), pkg, mika).restartAccessibility(0))
     }
 
     @Test
     fun restartAccessibilityStopsWhenRemovalFails() = runTest {
         val shell = FakeShell(a11y = "$other:$mika", failOn = "enabled_accessibility_services")
-        assertTrue(RecoveryPermissions({ shell }, Store(), pkg).restartAccessibility(0) is PermissionResult.Failed)
+        assertTrue(RecoveryPermissions({ shell }, Store(), pkg, mika).restartAccessibility(0) is PermissionResult.Failed)
         assertEquals(1, shell.ran.size)
+    }
+
+    @Test
+    fun enablingAccessibilityWritesTheRealClassWhenApplicationIdDiffers() = runTest {
+        val applicationId = "com.agentreins.x"
+        val component = PermissionCommands.accessibilityService(applicationId, "com.wangzan101.mika.a11y.MikaAccessibilityService")
+        val shell = FakeShell(a11y = other)
+        val p = RecoveryPermissions({ shell }, Store(RecoveryConsent(declined = setOf(a11y))), applicationId, component)
+        assertEquals(PermissionResult.Done, p.set(a11y, true))
+        assertEquals(PermissionCommands.writeAccessibility("$other:$component"), shell.ran)
+        assertFalse(shell.ran.any { "$applicationId.a11y." in it || "$applicationId/." in it })
     }
 }

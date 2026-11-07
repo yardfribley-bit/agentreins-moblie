@@ -123,14 +123,23 @@ class OpenLinkTest {
         assertEquals("unsupported", r.content.s("error"))
     }
 
-    @Test fun hiddenWhenFlagOff() = runTest {
+    @Test fun accessibilitySettingsOpenWithoutDeepLinksAndDoNotClaimTheChannelRestored() = runTest {
         val s = LinkScreen()
         val off = toolDispatcher(s)
-        assertTrue(off.definitions().none { it.name == "phone_open_link" })
-        assertEquals("unknown_tool", off.execute(call("""{"action":"android.settings.SETTINGS"}""")).content.s("error"))
+        val spec = off.definitions().single { it.name == "phone_open_link" }
+        assertFalse(spec.description.contains("WIFI_SETTINGS"))
+        assertEquals("invalid_link", off.execute(call("""{"action":"android.settings.SETTINGS"}""")).content.s("error"))
         assertTrue(s.opened.isEmpty())
-        val spec = d(s).definitions().single { it.name == "phone_open_link" }
-        assertTrue(spec.description.contains("android.settings.WIFI_SETTINGS"))
+        val r = off.execute(call("""{"action":"android.settings.ACCESSIBILITY_SETTINGS"}"""))
+        assertTrue(r.content.toString(), r.content["ok"]!!.jsonPrimitive.boolean)
+        assertEquals("false", r.content.s("channelRestored"))
+        assertEquals("false", r.content.s("screenVerified"))
+        assertEquals("main_display", r.content.s("openedOn"))
+        assertTrue(r.content.s("hint").contains("手机控制通道已恢复"))
+        assertEquals(listOf(Triple("android.settings.ACCESSIBILITY_SETTINGS", null, null)), s.opened)
+        assertFalse(off.evidence().appOpened)
+        val full = d(s).definitions().single { it.name == "phone_open_link" }
+        assertTrue(full.description.contains("android.settings.WIFI_SETTINGS"))
     }
 
     @Test fun paymentLinksPassPolicy() {

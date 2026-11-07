@@ -118,7 +118,7 @@ class MainActivity : ComponentActivity() {
 
     private fun perform(fix: Fix) {
         when (fix) {
-            Fix.OpenAccessibility -> open(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            Fix.OpenAccessibility -> com.wangzan101.mika.cap.phone.a11y.AccessibilitySettings.open(this)
             Fix.OpenAppInfo -> open(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
             Fix.AllowNotifications -> {
                 val needsGrant = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -320,6 +320,7 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                     openRun = { runId = it; nav.push(Route.Run) },
                     phoneSetupNeeded = phoneSetupNeeded && status.builtinShell != BuiltinShellStatus.Running,
                     openPhoneSetup = { onFix(Fix.OpenPhoneSetup) },
+                    openAccessibility = { onFix(Fix.OpenAccessibility) },
                     loadSource = { id ->
                         withContext(Dispatchers.IO) { evidenceSource(RunStore(context).events(id)) { ConfirmationNotifier.appLabel(context, it) } }
                     },

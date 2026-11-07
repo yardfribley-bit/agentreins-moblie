@@ -491,7 +491,12 @@ class TaskRun(
                 return screen
             }
             val phoneScreen = LazyPhoneScreen(metrics.widthPixels, metrics.heightPixels,
-                listApps = { withContext(Dispatchers.IO) { launchableApps(service.packageManager, service.packageName) } }) { connectPhone() }
+                listApps = { withContext(Dispatchers.IO) { launchableApps(service.packageManager, service.packageName) } },
+                // 服务没连上时也要能打开系统无障碍设置；不走 connectPhone（那条路会因服务为空直接失败）
+                openAccessibilitySettings = {
+                    withContext(Dispatchers.Main) { com.wangzan101.mika.cap.phone.a11y.AccessibilitySettings.open(service) }
+                },
+            ) { connectPhone() }
             // 挪回虚拟屏后等窗口出现,Agent 接下来读屏才读得到
             suspend fun moveTask(taskId: Int, to: Int): Boolean {
                 val p = phone ?: return false

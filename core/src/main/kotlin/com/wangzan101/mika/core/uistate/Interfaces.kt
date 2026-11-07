@@ -168,9 +168,11 @@ internal class Interfaces(
         val readsAtAction = session.reads
         var result = raw
         val ok = result.content["ok"] == JsonPrimitive(true)
-        if (inlineScreen && tool.showsScreenAfter && ok) result = session.withScreen(result)
+        // 无障碍设置开在用户主屏、服务还没连上：不要附一块空的虚拟屏，免得当成已经核实。
+        val screenVerified = result.content["screenVerified"] != JsonPrimitive(false)
+        if (inlineScreen && tool.showsScreenAfter && ok && screenVerified) result = session.withScreen(result)
         // 旧模式的视觉主模型直接看动作后画面；分级模式只在界面差异或下次 observe 需要时补图。
-        if (tool.showsScreenAfter && ok && !config.adaptiveVision && result.images.isEmpty() && "screen" !in result.content) result = session.withFrame(result)
+        if (tool.showsScreenAfter && ok && screenVerified && !config.adaptiveVision && result.images.isEmpty() && "screen" !in result.content) result = session.withFrame(result)
         val probe = prep.probe
         val aimed = prep.aimed
         if (ok && probe != null && aimed != null) {

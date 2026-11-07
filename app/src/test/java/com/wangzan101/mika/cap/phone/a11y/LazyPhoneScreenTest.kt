@@ -33,6 +33,24 @@ class LazyPhoneScreenTest {
         assertFalse(screen.acquired)
     }
 
+    @Test fun accessibilitySettingsDoNotAcquireThePhone() = runTest {
+        var opened = 0
+        val screen = LazyPhoneScreen(1080, 2400, listApps = { emptyList() }, openAccessibilitySettings = {
+            opened++
+            true
+        }) {
+            attempts++
+            throw PhoneUnavailable("手机操作助手没在运行")
+        }
+        val r = screen.openLink(LazyPhoneScreen.ACCESSIBILITY_SETTINGS, null, null)
+        assertTrue(r is ActionResult.Ok)
+        assertEquals(1, opened)
+        assertEquals(0, attempts)
+        assertFalse(screen.acquired)
+        assertEquals(ActionResult.Failed(LazyPhoneScreen.PHONE_UNAVAILABLE, "手机操作助手没在运行"), screen.openLink("android.settings.WIFI_SETTINGS", null, null))
+        assertEquals(1, attempts)
+    }
+
     @Test fun launchingAnAppConnectsOrSaysWhy() = runTest {
         assertEquals(ActionResult.Failed(LazyPhoneScreen.PHONE_UNAVAILABLE, "手机操作助手没在运行"), screen.openApp("a.b"))
         assertFalse(screen.acquired)
