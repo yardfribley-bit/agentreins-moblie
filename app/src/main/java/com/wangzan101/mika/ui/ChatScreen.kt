@@ -255,7 +255,7 @@ fun ChatScreen(
             }
             ui.exchanges.forEachIndexed { i, ex ->
                 val backgroundNote = i == ui.exchanges.lastIndex && ui.operatingPhone
-                exchange(i, ex, ui.conversationId, ui.takeoverStage, vm, reduceMotion, backgroundNote, openRun, loadSource, openSource)
+                exchange(i, ex, ui.conversationId, ui.takeoverStage, vm, reduceMotion, backgroundNote, openRun, loadSource, openSource, openAccessibility)
             }
             if (phoneSetupNeeded && ui.exchanges.isNotEmpty()) item("phone-setup") { PhoneSetupLine(openPhoneSetup) }
             ui.blocked?.let { problems ->
@@ -419,6 +419,7 @@ private fun ExampleRow(icon: ImageVector, text: String, first: Boolean, onClick:
 private fun LazyListScope.exchange(
     index: Int, ex: Exchange, conversationId: String?, stage: Takeover.Stage, vm: ChatViewModel, reduceMotion: Boolean, backgroundNote: Boolean,
     openRun: (String) -> Unit, loadSource: suspend (String) -> EvidenceSource?, openSource: (String?, String?) -> Unit,
+    openAccessibility: () -> Unit,
 ) {
     if (ex.goal.isNotEmpty()) item("u$index") { UserBubble(ex.goal, conversationId) }
     val active = ex.status.isActive()
@@ -430,7 +431,7 @@ private fun LazyListScope.exchange(
     }
     // 任务进行中插的话:用户的原话,下面一行小字说它的去向
     ex.steers.forEach { n -> item("m$index-${n.id}") { UserBubble(n.text, conversationId, steerLabel(n.state)) } }
-    item("r$index") { StatusCard(ex.status, stage, vm, ex.runId, loadSource, openSource) }
+    item("r$index") { StatusCard(ex.status, stage, vm, ex.runId, loadSource, openSource, openAccessibility) }
     ex.draft?.takeIf(String::isNotBlank)?.let { draft -> item("d$index") { DraftText(draft, ex.waitingForModel) } }
     if (ex.files.isNotEmpty()) item("f$index") { FileCards(ex.files) }
     learningNotes(index, ex, vm)
@@ -708,6 +709,7 @@ fun takeoverReasonLabel(reason: String): Int? = when (reason) {
 private fun StatusCard(
     status: ExchangeStatus, stage: Takeover.Stage, vm: ChatViewModel, runId: String?,
     loadSource: suspend (String) -> EvidenceSource?, openSource: (String?, String?) -> Unit,
+    openAccessibility: () -> Unit,
 ) {
     when (status) {
         ExchangeStatus.Working -> Unit
