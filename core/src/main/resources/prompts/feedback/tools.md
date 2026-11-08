@@ -229,7 +229,16 @@ Not done: this task has already opened as many pages on this site as AgentReins 
 Not done: the user sent a new message before this call finished, so it stopped and nothing was done on the screen (it was only waiting, pausing before a page change or before another send or submit on the same site, or asking the vision model). Read the new message first. If this call is still needed, call it again; any pause still owed is kept first.
 
 ## failure.phone_unavailable
-The phone app control channel is unavailable right now. The accessibility service may be disabled, enabled but not connected, or the wireless-debugging helper may be unavailable; the failure alone does not identify which. Explain the observed problem and check the app's phone setup instructions. For tasks relying on an installed app, its account or location, a separate built-in browser session may not have equivalent access. Use another channel only if it can actually answer the request; otherwise ask the user to restore phone access and call end_not_done. Do not guess location, login status or results.
+The phone app control channel is unavailable right now. The accessibility service may be disabled, enabled but not connected, or the wireless-debugging helper may be unavailable; the failure alone does not identify which. Explain the observed problem and check the app's phone setup instructions. If the accessibility service is not connected, call phone_open_link with action android.settings.ACCESSIBILITY_SETTINGS. That opens system Accessibility settings on the user's main screen and does not require the service. It does not restore the phone control channel: do not tell the user 「手机控制通道已恢复」 unless the helper is running and a later screen read shows the service is connected. For tasks relying on an installed app, its account or location, a separate built-in browser session may not have equivalent access. Use another channel only if it can actually answer the request; otherwise ask the user to restore phone access and call end_not_done. Do not guess location, login status or results.
+
+## a11y_settings.tool
+Open system Accessibility settings on the user's main screen so the user can enable this app's accessibility service. The only action is android.settings.ACCESSIBILITY_SETTINGS. This works while the service is disconnected. It does not connect the service, does not read the screen, and does not restore the phone control channel. Do not tell the user 「手机控制通道已恢复」.
+
+## a11y_settings.only
+Only android.settings.ACCESSIBILITY_SETTINGS can be opened right now. It opens on the user's main screen and does not restore the phone control channel. Do not tell the user 「手机控制通道已恢复」.
+
+## a11y_settings.opened
+Opened Accessibility settings on the user's main screen. The accessibility service is still not connected, so the phone control channel is not restored. Do not tell the user 「手机控制通道已恢复」 unless a later screen read shows the service is connected and the helper is running. Screen reading and verification still require the accessibility service.
 
 ## covered_by
 The app is open, but {{pkg}} is showing on top of it (a permission dialog, an account chooser or similar). Deal with that window first; the app did launch, so do not launch it again.

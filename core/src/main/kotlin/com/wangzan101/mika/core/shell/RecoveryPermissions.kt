@@ -70,7 +70,17 @@ object PermissionCommands {
     const val READ_ACCESSIBILITY = "settings get secure enabled_accessibility_services"
     const val EXIT_MARK = "__mika_exit="
 
-    fun accessibilityService(pkg: String) = "$pkg/.a11y.MikaAccessibilityService"
+    /**
+     * 系统设置里的无障碍组件名 `applicationId/完整类名`。
+     * [serviceClass] 必须是清单里的真实类名（namespace 下的类），不能写成相对 applicationId 的 `.a11y.…`：
+     * applicationId 和 namespace 可以不同。与 `ComponentName(context, service).flattenToString()` 相同。
+     */
+    fun accessibilityService(applicationId: String, serviceClass: String): String {
+        require(serviceClass.isNotEmpty() && !serviceClass.startsWith('.') && '.' in serviceClass) {
+            "accessibility service class must be the real class name, not a name relative to applicationId"
+        }
+        return "$applicationId/$serviceClass"
+    }
     fun grantWriteSecureSettings(pkg: String) = "pm grant $pkg $WRITE_SECURE_SETTINGS"
     fun revokeWriteSecureSettings(pkg: String) = "pm revoke $pkg $WRITE_SECURE_SETTINGS"
     fun whitelistAdd(pkg: String) = "cmd deviceidle whitelist +$pkg"
@@ -127,6 +137,8 @@ class RecoveryPermissions(
     private val runner: () -> ShellCommandRunner?,
     private val store: RecoveryConsentStore,
     private val packageName: String,
+    /** 无障碍服务的完整组件名（applicationId/真实类名），不要从 applicationId 拼相对类名。 */
+    private val accessibilityComponent: String,
 ) {
     private val lock = Mutex()
     private val _autoFailed = MutableStateFlow<Set<RecoveryCapability>>(emptySet())
@@ -198,7 +210,7 @@ class RecoveryPermissions(
      */
     suspend fun restartAccessibility(gapMs: Long): PermissionResult = lock.withLock {
         val shell = runner() ?: return@withLock PermissionResult.NoRunner
-        val me = PermissionCommands.accessibilityService(packageName)
+        val me = accessibilityComponent
         try {
             val current = shell.exec(PermissionCommands.READ_ACCESSIBILITY)
             // 不在列表里(被强行停止时系统会拿掉):直接加上;在列表里却没绑定:去掉再加回,系统才会重新绑定
@@ -244,7 +256,7 @@ class RecoveryPermissions(
             listOf(if (on) PermissionCommands.whitelistAdd(packageName) else PermissionCommands.whitelistRemove(packageName))
         RecoveryCapability.Accessibility -> {
             val current = shell.exec(PermissionCommands.READ_ACCESSIBILITY)
-            val me = PermissionCommands.accessibilityService(packageName)
+            val me = accessibilityComponent
             PermissionCommands.writeAccessibility(if (on) AccessibilityList.with(current, me) else AccessibilityList.without(current, me))
         }
     }

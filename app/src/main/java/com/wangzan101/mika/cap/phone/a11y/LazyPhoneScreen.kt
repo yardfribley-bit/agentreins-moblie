@@ -27,6 +27,11 @@ class LazyPhoneScreen(
     private val width: Int,
     private val height: Int,
     private val listApps: suspend () -> List<Pair<String, String>>,
+    /**
+     * 在用户主屏打开系统无障碍设置。不调用 [acquire]：服务没连上时也要能打开，
+     * 否则「去无障碍设置」自己也会因为服务没连上而失败。
+     */
+    private val openAccessibilitySettings: (suspend () -> Boolean)? = null,
     private val acquire: suspend () -> ScreenPort,
 ) : ScreenPort {
     private val lock = Mutex()
@@ -51,8 +56,16 @@ class LazyPhoneScreen(
     private fun unavailable() = ActionResult.Failed(PHONE_UNAVAILABLE, lastProblem)
 
     override suspend fun openApp(packageName: String, cold: Boolean): ActionResult = built()?.openApp(packageName, cold) ?: unavailable()
-    override suspend fun openLink(action: String?, uri: String?, packageName: String?): ActionResult =
-        built()?.openLink(action, uri, packageName) ?: unavailable()
+    override suspend fun openLink(action: String?, uri: String?, packageName: String?): ActionResult {
+        if (action == ACCESSIBILITY_SETTINGS && uri == null && packageName == null) return openAccessibilityOnMain()
+        return built()?.openLink(action, uri, packageName) ?: unavailable()
+    }
+
+    /** 主屏 Intent，不接内置助手、不等无障碍。打不开就 link_unresolved，不要报成服务已恢复。 */
+    private suspend fun openAccessibilityOnMain(): ActionResult {
+        val open = openAccessibilitySettings ?: return ActionResult.Failed("link_unresolved")
+        return if (open()) ActionResult.Ok() else ActionResult.Failed("link_unresolved")
+    }
     override suspend fun shareText(packageName: String, text: String): ActionResult = built()?.shareText(packageName, text) ?: unavailable()
     override suspend fun systemAction(action: SystemAction): SystemActionResult = built()?.systemAction(action) ?: SystemActionResult(unavailable())
     override suspend fun setWheel(ref: String, snapshotId: String, value: String): WheelOutcome =
@@ -106,6 +119,8 @@ class LazyPhoneScreen(
 
     companion object {
         const val PHONE_UNAVAILABLE = "phone_unavailable"
+        /** 与 [android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS] 相同。 */
+        const val ACCESSIBILITY_SETTINGS = "android.settings.ACCESSIBILITY_SETTINGS"
         private val NO_APP_OPEN = ActionResult.Failed("no_app_open")
     }
 }

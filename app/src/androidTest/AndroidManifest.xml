@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- 探针页把记录广播给 Mika 进程里的测试 -->
     <queries>
-        <package android:name="com.wangzan101.mika" />
+        <package android:name="com.agentreins.x" />
         <!-- 重现「开到用户主屏上」的页面要拿别的 App 的启动入口 -->
         <intent>
             <action android:name="android.intent.action.MAIN" />

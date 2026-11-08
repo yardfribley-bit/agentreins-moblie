@@ -21,7 +21,7 @@ import com.wangzan101.mika.core.uistate.sessions
 /** 手机:手机那一套屏幕工具、打开 App 与链接。 */
 internal class PhoneCapability(
     val screen: ScreenPort,
-    /** 提速开关 deepLinks:提供打开链接的工具。 */
+    /** 提速开关 deepLinks:除无障碍设置外，打开链接的工具才接受其他链接。 */
     val deepLinks: Boolean,
     val liveAudio: LiveAudioPort? = null,
     val liveAudioSetup: LiveAudioSetup? = null,

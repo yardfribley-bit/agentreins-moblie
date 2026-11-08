@@ -90,7 +90,7 @@ class AgentLoopWebKnowledgeTest {
 
     @Test fun webPromptOnlyWhenWebAvailable() = runTest {
         val groups = { offered: Set<String> -> com.wangzan101.mika.core.capability.PromptEnv(offered, false).gate(SystemPrompt.read("groups")) }
-        val phone = SystemPrompt.read("phone").lines().filterNot { "<!-- needs: phone_open_link -->" in it || "<!-- needs: phone_find_visually -->" in it || "<!-- needs: phone_speak -->" in it }.joinToString("\n")
+        val phone = com.wangzan101.mika.core.capability.PromptEnv(setOf("phone_launch_app", "phone_set_alarm", "phone_open_link"), false).gate(SystemPrompt.read("phone"))
         val web = SystemPrompt.read("web").lines().filterNot { "<!-- needs: share_file -->" in it || "<!-- needs: web_run_site_command -->" in it }.joinToString("\n")
         // 两组都收着:只有入口一段和选渠道一段
         val collapsed = run("t", KnowledgeStore(emptyList()), finish)

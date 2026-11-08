@@ -157,6 +157,8 @@ fun ChatScreen(
     /** 任务要用手机而手机操作没准备好:最后一轮下面放一行去设置。 */
     phoneSetupNeeded: Boolean = false,
     openPhoneSetup: () -> Unit = {},
+    /** 无障碍服务没连上时，从失败或暂停卡片打开系统无障碍设置（主屏，不要求服务已连接）。 */
+    openAccessibility: () -> Unit = {},
     /** 按运行记录取依据的来处(「来源」胶囊和点开后的截图);读盘的活由调用方放到后台线程。 */
     loadSource: suspend (runId: String) -> EvidenceSource? = { null },
     openSource: (runId: String?, legacyText: String?) -> Unit = { _, _ -> },
@@ -253,7 +255,7 @@ fun ChatScreen(
             }
             ui.exchanges.forEachIndexed { i, ex ->
                 val backgroundNote = i == ui.exchanges.lastIndex && ui.operatingPhone
-                exchange(i, ex, ui.conversationId, ui.takeoverStage, vm, reduceMotion, backgroundNote, openRun, loadSource, openSource)
+                exchange(i, ex, ui.conversationId, ui.takeoverStage, vm, reduceMotion, backgroundNote, openRun, loadSource, openSource, openAccessibility)
             }
             if (phoneSetupNeeded && ui.exchanges.isNotEmpty()) item("phone-setup") { PhoneSetupLine(openPhoneSetup) }
             ui.blocked?.let { problems ->
@@ -417,6 +419,7 @@ private fun ExampleRow(icon: ImageVector, text: String, first: Boolean, onClick:
 private fun LazyListScope.exchange(
     index: Int, ex: Exchange, conversationId: String?, stage: Takeover.Stage, vm: ChatViewModel, reduceMotion: Boolean, backgroundNote: Boolean,
     openRun: (String) -> Unit, loadSource: suspend (String) -> EvidenceSource?, openSource: (String?, String?) -> Unit,
+    openAccessibility: () -> Unit,
 ) {
     if (ex.goal.isNotEmpty()) item("u$index") { UserBubble(ex.goal, conversationId) }
     val active = ex.status.isActive()
@@ -428,7 +431,7 @@ private fun LazyListScope.exchange(
     }
     // 任务进行中插的话:用户的原话,下面一行小字说它的去向
     ex.steers.forEach { n -> item("m$index-${n.id}") { UserBubble(n.text, conversationId, steerLabel(n.state)) } }
-    item("r$index") { StatusCard(ex.status, stage, vm, ex.runId, loadSource, openSource) }
+    item("r$index") { StatusCard(ex.status, stage, vm, ex.runId, loadSource, openSource, openAccessibility) }
     ex.draft?.takeIf(String::isNotBlank)?.let { draft -> item("d$index") { DraftText(draft, ex.waitingForModel) } }
     if (ex.files.isNotEmpty()) item("f$index") { FileCards(ex.files) }
     learningNotes(index, ex, vm)
@@ -706,6 +709,7 @@ fun takeoverReasonLabel(reason: String): Int? = when (reason) {
 private fun StatusCard(
     status: ExchangeStatus, stage: Takeover.Stage, vm: ChatViewModel, runId: String?,
     loadSource: suspend (String) -> EvidenceSource?, openSource: (String?, String?) -> Unit,
+    openAccessibility: () -> Unit,
 ) {
     when (status) {
         ExchangeStatus.Working -> Unit
@@ -746,8 +750,12 @@ private fun StatusCard(
             CardButton(stringResource(R.string.chat_allow_once), primary = true, onClick = { vm.approve(status.key) })
         }
         is ExchangeStatus.Paused -> NeedCard(stringResource(R.string.chat_paused), status.why) {
+            val accessibilityDown = status.why == stringResource(R.string.gate_accessibility_down)
             CardButton(stringResource(R.string.action_cancel_task), onClick = vm::cancel)
-            CardButton(stringResource(R.string.chat_continue), primary = true, onClick = vm::resume)
+            if (accessibilityDown) {
+                CardButton(stringResource(R.string.phone_step_a11y_action), primary = true, onClick = openAccessibility)
+            }
+            CardButton(stringResource(R.string.chat_continue), primary = !accessibilityDown, onClick = vm::resume)
         }
         is ExchangeStatus.Done -> Column(Modifier.fillMaxWidth().padding(bottom = 12.dp).answerSurface()) {
             status.unverifiedLine?.let { line ->
@@ -768,6 +776,11 @@ private fun StatusCard(
                 Text(stringResource(R.string.chat_not_done), style = MikaType.BodyStrong, color = MikaTheme.colors.ink)
             }
             Text(status.reason, Modifier.padding(top = 4.dp), style = CardBody, color = MikaTheme.colors.ink2)
+            if (status.reason == stringResource(R.string.task_no_a11y)) {
+                Row(Modifier.padding(top = 12.dp).fillMaxWidth()) {
+                    CardButton(stringResource(R.string.phone_step_a11y_action), primary = true, onClick = openAccessibility)
+                }
+            }
         }
         // 停止后补上的交代当作这一轮的回答,排在「已停止」下面;还在写时一行小字
         is ExchangeStatus.Cancelled -> Column(Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
