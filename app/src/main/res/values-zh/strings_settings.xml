@@ -134,6 +134,15 @@
     <string name="hub_claim_sub">默认关闭。打开也不会自动执行远程任务。付款、红包、转账、删除、给别人发消息、输入密码，以后也一律要你在这台手机上确认。只接受这个会话的所有者下的指令。</string>
     <string name="settings_vault">知识库</string>
     <string name="settings_vault_sub">每次任务前读、办成后写，只存在你的 Obsidian 文件夹里</string>
+    <string name="settings_price_compare">比价平台</string>
+    <string name="settings_price_compare_sub">当前：%1$s</string>
+    <string name="settings_price_compare_body">一行一个：显示名，空格，包名。清空后保存会回到淘宝、京东、拼多多。比价按这里的顺序查。对话里也可以只点名其中几家。</string>
+    <string name="settings_price_compare_hint">淘宝 com.taobao.taobao</string>
+    <string name="settings_price_compare_save">保存</string>
+    <string name="settings_price_compare_reset">恢复默认名单</string>
+    <string name="settings_price_compare_saved">已保存</string>
+    <string name="settings_price_compare_skipped">有 %1$d 行没认出来，已保留能用的行。</string>
+    <string name="settings_price_compare_fallback">这些行没认出来，已回到默认名单。</string>
     <string name="vault_title">知识库</string>
     <string name="vault_notes">库里的笔记</string>
     <string name="vault_folder">库文件夹</string>

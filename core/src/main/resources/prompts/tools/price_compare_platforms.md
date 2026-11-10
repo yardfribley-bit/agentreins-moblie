@@ -1,0 +1,1 @@
+List the shopping apps configured for this price comparison, in order. Each item has name and package. Search them one after another on this task's single background screen. If the user named a subset, search only those. Read only: do not add to cart, place an order, claim a coupon, or sign in.

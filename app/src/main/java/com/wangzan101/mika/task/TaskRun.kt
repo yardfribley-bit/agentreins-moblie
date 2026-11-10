@@ -606,7 +606,9 @@ class TaskRun(
                         webIdleScroll = { IdleScroll(Random.Default) }, sandbox = sandbox, workspace = { conversationId }, runSpec = childSpec,
                         conversationId = conversationId, inlineScreen = speed.inlineScreen,
                         adaptiveVision = speed.adaptiveVision, vault = vaultMemory,
-                        cloudHostConfigured = { cloudHostConfigured() }, disableCode = true)
+                        cloudHostConfigured = { cloudHostConfigured() }, disableCode = true,
+                        pricePlatforms = { com.wangzan101.mika.settings.PriceCompareStore(service).platforms() },
+                        probeLog = { Log.i("PriceCompare", it) })
                     AgentLoop(model, childTools, SystemPrompt.xIdentity(), maxSteps = childSpec.stepBudget ?: AgentLoop.UNLIMITED_STEPS,
                         // 子任务跟着询问 / 自主;询问时它也过关卡,子任务里花钱的一步一律不做
                         confirmations = runApproval.gate(), approvals = runApproval, autonomous = runApproval.startedAutonomous,
@@ -645,7 +647,9 @@ class TaskRun(
                 childHost = childRunner,
                 vault = vaultMemory, cloudHostConfigured = { cloudHostConfigured() },
                 cloudCommand = { command -> cloudCommand(command) },
-                deepSeekBalance = { deepSeekBalance() })
+                deepSeekBalance = { deepSeekBalance() },
+                pricePlatforms = { com.wangzan101.mika.settings.PriceCompareStore(service).platforms() },
+                probeLog = { Log.i("PriceCompare", it) })
             dispatcher = tools
             val agent = AgentLoop(
                 model, tools,

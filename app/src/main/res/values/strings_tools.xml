@@ -61,4 +61,6 @@
     <string name="tool_take_mic">Take a mic seat</string>
     <string name="tool_leave_mic">Leave the mic seat</string>
     <string name="tool_configure_speech">Configure speech</string>
+    <string name="tool_price_compare_platforms">Price-compare apps</string>
+    <string name="tool_price_compare_record">Save a price check</string>
 </resources>

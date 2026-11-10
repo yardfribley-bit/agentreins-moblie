@@ -64,7 +64,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** 设置里能进入的子页面;[Home] 是设置首页。 */
-private enum class SettingsPage { Home, Usage, PhoneOps, DuringWork, Capsule, Language, Notifications, WebSites, Sandbox, Routes, Recovery, HubRelay, Vault, Developer, RunStats, AppCategories, CloudHost }
+private enum class SettingsPage { Home, Usage, PhoneOps, DuringWork, Capsule, Language, Notifications, WebSites, Sandbox, Routes, Recovery, HubRelay, Vault, PriceCompare, Developer, RunStats, AppCategories, CloudHost }
 
 /**
  * 设置页:总状态卡 + 基本 / 隐私与数据 / 高级 / 关于四组。各子页面在这里切换(返回键先回首页),
@@ -167,6 +167,7 @@ fun SettingsScreen(
             onOpenRecovery = { page = SettingsPage.Recovery },
             onOpenHubRelay = { page = SettingsPage.HubRelay },
             onOpenVault = { page = SettingsPage.Vault },
+            onOpenPriceCompare = { page = SettingsPage.PriceCompare },
             onOpenCloudHost = { page = SettingsPage.CloudHost },
             showDeveloper = showDeveloper, onOpenDeveloper = { page = SettingsPage.Developer },
             versionName = BuildConfig.VERSION_NAME, updateVersion = updateVersion, onOpenAbout = onOpenAbout,
@@ -197,6 +198,7 @@ fun SettingsScreen(
         SettingsPage.Recovery -> RecoveryScreen(onBack = toHome)
         SettingsPage.HubRelay -> HubRelayScreen(onBack = toHome)
         SettingsPage.Vault -> VaultSettingsScreen(onBack = toHome)
+        SettingsPage.PriceCompare -> PriceCompareSettingsScreen(onBack = toHome)
         SettingsPage.CloudHost -> CloudHostScreen(onBack = toHome)
         SettingsPage.Developer -> DeveloperOptionsScreen(
             speed, onSpeed = { flags.setSpeed(it); speed = it }, onBack = toHome,
@@ -265,6 +267,7 @@ fun SettingsContent(
     onOpenRecovery: () -> Unit = {},
     onOpenHubRelay: () -> Unit = {},
     onOpenVault: () -> Unit = {},
+    onOpenPriceCompare: () -> Unit = {},
     onOpenCloudHost: () -> Unit = {},
     showDeveloper: Boolean = false,
     onOpenDeveloper: () -> Unit = {},
@@ -288,6 +291,8 @@ fun SettingsContent(
                 RowChevron()
             }
             ListRow(MikaIcons.Book, stringResource(R.string.settings_vault), stringResource(R.string.settings_vault_sub), onClick = onOpenVault) { RowChevron() }
+            val priceApps = com.wangzan101.mika.settings.PriceCompareStore(context).platforms().joinToString("、") { it.name }
+            ListRow(MikaIcons.Globe, stringResource(R.string.settings_price_compare), stringResource(R.string.settings_price_compare_sub, priceApps), onClick = onOpenPriceCompare) { RowChevron() }
             val (notifText, notifTone) = StatusCopy.notificationSummary(status.notificationOverview().summary)
             ListRow(MikaIcons.Bell, StatusCopy.NOTIFICATIONS, stringResource(R.string.settings_notif_sub), onClick = onOpenNotifications) {
                 RowValue(notifText, notifTone)

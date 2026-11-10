@@ -783,7 +783,7 @@ private fun StatusCard(
                     Text(line, style = MikaType.Caption, fontWeight = FontWeight.SemiBold, color = MikaTheme.colors.ink2)
                 }
             }
-            SelectableAnswer { MarkdownText(status.answer, AnswerText.copy(color = MikaTheme.colors.ink)) }
+            SelectableAnswer { PriceCompareAnswerText(status.answer, AnswerText.copy(color = MikaTheme.colors.ink)) }
             // 来源:旧记录里模型写的依据文字,或运行记录里代码记下的来源;都没有就不显示
             if (status.evidence != null || runId != null) SourceChip(status.evidence, runId, loadSource, openSource)
         }
