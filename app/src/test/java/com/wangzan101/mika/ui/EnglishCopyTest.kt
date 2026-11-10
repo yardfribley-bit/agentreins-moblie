@@ -15,7 +15,7 @@ class EnglishCopyTest {
     @Test fun chatPage() {
         assertEquals("Good morning", ChatCopy.greeting(7))
         assertEquals("What would you like to do on X today?", ChatCopy.EMPTY_PROMPT)
-        assertEquals("Search my interests and organize noteworthy posts", ChatCopy.examples.first().text)
+        assertEquals("Explore X: find posts, organize ideas and write replies", ChatCopy.examples.first().text)
         assertEquals("1 earlier step", ChatCopy.earlierSteps(1))
         assertEquals("3 earlier steps", ChatCopy.earlierSteps(3))
     }

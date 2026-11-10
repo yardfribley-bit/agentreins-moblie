@@ -37,8 +37,9 @@ class ToolGroupsTest {
     /** 只聊天时发给模型的:通用工具(接管、报障碍、回看画面不在内)加五个入口。 */
     private val chatOnly = listOf(
         "wait", "ask_user", "request_confirmation", "end_not_done",
+        "price_compare_platforms", "price_compare_record",
         "phone_list_apps", "phone_launch_app", "phone_set_alarm", "phone_set_timer", "phone_add_calendar_event",
-        "web_navigate", "web_read_page", "run_command",
+        "web_navigate", "web_read_page", "web_search", "run_command",
     )
 
     @Test fun chatOnlyGetsBaseAndEntries() {
@@ -172,7 +173,7 @@ class ToolGroupsTest {
         val child = toolDispatcher(FakeScreen(), web = FakeWebPort(), sandbox = FakeSandbox(), workspace = { "w" },
             runSpec = RunSpec(RunId("c"), "查", "t", provenance = RunProvenance(RunOrigin.Child, Attendance.Unattended)))
         val start = names(child.offeredNow())
-        assertEquals(listOf("web_navigate", "web_read_page"), start.filter { it.startsWith("web_") || it.startsWith("phone_") })
+        assertEquals(listOf("web_navigate", "web_read_page", "web_search"), start.filter { it.startsWith("web_") || it.startsWith("phone_") })
         assertTrue("read_file" in start && "search_files" in start && "run_command" !in start)
         assertEquals(setOf("sandbox"), child.expanded)
         child.execute(call("web_navigate", """{"url":"https://example.com"}"""))
