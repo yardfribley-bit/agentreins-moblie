@@ -1,26 +1,25 @@
-# agentreins-moblie
+# X 小助手
 
-> **X 小助手独立分支（公开测试版 0.1.0）**：应用包名为 `com.agentreins.x`，与 AgentReins Mobile 独立安装、独立保存数据。本分支面向 X 的搜索、内容整理和互动；运行时不提供命令或代码执行工具。以下原项目文档仅供参考，历史任务导入和话题监控仍在开发中。
-
+> 安装包名 `com.agentreins.x`，代码命名空间仍是 `com.wangzan101.mika`（兼容已有配置和数据）。在手机上查资料、整理内容、操作 App。运行时不提供命令或代码执行工具。
 
 简体中文 | [English](README.en.md)
 
-安卓手机 AI 自动化助手：操作 App、浏览网页、处理文件，并支持持续听直播、识别主播讲话后按要求回复。
+安卓手机上的 AI 助手：操作 App、浏览网页、处理文件，并把你自己的 Obsidian 文件夹当作唯一的长期知识库。
 
-本项目基于 [Mika](https://github.com/wangzan101/Mika) 定制，保留原项目版权及 Apache-2.0 许可。新增直播监听、OpenRouter 私人预配置与规范化 APK 命名。上游仓库和演示属于原 Mika，不代表本定制版已经完成真机验收。
+本项目基于 [Mika](https://github.com/wangzan101/Mika) 定制，保留原项目版权及 Apache-2.0 许可。
 
 ## 当前版本与安装包
 
-当前版本为 **0.1.14，构建号 15**。产品名和助手身份是 AgentReins；安卓应用标签（app_name）仍是 agentreins-moblie。内部包名仍为 com.wangzan101.mika，以兼容已有配置和数据。
+当前版本为 **0.3.0，构建号 18**。产品名和安卓应用标签（app_name）是 X 小助手。安装包名是 `com.agentreins.x`。代码命名空间仍是 `com.wangzan101.mika`。
 
-APK 文件名自动采用以下格式：
+APK 文件名：
 
 ```text
-agentreins-moblie-v<版本号>-build<构建号>-<构建类型>.apk
-agentreins-moblie-v0.1.14-build15-debug.apk
+agentreins-x-v<版本号>-build<构建号>-<构建类型>.apk
+agentreins-x-v0.3.0-build18-debug.apk
 ```
 
-公开仓库：[yardfribley-bit/agentreins-moblie](https://github.com/yardfribley-bit/agentreins-moblie)。本机私人预配置 APK 位于 app/build/outputs/apk/debug/，包含个人 Key，不随公开仓库上传。目前未发布公开安装包；从源码构建普通版本后自行填写 Key。
+公开仓库：[yardfribley-bit/agentreins-moblie](https://github.com/yardfribley-bit/agentreins-moblie)。仓库不附带填好个人 Key 的安装包。GitHub 上可能还没有标记为 Latest 的正式版；应用里的「检查更新」在 Latest 不存在时会改读包含预发布的 releases 列表。从源码构建后，在手机上填写自己的 Key。
 
 测试包使用 Android 调试签名。与原版签名不同时不能直接覆盖安装；不要为安装而贸然卸载原版，以免丢失本地数据。
 
@@ -32,7 +31,7 @@ agentreins-moblie-v0.1.14-build15-debug.apk
 - **定时与条件任务**：提醒、周期任务和符合条件时通知。
 - **文件计算**：本地 Linux 沙箱，可运行 Python、Node 和 Shell；沙箱默认断网。
 - **任务控制**：执行中插话、停止、接管，并查看任务过程和 Token 用量。
-- **记忆与知识**：本机保存偏好，结合内置 App、网站知识和技能执行任务。
+- **知识库**：Obsidian 文件夹是唯一的长期笔记。每次任务前读取，办成后写回，对话里能看到读了什么、写了什么。不需要 Obsidian 插件，并兼容已有的 raw/wiki 结构。
 
 ### 内置知识与技能
 
@@ -57,11 +56,14 @@ agentreins-moblie-v0.1.14-build15-debug.apk
 
 ## 快速开始
 
-1. 安装本定制版 APK。
-2. 在设置里的「设置手机操作」向导完成无线调试配对；需要时参考[手机操作设置指南](docs/setup-guide.md)。
-3. 检查「设置 → 模型」。私人预配置版会自动初始化下面的 OpenRouter 模型；普通构建需要自行配置服务商与 Key。
-4. 先尝试简单任务，例如「打开抖音并进入指定直播间」。
-5. 要听直播，再按下一节开启监听。安装或启动 App 不会自动开始录音。
+全部在手机上完成，不需要电脑。第一次大约：配模型 2 分钟；若要操作 App，再加上无障碍和一次配对，大约 10 分钟。
+
+1. 安装 APK。
+2. 按应用里的引导走：欢迎 → 模型 → 手机操作 → 知识库 → 一条可试跑的示例任务。知识库和手机操作都可以先跳过，页面会写明跳过的后果。
+3. 模型有一条推荐路径：DeepSeek，在手机上打开 [申请 API Key](https://platform.deepseek.com/api_keys)，保存时用 `deepseek-chat` 试一次工具调用。私人预配置版仍可自动填入自己的 OpenRouter 模型；普通构建不带任何人的 Key。
+4. 手机操作：先在系统里打开 X 小助手的无障碍。后台屏还需要开发者选项和一次无线调试配对，只开无障碍做不到。配对码大约一分钟过期，通知没弹出来就下拉通知栏。详见[手机操作设置指南](docs/setup-guide.md)。
+5. 知识库：选择或新建一个文件夹。笔记写在子文件夹 AgentReins 下（raw/runs 与 wiki），不覆盖你原来的页。
+6. 出声默认关闭。允许之后才会说话，说话时有「正在出声」，可以一键停止。入口在设置首页的「出声」。
 
 ## 默认模型与 OpenRouter
 
@@ -135,7 +137,7 @@ APK 输出到 app/build/outputs/apk/debug/，文件名由版本配置自动生�
 
 录音暂存在内存，不保存录音文件；转写会随工具结果进入本地任务历史。对话、运行记录和设置主要保存在手机本机。
 
-原项目的更新检查仍指向上游 Mika；定制版尚未配置独立更新源，上游更新不包含本地定制功能。
+检查更新问的是本仓库的 GitHub Releases。没有正式 Latest 时，会改读包含预发布的 releases 列表。应用只提示有新版本，不在应用内下载安装。
 
 ## 文档与来源
 

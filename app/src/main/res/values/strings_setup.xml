@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="welcome_title">Hi, I’m X Assistant</string>
-    <string name="welcome_lead">Your personal assistant on your phone.\nTell me what to do and I’ll get it done in the background.</string>
-    <string name="welcome_note">Before you start: set up a model and turn on phone control. About 3 minutes.</string>
+    <string name="welcome_lead">Looks things up, organizes what you care about, and uses apps on your phone.\nSay what you want done and I’ll do it in the background.</string>
+    <string name="welcome_note">A model takes about 2 minutes. Using apps also needs accessibility and a one-time pairing, about 10 minutes the first time. You can skip pairing and still chat, browse, and work with files.</string>
     <string name="welcome_start">Get started</string>
-    <string name="welcome_apps">Use apps</string>
-    <string name="welcome_apps_body">Taps, types and scrolls on a background screen, leaving yours free</string>
-    <string name="welcome_web">Browse the web</string>
-    <string name="welcome_web_body">Built-in browser to read pages, compare prices and look things up</string>
-    <string name="welcome_files">Work with files</string>
-    <string name="welcome_files_body">Spreadsheets, PDFs and data, computed and organized in a separate environment</string>
-    <string name="welcome_schedule">Do it on schedule</string>
-    <string name="welcome_schedule_body">Daily, weekly, or automatically when a condition is met</string>
+    <string name="welcome_apps">Organize</string>
+    <string name="welcome_apps_body">Search and summarize the posts and notes you care about</string>
+    <string name="welcome_web">Use apps</string>
+    <string name="welcome_web_body">Taps and types on a background screen. Needs accessibility and a one-time pairing</string>
+    <string name="welcome_files">Web and files</string>
+    <string name="welcome_files_body">A built-in browser; spreadsheets and PDFs in a separate environment</string>
+    <string name="welcome_schedule">Knowledge base</string>
+    <string name="welcome_schedule_body">Reads your Obsidian notes before each task and writes back after success. You can see what was read and written</string>
     <string name="back">Back</string>
     <string name="hide">Hide</string>
     <string name="show">Show</string>
@@ -63,4 +63,15 @@
     <string name="model_probe_tried">Tried %1$s; none of them passed the test.</string>
     <string name="model_probe_fallback">%1$s, tried first, didn’t pass the test: %2$s. The main model is “%3$s”, which passed.</string>
     <string name="model_pick_main">Choose main model</string>
+    <string name="model_recommend_title">Recommended: DeepSeek</string>
+    <string name="model_recommend_body">You can sign up on your phone. On save, X Assistant tries deepseek-chat and one tool call, and uses it as the main model only if that passes. This provider is already selected below.</string>
+    <string name="model_recommend_key">Get an API key</string>
+    <string name="model_recommend_url" translatable="false">https://platform.deepseek.com/api_keys</string>
+    <string name="model_recommend_fail">If it fails: check the key was copied in full, confirm deepseek-chat is enabled in the DeepSeek console, or pick another provider above and test again.</string>
+    <string name="sample_title">Try one task</string>
+    <string name="sample_lead">This one only needs the model. It does not use apps or a knowledge base. Tap once to see how X Assistant answers.</string>
+    <string name="sample_task_text">In three sentences, tell me what you can help with. If phone control is not paired yet, and if no knowledge base is selected, say what happens in one sentence each.</string>
+    <string name="sample_note">To use apps or notes, finish this once, then add them in Settings.</string>
+    <string name="sample_run">Run this</string>
+    <string name="sample_skip">I’ll write my own</string>
 </resources>

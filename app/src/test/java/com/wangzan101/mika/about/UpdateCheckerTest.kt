@@ -154,6 +154,38 @@ class UpdateCheckerTest {
         assertEquals(2, hits.size)
     }
 
+    /** 没有正式 Latest（404）时，改读包含预发布的列表，并跳过草稿。 */
+    @Test
+    fun missingLatestReleaseUsesTheListIncludingPrereleases() = runTest {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                hits += request.path.orEmpty()
+                return when (request.path) {
+                    "/latest" -> MockResponse().setResponseCode(404).setBody("""{"message":"Not Found"}""")
+                    "/list" -> MockResponse().setBody(
+                        """[
+                          {"tag_name":"v0.2.0","name":"stable","body":"","html_url":"https://example/old","assets":[],"draft":false},
+                          {"tag_name":"v0.3.0-beta.1","name":"beta","body":"- 预发布","html_url":"https://example/beta","assets":[],"draft":false,"prerelease":true},
+                          {"tag_name":"v9.0.0","name":"draft","body":"","html_url":"https://example/draft","assets":[],"draft":true}
+                        ]""",
+                    )
+                    else -> MockResponse().setResponseCode(500)
+                }
+            }
+        }
+        val c = UpdateChecker(
+            tmp.root.resolve("update-list.json"), "0.2.0",
+            releaseApi = server.url("/latest").toString(),
+            releasesApi = server.url("/list").toString(),
+            now = { clock },
+        )
+        c.check(manual = true)
+        assertEquals(CheckStatus.Done, c.state.value.status)
+        assertEquals("0.3.0-beta.1", c.state.value.update?.version)
+        assertTrue(hits.contains("/latest"))
+        assertTrue(hits.contains("/list"))
+    }
+
     @Test
     fun scheduleRules() {
         assertTrue(UpdateSchedule.due(null, 5))

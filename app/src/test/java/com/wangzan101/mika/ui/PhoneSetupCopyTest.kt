@@ -35,7 +35,8 @@ class PhoneSetupCopyTest {
                 PhoneSetupCopy.AUTO_READ_HINT, PhoneSetupCopy.ACCESSIBILITY_SKIP, PhoneSetupCopy.NOTIFY_WINDOW_FOUND,
                 PhoneSetupCopy.NOTIFY_CODE_INVALID, PhoneSetupCopy.PAIRING_CHANNEL_OFF, PhoneSetupCopy.OPEN_PAIRING_CHANNEL,
                 PhoneSetupCopy.PAIRING_LOWERED, PhoneSetupCopy.NOTIFY_DONE_TITLE, PhoneSetupCopy.NOTIFY_DONE_TEXT,
-                PhoneSetupCopy.ACCESSIBILITY_SKIPPED, PhoneSetupCopy.APP_INFO, PhoneSetupCopy.TURNED_ON_NEXT,
+                PhoneSetupCopy.ACCESSIBILITY_SKIPPED, PhoneSetupCopy.APP_INFO, PhoneSetupCopy.A11Y_RESTRICTED,
+                PhoneSetupCopy.PAIR_RECOVER, PhoneSetupCopy.TURNED_ON_NEXT,
                 PhoneSetupCopy.REVISIT_BACK, PhoneSetupCopy.REVISIT_NOTE, PhoneSetupCopy.CONNECT_PORT_SUBMIT,
             ),
         )
@@ -120,9 +121,12 @@ class PhoneSetupCopyTest {
     }
 
     @Test
-    fun skippingAccessibilityReadsAsTheRecommendedPath() {
-        assertEquals("跳过(配对后 X 小助手 会自己打开)", PhoneSetupCopy.ACCESSIBILITY_SKIP)
-        assertTrue(PhoneSetupCopy.step(SetupStep.Accessibility).body.contains("推荐"))
+    fun accessibilityIsTheMainPathAndSkipIsTheFallback() {
+        assertEquals("先跳过，这次自己填配对码", PhoneSetupCopy.ACCESSIBILITY_SKIP)
+        assertFalse(PhoneSetupCopy.step(SetupStep.Accessibility).body.contains("推荐"))
+        assertTrue(PhoneSetupCopy.A11Y_RESTRICTED.contains("受限制的设置"))
+        assertTrue(PhoneSetupCopy.PAIR_RECOVER.contains("过期"))
+        assertTrue(PhoneSetupCopy.PAIR_RECOVER.contains("下拉通知栏"))
         assertEquals("我已经打开了,下一步", PhoneSetupCopy.TURNED_ON_NEXT)
     }
 

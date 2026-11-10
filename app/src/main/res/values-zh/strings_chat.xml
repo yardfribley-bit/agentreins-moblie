@@ -175,4 +175,9 @@
     <string name="source_none">没有保存这次答复的来源</string>
     <string name="source_image">来源画面</string>
     <string name="zoom_in">放大看</string>
+    <string name="chat_vault_none">这次没有知识库。还没选择文件夹，所以没有读笔记，办成后也不会写回去。可以在设置里的「知识库」补上。</string>
+    <string name="chat_vault_quiet">这次没有读到相关笔记，也还没有写入。</string>
+    <string name="chat_vault_read">读了：%1$s</string>
+    <string name="chat_vault_wrote">写了：%1$s</string>
+    <string name="chat_vault_nothing">没有</string>
 </resources>

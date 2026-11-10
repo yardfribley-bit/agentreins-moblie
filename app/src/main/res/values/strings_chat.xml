@@ -180,4 +180,9 @@
     <string name="source_none">No source was saved for this answer</string>
     <string name="source_image">Source screen</string>
     <string name="zoom_in">Zoom in</string>
+    <string name="chat_vault_none">No knowledge base this time. No folder is selected, so nothing was read and the result will not be written back. Add one in Settings › Knowledge base.</string>
+    <string name="chat_vault_quiet">No related notes were read, and nothing was written yet.</string>
+    <string name="chat_vault_read">Read: %1$s</string>
+    <string name="chat_vault_wrote">Wrote: %1$s</string>
+    <string name="chat_vault_nothing">none</string>
 </resources>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="phone_title">Set up phone control</string>
-    <string name="phone_intro">X Assistant uses apps for you on a separate virtual screen, so you can keep using your phone. For this it borrows Android’s built-in “USB debugging” and “Wireless debugging”: pair once and X Assistant connects automatically from then on — no computer needed. Web and file tasks work without this.</string>
+    <string name="phone_intro">Using apps in the background needs two things: accessibility (so X Assistant can see and tap) and a one-time “Wireless debugging” pairing (so it can open apps on a background screen). Accessibility alone cannot create that screen, so Developer options stay required. Everything happens on the phone, with no computer. The first time takes about 10 minutes. Web, files and chat work without this.</string>
     <string name="phone_later">Not now</string>
     <string name="phone_bar_title">Phone control</string>
     <string name="phone_skip_note">You can skip this for now and just use web, files and chat; X Assistant will remind you the first time it needs an app.</string>
@@ -15,7 +15,7 @@
     <string name="phone_open_dev_options">Open Developer options</string>
     <string name="phone_step_usb_brief">Keeps working without Wi-Fi</string>
     <string name="phone_step_a11y">Turn on X Assistant’s accessibility</string>
-    <string name="phone_step_a11y_body">Find X Assistant in your system’s “Accessibility” settings and turn it on. Then X Assistant reads the pairing code by itself when pairing — no typing needed. You can also skip this (recommended): after pairing, X Assistant turns it on by itself without being blocked by Android’s “restricted setting”, and this time you enter the code from the notification.</string>
+    <string name="phone_step_a11y_body">Find X Assistant in “Accessibility” and turn it on. Then it reads the pairing code itself, so you don’t type it. If the switch is grey or Android says “restricted setting”, allow that in App info first, then come back. You can skip this and type the code from the notification instead.</string>
     <string name="phone_step_a11y_action">Open Accessibility settings</string>
     <string name="phone_step_a11y_brief">X Assistant reads the pairing code itself</string>
     <string name="phone_step_wireless">Turn on Wireless debugging</string>
@@ -30,7 +30,7 @@
     <string name="phone_step_connect_body">Once paired, X Assistant connects and gets ready by itself in a few seconds.</string>
     <string name="phone_connected">Connected</string>
     <string name="phone_step_connect_brief">Connects by itself after pairing</string>
-    <string name="phone_a11y_skip">Skip (X Assistant turns it on after pairing)</string>
+    <string name="phone_a11y_skip">Skip for now and type the code myself</string>
     <string name="phone_a11y_skipped">Skipped</string>
     <string name="phone_app_info">Can’t turn it on? Allow restricted settings in App info first</string>
     <string name="phone_auto_read">When the code appears, wait a few seconds — X Assistant reads it and finishes pairing. No need to leave that page.</string>
@@ -55,7 +55,7 @@
     <string name="phone_working">Pairing and connecting, just a few seconds</string>
     <string name="phone_success">Phone control is set up</string>
     <string name="phone_success_note">Keep USB debugging on. After a restart, turn on Wireless debugging and X Assistant reconnects automatically.</string>
-    <string name="phone_start_using">Start using X Assistant</string>
+    <string name="phone_start_using">Continue</string>
     <string name="done">Done</string>
     <string name="fail_wrong_code">Wrong or expired pairing code</string>
     <string name="fail_wrong_code_body">The code changes each time the pairing window opens. Tap “Pair device with pairing code” again and enter the new 6 digits.</string>
@@ -120,4 +120,6 @@
     <string name="phone_connect_port_label">Enter the Wireless debugging port</string>
     <string name="phone_connect_port_hint">On the “Wireless debugging” page, the number after the colon in “IP address &amp; port”, e.g. 41235</string>
     <string name="phone_connect_port_submit">Connect</string>
+    <string name="phone_a11y_restricted">If Android says “restricted setting”: open App info, tap ⋮ at the top right, choose “Allow restricted settings”, then turn accessibility on. That menu sometimes appears only after the first block.</string>
+    <string name="phone_pair_recover">The code expires in about a minute. If it fails or expires, tap “Pair device with pairing code” again for a new 6-digit code. If the notification does not pop up, swipe down the notification shade. Don’t leave the pairing window while you type. If the notification is awkward, enter the code below.</string>
 </resources>

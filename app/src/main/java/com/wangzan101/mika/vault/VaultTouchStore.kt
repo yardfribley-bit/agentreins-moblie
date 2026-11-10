@@ -23,6 +23,13 @@ class VaultTouchStore(private val file: File) {
 
     fun touch(path: String): Touch = synchronized(lock) { notes[path] ?: Touch() }
 
+    /** 这一次运行读过、写过的笔记路径。 */
+    fun forRun(runId: String): Pair<List<String>, List<String>> = synchronized(lock) {
+        val read = notes.filter { runId in it.value.readRuns }.keys.toList()
+        val wrote = notes.filter { runId in it.value.writeRuns }.keys.toList()
+        read to wrote
+    }
+
     fun runPath(runId: String): String? = synchronized(lock) { runs[runId] }
 
     fun markRead(paths: List<String>, runId: String?, at: Long) = edit(paths, runId, at, write = false)

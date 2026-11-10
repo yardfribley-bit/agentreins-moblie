@@ -110,6 +110,8 @@ import com.wangzan101.mika.R
 import com.wangzan101.mika.chat.SharedFile
 import com.wangzan101.mika.confirm.ConfirmationCopy
 import com.wangzan101.mika.settings.Prerequisites
+import com.wangzan101.mika.settings.Problem
+import com.wangzan101.mika.vault.VaultRunTouch
 import com.wangzan101.mika.takeover.Takeover
 import com.wangzan101.mika.task.TaskService
 import com.wangzan101.mika.ui.components.BarIconButton
@@ -120,6 +122,8 @@ import com.wangzan101.mika.ui.components.GlassBar
 import com.wangzan101.mika.ui.components.MikaButton
 import com.wangzan101.mika.ui.components.MikaCard
 import com.wangzan101.mika.ui.components.PageBackground
+import com.wangzan101.mika.ui.components.StateCard
+import com.wangzan101.mika.ui.components.TileTone
 import com.wangzan101.mika.ui.components.TopBar
 import com.wangzan101.mika.ui.components.cardSurface
 import com.wangzan101.mika.ui.components.glassSource
@@ -130,8 +134,10 @@ import com.wangzan101.mika.ui.theme.MikaSize
 import com.wangzan101.mika.ui.theme.MikaTheme
 import com.wangzan101.mika.ui.viewer.FileViewer
 import com.wangzan101.mika.ui.theme.MikaType
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -162,6 +168,10 @@ fun ChatScreen(
     /** 按运行记录取依据的来处(「来源」胶囊和点开后的截图);读盘的活由调用方放到后台线程。 */
     loadSource: suspend (runId: String) -> EvidenceSource? = { null },
     openSource: (runId: String?, legacyText: String?) -> Unit = { _, _ -> },
+    /** 这一次任务读了、写了哪些知识库笔记。 */
+    vaultTouch: (String) -> VaultRunTouch = { VaultRunTouch(false, emptyList(), emptyList()) },
+    /** 读写时间变化时重读上面那份记录。 */
+    vaultStamp: Any? = null,
 ) {
     val ui by vm.ui.collectAsState()
     val others by vm.otherRunning.collectAsState()
@@ -253,11 +263,15 @@ fun ChatScreen(
             if (ui.exchanges.isEmpty() && ui.blocked == null) {
                 item("empty") { EmptyState(ui.conversationId, onRunTask = { vm.send(it, check) }) }
             }
+            val gap = check.problems.firstOrNull { it != Problem.FocusMayLeak }
+            if (gap != null && ui.blocked == null) {
+                item("gap") { SetupGapBanner(gap, openSettings, openPhoneSetup, openAccessibility) }
+            }
             ui.exchanges.forEachIndexed { i, ex ->
                 val backgroundNote = i == ui.exchanges.lastIndex && ui.operatingPhone
-                exchange(i, ex, ui.conversationId, ui.takeoverStage, vm, reduceMotion, backgroundNote, openRun, loadSource, openSource, openAccessibility)
+                exchange(i, ex, ui.conversationId, ui.takeoverStage, vm, reduceMotion, backgroundNote, openRun, loadSource, openSource, openAccessibility, vaultTouch, vaultStamp)
             }
-            if (phoneSetupNeeded && ui.exchanges.isNotEmpty()) item("phone-setup") { PhoneSetupLine(openPhoneSetup) }
+            if (phoneSetupNeeded && ui.exchanges.isNotEmpty() && gap !is Problem.PhoneHelper) item("phone-setup") { PhoneSetupLine(openPhoneSetup) }
             ui.blocked?.let { problems ->
                 item("blocked") {
                     NeedCard(
@@ -420,6 +434,8 @@ private fun LazyListScope.exchange(
     index: Int, ex: Exchange, conversationId: String?, stage: Takeover.Stage, vm: ChatViewModel, reduceMotion: Boolean, backgroundNote: Boolean,
     openRun: (String) -> Unit, loadSource: suspend (String) -> EvidenceSource?, openSource: (String?, String?) -> Unit,
     openAccessibility: () -> Unit,
+    vaultTouch: (String) -> VaultRunTouch,
+    vaultStamp: Any?,
 ) {
     if (ex.goal.isNotEmpty()) item("u$index") { UserBubble(ex.goal, conversationId) }
     val active = ex.status.isActive()
@@ -432,6 +448,7 @@ private fun LazyListScope.exchange(
     // 任务进行中插的话:用户的原话,下面一行小字说它的去向
     ex.steers.forEach { n -> item("m$index-${n.id}") { UserBubble(n.text, conversationId, steerLabel(n.state)) } }
     item("r$index") { StatusCard(ex.status, stage, vm, ex.runId, loadSource, openSource, openAccessibility) }
+    ex.runId?.let { id -> item("v$index") { VaultTaskLine(id, vaultTouch, vaultStamp) } }
     ex.draft?.takeIf(String::isNotBlank)?.let { draft -> item("d$index") { DraftText(draft, ex.waitingForModel) } }
     if (ex.files.isNotEmpty()) item("f$index") { FileCards(ex.files) }
     learningNotes(index, ex, vm)
@@ -796,6 +813,43 @@ private fun StatusCard(
         }
     }
 }
+
+/** 对话页顶上的缺失项，和设置页状态卡同一套标题与说明。 */
+@Composable
+private fun SetupGapBanner(problem: Problem, openSettings: () -> Unit, openPhoneSetup: () -> Unit, openAccessibility: () -> Unit) {
+    val copy = StatusCopy.banner(problem)
+    val action = when (problem) {
+        is Problem.PhoneHelper -> openPhoneSetup
+        is Problem.Accessibility -> openAccessibility
+        else -> openSettings
+    }
+    val tone = if (problem is Problem.NoModel || problem is Problem.SystemTooOld) TileTone.Bad else TileTone.Warn
+    StateCard(MikaIcons.Exclaim, copy.title, copy.detail, tone, Modifier.testTag("chat-gap")) {
+        Text(
+            copy.link, Modifier.clickable(onClick = action).padding(4.dp),
+            fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MikaTheme.colors.accent,
+        )
+    }
+}
+
+/** 这一次任务读了、写了哪些知识库笔记。没选库时说明后果。 */
+@Composable
+private fun VaultTaskLine(runId: String, load: (String) -> VaultRunTouch, stamp: Any?) {
+    val touch by produceState(VaultRunTouch(false, emptyList(), emptyList()), runId, stamp) {
+        value = withContext(Dispatchers.IO) { load(runId) }
+    }
+    val none = stringResource(R.string.chat_vault_nothing)
+    val sep = stringResource(R.string.list_sep)
+    val text = when {
+        !touch.configured -> stringResource(R.string.chat_vault_none)
+        touch.read.isEmpty() && touch.wrote.isEmpty() -> stringResource(R.string.chat_vault_quiet)
+        else -> stringResource(R.string.chat_vault_read, touch.read.joinToString(sep, transform = ::noteName).ifBlank { none }) +
+            "\n" + stringResource(R.string.chat_vault_wrote, touch.wrote.joinToString(sep, transform = ::noteName).ifBlank { none })
+    }
+    Text(text, Modifier.padding(bottom = 8.dp).testTag("vault-touch"), style = MikaType.Caption, color = MikaTheme.colors.ink3)
+}
+
+private fun noteName(path: String) = path.substringAfterLast('/').removeSuffix(".md")
 
 /**
  * 回答的文字可以长按选中、用系统的复制条复制;回答里的链接照旧点开。只包住文字,下面的来源等入口不在选区里。

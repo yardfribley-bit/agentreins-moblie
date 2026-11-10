@@ -64,6 +64,18 @@ class ReleasesTest {
     }
 
     @Test
+    fun newestFromListKeepsPrereleasesAndSkipsDrafts() {
+        val list = """[
+          {"tag_name":"v0.2.0","name":"old","body":"","html_url":"https://example/old","assets":[],"draft":false},
+          {"tag_name":"v0.3.0-beta.1","name":"beta","body":"notes","html_url":"https://example/beta","assets":[],"draft":false},
+          {"tag_name":"v9.0.0","name":"draft","body":"","html_url":"https://example/draft","assets":[],"draft":true}
+        ]"""
+        val r = Releases.newestFromList(list)
+        assertEquals("0.3.0-beta.1", r.version)
+        assertEquals("notes", r.notes)
+    }
+
+    @Test
     fun storedReleaseRoundTrips() {
         val r = Releases.fromGitHub(github)
         assertEquals(r, Releases.fromJson(Releases.toJson(r)))

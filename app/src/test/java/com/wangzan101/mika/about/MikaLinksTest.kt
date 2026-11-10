@@ -58,42 +58,16 @@ class MikaLinksTest {
         assertEquals("@agentreins", MikaLinks.X_HANDLE)
         assertEquals("https://www.agentreins.info", MikaLinks.SITE)
         assertTrue(MikaLinks.LATEST_RELEASE_API.endsWith("/repos/yardfribley-bit/agentreins-moblie/releases/latest"))
+        assertTrue(MikaLinks.RELEASES_API.contains("/repos/yardfribley-bit/agentreins-moblie/releases?"))
         assertFalse(MikaLinks.LATEST_RELEASE_API.contains("wangzan101"))
+        assertFalse(MikaLinks.RELEASES_API.contains("chuhaijian"))
     }
 
-    /** 交给 Mika 的原话:按微信号找作者、发那句话;找不到时不加好友、不发给别人。 */
     @Test
-    fun groupTaskText() {
-        val t = MikaLinks.GROUP_TASK
-        assertTrue(t.contains("微信号 ${MikaLinks.AUTHOR_WECHAT_ID}"))
-        assertEquals("sjtdyt", MikaLinks.AUTHOR_WECHAT_ID)
-        assertTrue(t.contains("「你好，我是 X 小助手 的用户，想加入 X 小助手 内测体验群，麻烦拉我一下，谢谢！」"))
-        assertTrue(t.contains("不要添加好友，也不要发给别人"))
-        assertTrue(t.contains("先在「关于 X 小助手」里搜索微信号 sjtdyt 加作者"))
-        assertFalse(t.contains("王赞"))
-        assertFalse(t.contains("扫码"))
-        assertEquals(2, t.lines().size)
-        assertEquals(
-            "打开微信，在顶部搜索里输入微信号 sjtdyt，找到这个联系人（作者），给作者发这条消息：「你好，我是 X 小助手 的用户，想加入 X 小助手 内测体验群，麻烦拉我一下，谢谢！」\n" +
-                "如果搜不到这个联系人，说明我还没加作者的微信：不要添加好友，也不要发给别人，直接告诉我先在「关于 X 小助手」里搜索微信号 sjtdyt 加作者。",
-            t,
-        )
-    }
-
-    /** 界面是英文时交给 Mika 的原话和发给作者的那句也是英文,规矩不变。 */
-    @Test
-    fun groupTaskTextInEnglish() {
-        com.wangzan101.mika.i18n.UiText.source = com.wangzan101.mika.i18n.ResFileTexts.english
-        val t = MikaLinks.GROUP_TASK
-        assertTrue(t.contains("WeChat ID sjtdyt"))
-        assertTrue(t.contains("“${MikaLinks.GROUP_REQUEST}”"))
-        assertTrue(MikaLinks.GROUP_REQUEST.startsWith("Hi, I’m a X Assistant user"))
-        assertTrue(t.contains("don’t add them as a friend and don’t send it to anyone else"))
-        assertTrue(t.contains("search WeChat ID sjtdyt in “About X Assistant”"))
-        assertFalse(t.contains("Wang Zan"))
-        assertFalse(t.contains("QR"))
-        assertEquals(2, t.lines().size)
-        assertEquals("Built by smith · AgentReins · © 2026", com.wangzan101.mika.ui.AboutCopy.AUTHOR)
+    fun publicLinksDoNotEmbedAPersonalWeChat() {
+        val blob = listOf(MikaLinks.SITE, MikaLinks.REPO, MikaLinks.README, MikaLinks.RELEASES, MikaLinks.X, MikaLinks.X_HANDLE).joinToString("\n")
+        assertFalse(blob.contains("sjtdyt"))
+        assertFalse(blob.contains("chuhaijian"))
     }
 
     @Test

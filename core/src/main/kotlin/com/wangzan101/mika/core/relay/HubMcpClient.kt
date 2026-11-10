@@ -279,8 +279,8 @@ class HubMcpClient(
                 put("protocolVersion", PROTOCOL)
                 put("capabilities", JsonObject(emptyMap()))
                 put("clientInfo", buildJsonObject {
-                    put("name", "agentreins-moblie")
-                    put("version", "0.1")
+                    put("name", "x-assistant")
+                    put("version", "0.3")
                 })
             })
             val response = http.newCall(request(mcpUrl, token, init, session = null)).execute()

@@ -242,11 +242,15 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
     LaunchedEffect(openMemory) { if (openMemory != null) nav.push(Route.Memory) }
     // 第一次打开:欢迎 → 配置模型 → 手机操作;配过模型的跳过前两步,手机操作已就绪或看过引导的跳过最后一步
     val onboardingState = remember { OnboardingState(context) }
+    val vaultPrefs by app.vault.settings.state.collectAsState()
     fun onboardingInputs() = Onboarding.Inputs(
         hasMainModel = store.roles.value.main != null,
         modelSetupDone = onboardingState.modelSetupDone(),
         phoneNeeded = status.builtinShell != BuiltinShellStatus.Running && status.sdkInt >= Prerequisites.MIN_SDK,
         phoneGuideSeen = phoneSetup.guideSeen(),
+        vaultChosen = vaultPrefs.treeUri != null,
+        vaultSeen = onboardingState.vaultSeen(),
+        sampleSeen = onboardingState.sampleSeen(),
     )
     fun goOnboarding(step: OnboardingStep?) {
         onboarding = step
@@ -255,6 +259,8 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
             OnboardingStep.Welcome -> nav.show(Route.Welcome)
             OnboardingStep.Model -> nav.show(Route.ModelSetup)
             OnboardingStep.Phone -> { setupRepair = false; nav.show(Route.PhoneSetup) }
+            OnboardingStep.Vault -> nav.show(Route.VaultSetup)
+            OnboardingStep.Sample -> nav.show(Route.SampleTask)
             null -> nav.reset()
         }
     }
@@ -270,8 +276,29 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
     when (nav.current) {
         Route.PhoneSetup -> PhoneSetupScreen(status, setupRepair, onFix, onboarding = onboarding == OnboardingStep.Phone) {
             phoneSetup.markGuideSeen()
-            if (onboarding == OnboardingStep.Phone) goOnboarding(null) else nav.back()
+            if (onboarding == OnboardingStep.Phone) goOnboarding(Onboarding.next(OnboardingStep.Phone, onboardingInputs())) else nav.back()
         }
+        Route.VaultSetup -> VaultOnboardingScreen(
+            onBack = {
+                onboardingState.markVaultSeen()
+                goOnboarding(Onboarding.next(OnboardingStep.Vault, onboardingInputs()))
+            },
+            onContinue = {
+                onboardingState.markVaultSeen()
+                goOnboarding(Onboarding.next(OnboardingStep.Vault, onboardingInputs()))
+            },
+        )
+        Route.SampleTask -> SampleTaskScreen(
+            onBack = { onboardingState.markSampleSeen(); goOnboarding(null) },
+            onSkip = { onboardingState.markSampleSeen(); goOnboarding(null) },
+            onRun = { text ->
+                onboardingState.markSampleSeen()
+                val id = ConversationStore.shared(context).newConversation()
+                TaskService.start(context, text, id, queue = true)
+                app.chat.openConversation(id)
+                goOnboarding(null)
+            },
+        )
         Route.Welcome -> WelcomeScreen { goOnboarding(OnboardingStep.Model) }
         Route.ModelSetup -> {
             val inOnboarding = onboarding == OnboardingStep.Model
@@ -329,6 +356,8 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
                         sourceLegacyText = legacy
                         nav.push(Route.Source)
                     },
+                    vaultTouch = app.vault::runTouch,
+                    vaultStamp = vaultPrefs.lastReadAt to vaultPrefs.lastWriteAt,
                 )
             }
         }
@@ -361,19 +390,6 @@ private fun MikaRoot(store: ProviderStore, monitor: SystemStatusMonitor, activit
             },
             onCheck = app.updates::checkInBackground,
             onOpenUrl = { openInBrowser(context, it) },
-            onAskMikaToJoin = {
-                // 和悬浮胶囊开始任务一样:新对话里交给服务(别的任务在跑时排上),再回到对话页看它跑
-                val gap = AboutCopy.groupTaskGap(check)
-                if (gap != null) {
-                    Toast.makeText(context, gap.message, Toast.LENGTH_SHORT).show()
-                    gap.fix?.let(onFix) ?: nav.push(Route.Settings)
-                } else {
-                    val id = ConversationStore.shared(context).newConversation()
-                    TaskService.start(context, MikaLinks.GROUP_TASK, id, queue = true)
-                    app.chat.openConversation(id)
-                    nav.reset()
-                }
-            },
             onOpenLicense = { nav.push(Route.License) },
             onBack = back,
             diagnostics = {

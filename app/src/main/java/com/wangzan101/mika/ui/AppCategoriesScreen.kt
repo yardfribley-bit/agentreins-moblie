@@ -10,6 +10,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.wangzan101.mika.R
 import com.wangzan101.mika.core.agent.RelevantApps
 import com.wangzan101.mika.settings.AppCategoryStore
 import com.wangzan101.mika.ui.components.PageScaffold
@@ -29,17 +31,27 @@ fun AppCategoriesScreen(onBack: () -> Unit) {
             pkg to info.loadLabel(context.packageManager).toString()
         }.distinctBy { it.first }.sortedBy { it.second.lowercase() }
     }
-    val labels = mapOf("shopping and local deals" to "购物与团购", "coding and development" to "编程与开发",
-        "research and search" to "查询与搜索", "X and content creation" to "X 与内容创作", "maps" to "地图导航",
-        "travel" to "出行交通", "communication" to "通讯", "finance" to "金融", "productivity" to "办公与笔记", "media" to "影音")
+    val labels = mapOf(
+        "shopping and local deals" to stringResource(R.string.cat_shopping),
+        "coding and development" to stringResource(R.string.cat_coding),
+        "research and search" to stringResource(R.string.cat_research),
+        "X and content creation" to stringResource(R.string.cat_x),
+        "maps" to stringResource(R.string.cat_maps),
+        "travel" to stringResource(R.string.cat_travel),
+        "communication" to stringResource(R.string.cat_comms),
+        "finance" to stringResource(R.string.cat_finance),
+        "productivity" to stringResource(R.string.cat_productivity),
+        "media" to stringResource(R.string.cat_media),
+    )
+    val uncategorized = stringResource(R.string.cat_none)
     val allCategories = RelevantApps.categories + "uncategorized"
     fun belongs(app: Pair<String, String>, id: String): Boolean {
         val cats = store.categories(app.first, app.second)
         return if (id == "uncategorized") cats.isEmpty() else id in cats
     }
-    fun label(id: String) = labels[id] ?: if (id == "uncategorized") "未分类" else id
-    PageScaffold("应用分类", onBack) {
-        Text("自动整理手机应用，可多选分类。新增应用重新打开本页即可看到。", modifier = Modifier.padding(vertical = 12.dp))
+    fun label(id: String) = labels[id] ?: if (id == "uncategorized") uncategorized else id
+    PageScaffold(stringResource(R.string.cat_title), onBack) {
+        Text(stringResource(R.string.cat_lead), modifier = Modifier.padding(vertical = 12.dp))
         allCategories.chunked(2).forEach { pair ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 pair.forEach { id ->
@@ -50,13 +62,18 @@ fun AppCategoriesScreen(onBack: () -> Unit) {
                 if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
         }
-        Text("${label(category)} · ${apps.count { belongs(it, category) }} 个应用", modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
+        val sep = stringResource(R.string.list_sep)
+        val confirmedLabel = stringResource(R.string.cat_confirmed)
+        val autoLabel = stringResource(R.string.cat_auto)
+        val adjustLabel = stringResource(R.string.cat_adjust)
+        Text(stringResource(R.string.cat_heading, label(category), apps.count { belongs(it, category) }), modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
         apps.filter { belongs(it, category) }.forEach { (pkg, name) ->
-            val cats = store.categories(pkg, name).mapNotNull(labels::get).joinToString("、").ifEmpty { "未分类" }
-            ListItem(headlineContent = { Text(name) }, supportingContent = { Text("$cats · ${if (store.confirmed(pkg)) "已确认" else "自动分类"}") },
-                trailingContent = { TextButton(onClick = { selected = pkg to name }) { Text("调整") } })
+            val cats = store.categories(pkg, name).mapNotNull(labels::get).joinToString(sep).ifEmpty { uncategorized }
+            val state = if (store.confirmed(pkg)) confirmedLabel else autoLabel
+            ListItem(headlineContent = { Text(name) }, supportingContent = { Text(context.getString(R.string.cat_line, cats, state)) },
+                trailingContent = { TextButton(onClick = { selected = pkg to name }) { Text(adjustLabel) } })
         }
-        Text("按任务提供相关应用给模型；已安装不代表已登录或可操作。", modifier = Modifier.padding(vertical = 16.dp))
+        Text(stringResource(R.string.cat_foot), modifier = Modifier.padding(vertical = 16.dp))
     }
     selected?.let { (pkg, name) ->
         var chosen by remember(pkg) { mutableStateOf(store.categories(pkg, name)) }
@@ -69,7 +86,7 @@ fun AppCategoriesScreen(onBack: () -> Unit) {
                     }
                 }
             }
-        }, confirmButton = { TextButton(onClick = { store.save(pkg, chosen); revision++; selected = null }) { Text("确认") } },
-            dismissButton = { TextButton(onClick = { selected = null }) { Text("取消") } })
+        }, confirmButton = { TextButton(onClick = { store.save(pkg, chosen); revision++; selected = null }) { Text(stringResource(R.string.cat_confirm)) } },
+            dismissButton = { TextButton(onClick = { selected = null }) { Text(stringResource(R.string.cancel)) } })
     }
 }

@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -69,7 +68,7 @@ private enum class AboutSheet { Update, Changelog, Feedback, Group, Diagnostics 
 
 /**
  * 关于 Mika:顶上图标、名字、一句话介绍、版本(Beta 标记、构建编号);下面三组——检查更新与更新记录,
- * 反馈、内测群、关注作者,开源仓库与使用说明;一段数据说明;最底下许可证与作者。
+ * 反馈、社区、关注作者,开源仓库与使用说明;一段数据说明;最底下许可证与作者。
  * 外部链接都交给 [onOpenUrl](系统浏览器);手动检查的结果到了([UpdateState.manualRounds] 变了)才提示。
  * [diagnostics] 写出诊断信息(反馈面板里「复制诊断信息」点开预览时在后台线程调)。
  */
@@ -82,7 +81,6 @@ fun AboutScreen(
     issueUrl: String,
     onCheck: () -> Unit,
     onOpenUrl: (String) -> Unit,
-    onAskMikaToJoin: () -> Unit,
     onOpenLicense: () -> Unit,
     onBack: () -> Unit,
     diagnostics: () -> String = { "" },
@@ -176,13 +174,13 @@ fun AboutScreen(
         AboutSheet.Changelog -> ChangelogSheet(update.latest, onOpenAll = { close(); onOpenUrl(MikaLinks.RELEASES) }, onDismiss = close)
         AboutSheet.Feedback -> FeedbackSheet(
             onGitHub = { close(); onOpenUrl(issueUrl) },
-            onWeChat = { sheet = AboutSheet.Group },
+            onWeChat = { close(); onOpenUrl(MikaLinks.SITE) },
             onX = { close(); onOpenUrl(MikaLinks.X) },
             onDiagnostics = { sheet = AboutSheet.Diagnostics },
             onDismiss = close,
         )
         AboutSheet.Diagnostics -> DiagnosticsSheet(diagnostics, onDismiss = close)
-        AboutSheet.Group -> GroupSheet(onAskMika = { close(); onAskMikaToJoin() }, onDismiss = close)
+        AboutSheet.Group -> GroupSheet(onOpenSite = { close(); onOpenUrl(MikaLinks.SITE) }, onDismiss = close)
         null -> Unit
     }
 }
@@ -198,7 +196,7 @@ private fun Hero(versionName: String, build: String, beta: Boolean) {
             painterResource(R.drawable.agentreins_x_logo), contentDescription = null,
             Modifier.size(72.dp).clip(RoundedCornerShape(20.dp)),
         )
-        Text("X 小助手", Modifier.padding(top = 12.dp), style = MikaType.Title, fontWeight = FontWeight.Bold, color = c.ink)
+        Text(stringResource(R.string.app_name), Modifier.padding(top = 12.dp), style = MikaType.Title, fontWeight = FontWeight.Bold, color = c.ink)
         Text(AboutCopy.TAGLINE, Modifier.padding(top = 4.dp), style = MikaType.Caption, color = c.ink2, textAlign = TextAlign.Center)
         Row(Modifier.padding(top = 10.dp).testTag("about-version"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(AboutCopy.version(versionName), style = MikaType.Hint, color = c.ink3)
@@ -324,34 +322,12 @@ private fun FeedbackOption(icon: ImageVector, title: String, sub: String, first:
 }
 
 @Composable
-private fun GroupSheet(onAskMika: () -> Unit, onDismiss: () -> Unit) {
-    val c = MikaTheme.colors
-    // 点一次就够:连点不会开出第二个一样的任务
-    var asked by remember { mutableStateOf(false) }
+private fun GroupSheet(onOpenSite: () -> Unit, onDismiss: () -> Unit) {
     AboutSheetFrame(AboutCopy.GROUP_SHEET_TITLE, AboutCopy.GROUP_SHEET_SUB_ID, "group-sheet", onDismiss) {
-        WeChatId()
-        HorizontalDivider(Modifier.padding(top = 16.dp), color = c.hair)
-        Text(AboutCopy.GROUP_ALREADY_ADDED, Modifier.fillMaxWidth().padding(top = 12.dp), style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center)
         MikaButton(
-            AboutCopy.GROUP_ASK_MIKA, { if (!asked) { asked = true; onAskMika() } },
-            Modifier.fillMaxWidth().padding(top = 8.dp).testTag("group-ask-mika"), enabled = !asked,
+            AboutCopy.GROUP_OPEN_SITE, onOpenSite,
+            Modifier.fillMaxWidth().padding(top = 16.dp).testTag("group-open-site"),
         )
     }
-}
-
-/** 微信号,给还没换上作者二维码时用:用户自己在微信里搜,或让助手按这个号去发。 */
-@Composable
-private fun ColumnScope.WeChatId() {
-    val c = MikaTheme.colors
-    Text(
-        AboutCopy.GROUP_ID,
-        Modifier.fillMaxWidth().padding(top = 16.dp).testTag("wechat-id"),
-        style = MikaType.Title, color = c.ink, textAlign = TextAlign.Center,
-    )
-    Text(
-        AboutCopy.GROUP_ID_HINT,
-        Modifier.fillMaxWidth().padding(top = 6.dp),
-        style = MikaType.Hint, color = c.ink3, textAlign = TextAlign.Center,
-    )
 }
 
