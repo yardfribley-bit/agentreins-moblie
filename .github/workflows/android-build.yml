@@ -1,0 +1,145 @@
+# Public debug APK. No secrets, no release signing, no GitHub Release.
+# Unit tests stay in a separate job so known failures cannot block the APK.
+
+name: Android build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  assemble-debug:
+    name: Assemble debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android SDK packages
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          if [ ! -d "$SDK" ]; then
+            echo "Android SDK not found (ANDROID_SDK_ROOT/ANDROID_HOME unset and $SDK missing)"
+            exit 1
+          fi
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          SM="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | sort | tail -1)"
+          if [ -z "$SM" ]; then
+            echo "sdkmanager not found under $SDK"
+            exit 1
+          fi
+          mkdir -p "$SDK/licenses"
+          printf '%s\n' "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "$SDK/licenses/android-sdk-license"
+          set +o pipefail
+          yes | "$SM" --sdk_root="$SDK" --licenses >/dev/null || true
+          set -o pipefail
+          "$SM" --sdk_root="$SDK" "platforms;android-36" "build-tools;35.0.0"
+
+      - name: Assemble debug
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Name the APK and write the job summary
+        id: apk
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, shutil
+          meta_path = pathlib.Path("app/build/outputs/apk/debug/output-metadata.json")
+          meta = json.loads(meta_path.read_text())
+          element = meta["elements"][0]
+          apk = meta_path.parent / element["outputFile"]
+          if not apk.is_file():
+              raise SystemExit(f"APK missing: {apk}")
+          version = str(element["versionName"])
+          code = str(element["versionCode"])
+          sha = os.environ["GITHUB_SHA"][:7]
+          digest = hashlib.sha256(apk.read_bytes()).hexdigest()
+          named = pathlib.Path(os.environ["RUNNER_TEMP"]) / f"agentreins-x-v{version}-{sha}-debug.apk"
+          shutil.copyfile(apk, named)
+          out = pathlib.Path(os.environ["GITHUB_OUTPUT"])
+          with out.open("a") as fh:
+              fh.write(f"version={version}\n")
+              fh.write(f"code={code}\n")
+              fh.write(f"sha={sha}\n")
+              fh.write(f"hash={digest}\n")
+              fh.write(f"artifact=agentreins-x-v{version}-{sha}-debug\n")
+              fh.write(f"path={named}\n")
+          summary = pathlib.Path(os.environ["GITHUB_STEP_SUMMARY"])
+          with summary.open("a") as fh:
+              fh.write("### Debug APK\n\n")
+              fh.write("| | |\n|---|---|\n")
+              fh.write(f"| versionName | `{version}` |\n")
+              fh.write(f"| versionCode | `{code}` |\n")
+              fh.write(f"| commit | `{sha}` |\n")
+              fh.write(f"| file | `{named.name}` |\n")
+              fh.write(f"| SHA-256 | `{digest}` |\n")
+          print(f"versionName={version}")
+          print(f"versionCode={code}")
+          print(f"SHA-256={digest}")
+          print(f"artifact=agentreins-x-v{version}-{sha}-debug")
+          PY
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.artifact }}
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+          compression-level: 0
+
+  unit-tests:
+    name: Unit tests (does not block the APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    continue-on-error: true
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android SDK packages
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          if [ ! -d "$SDK" ]; then
+            echo "Android SDK not found"
+            exit 1
+          fi
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          SM="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | sort | tail -1)"
+          mkdir -p "$SDK/licenses"
+          printf '%s\n' "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "$SDK/licenses/android-sdk-license"
+          set +o pipefail
+          yes | "$SM" --sdk_root="$SDK" --licenses >/dev/null || true
+          set -o pipefail
+          "$SM" --sdk_root="$SDK" "platforms;android-36" "build-tools;35.0.0"
+
+      - name: Run unit tests
+        run: ./gradlew :core:test :app:testDebugUnitTest --continue
