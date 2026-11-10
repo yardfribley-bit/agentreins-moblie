@@ -1256,6 +1256,8 @@ class ToolLabels(private val tools: ToolIndex, private val legacy: LegacyNames =
             "点击" to R.string.tool_tap,
             "输入文字" to R.string.tool_type,
             "清空输入框" to R.string.tool_clear,
+            "比价平台" to R.string.tool_price_compare_platforms,
+            "记下比价" to R.string.tool_price_compare_record,
         )
     }
 }

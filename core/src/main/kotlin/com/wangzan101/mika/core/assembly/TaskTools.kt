@@ -111,9 +111,12 @@ fun toolDispatcher(
     cloudCommand: (suspend (String) -> com.wangzan101.mika.core.tool.CloudCommandResult)? = null,
     deepSeekBalance: (suspend () -> com.wangzan101.mika.core.tool.DeepSeekBalanceResult)? = null,
     disableCode: Boolean = false,
+    pricePlatforms: () -> List<com.wangzan101.mika.core.compare.PricePlatform> = { com.wangzan101.mika.core.compare.PricePlatforms.DEFAULT },
+    probeLog: (String) -> Unit = {},
 ): ToolDispatcher {
     val config = ToolConfig(visionEnabled, skills, recordFrames, vision, inlineScreen, adaptiveVision, memory, profile, utterances, conversationId,
-        imageOps, scheduleTrigger, scheduleAdmin, runSpec, childHost, userScreens, vault, cloudHostConfigured, cloudCommand, deepSeekBalance)
+        imageOps, scheduleTrigger, scheduleAdmin, runSpec, childHost, userScreens, vault, cloudHostConfigured, cloudCommand, deepSeekBalance,
+        pricePlatforms = pricePlatforms, probeLog = probeLog)
     val providers: List<CapabilityProvider> = listOf(
         object : CapabilityProvider {
             override val id = PHONE

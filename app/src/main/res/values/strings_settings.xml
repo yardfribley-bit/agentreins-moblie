@@ -140,6 +140,15 @@
     <string name="hub_claim_sub">Off. Turning this on does not run remote tasks yet. Payments, red packets, transfers, deletion, messages to other people, and password entry will always ask you on this phone. Only the owner of this session can give instructions.</string>
     <string name="settings_vault">Knowledge base</string>
     <string name="settings_vault_sub">Read before each task and write after success, only in your Obsidian folder</string>
+    <string name="settings_price_compare">Price-compare apps</string>
+    <string name="settings_price_compare_sub">Now: %1$s</string>
+    <string name="settings_price_compare_body">One app per line: display name, then package name. Leave it empty and save to go back to Taobao, JD, and Pinduoduo. A comparison uses this order. You can also name a subset in chat.</string>
+    <string name="settings_price_compare_hint">Taobao com.taobao.taobao</string>
+    <string name="settings_price_compare_save">Save</string>
+    <string name="settings_price_compare_reset">Restore the default list</string>
+    <string name="settings_price_compare_saved">Saved</string>
+    <string name="settings_price_compare_skipped">%1$d line(s) were skipped. The lines that could be read were kept.</string>
+    <string name="settings_price_compare_fallback">Those lines could not be read, so the default list is in use.</string>
     <string name="vault_title">Knowledge base</string>
     <string name="vault_notes">Vault notes</string>
     <string name="vault_folder">Vault folder</string>

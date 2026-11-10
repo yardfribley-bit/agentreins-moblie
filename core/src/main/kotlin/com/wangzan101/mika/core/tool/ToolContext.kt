@@ -16,6 +16,9 @@ import com.wangzan101.mika.core.trigger.TriggerDefinition
 import com.wangzan101.mika.core.trigger.ScheduleAdmin
 import com.wangzan101.mika.core.child.ChildRunHost
 import com.wangzan101.mika.core.run.RunSpec
+import com.wangzan101.mika.core.compare.PriceCompareLedger
+import com.wangzan101.mika.core.compare.PricePlatform
+import com.wangzan101.mika.core.compare.PricePlatforms
 import com.wangzan101.mika.core.vault.VaultMemory
 
 /** 本任务的配置(模型、技能、记忆、开关);能力各自的端口与开关在能力里。 */
@@ -44,6 +47,12 @@ internal class ToolConfig(
     val cloudHostConfigured: (() -> Boolean)? = null,
     val cloudCommand: (suspend (String) -> CloudCommandResult)? = null,
     val deepSeekBalance: (suspend () -> DeepSeekBalanceResult)? = null,
+    /** 这一次任务的比价记录。没开比价时是空的。 */
+    val priceCompare: PriceCompareLedger = PriceCompareLedger(),
+    /** 设置里的比价平台；没配时是默认名单。 */
+    val pricePlatforms: () -> List<PricePlatform> = { PricePlatforms.DEFAULT },
+    /** 真机探路日志。默认不写。 */
+    val probeLog: (String) -> Unit = {},
 )
 
 data class CloudCommandResult(val output: String, val exitCode: Int?, val timedOut: Boolean, val truncated: Boolean)

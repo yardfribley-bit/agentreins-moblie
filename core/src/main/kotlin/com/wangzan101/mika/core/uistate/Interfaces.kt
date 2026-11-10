@@ -1,5 +1,7 @@
 package com.wangzan101.mika.core.uistate
 
+import com.wangzan101.mika.core.compare.PriceCompareGuard
+import com.wangzan101.mika.core.compare.PriceCompareLog
 import com.wangzan101.mika.core.prompt.Feedback
 import com.wangzan101.mika.core.replay.Anchors
 import com.wangzan101.mika.core.replay.Selector
@@ -142,8 +144,35 @@ internal class Interfaces(
     }
 
     override suspend fun around(tool: AgentTool, args: JsonObject, inlineScreen: Boolean, body: suspend (reportsEffect: Boolean) -> ToolExecution): ToolExecution {
+        priceCompareBlock(tool, args)?.let { return it }
         val prep = prepare(tool, args)
         return finish(tool, args, prep, body(prep.reportsEffect), inlineScreen)
+    }
+
+    /** 比价已经开始：不点购买、领券、登录，也不往密码框里打字。 */
+    private fun priceCompareBlock(tool: AgentTool, args: JsonObject): ToolExecution? {
+        if (!config.priceCompare.armed) return null
+        val element = aimedElement(args)
+        if (tool.verb == Verb.TypeText && element?.secret == true) {
+            config.probeLog(PriceCompareLog.blocked("password"))
+            return fail(
+                "price_compare_readonly",
+                "Price compare is read-only. Do not type into a password field or sign in. Record needs_login and move to the next store.",
+            )
+        }
+        if (tool.verb != Verb.Tap) return null
+        val word = PriceCompareGuard.blockedTap(element?.name) ?: return null
+        config.probeLog(PriceCompareLog.blocked(word))
+        return fail(
+            "price_compare_readonly",
+            "Price compare is read-only. Do not tap \"$word\" (no cart, order, coupon, or login). Record the reason and move to the next store.",
+        )
+    }
+
+    private fun aimedElement(args: JsonObject): UiElement? {
+        val snap = runCatching { session.lastSnapshot }.getOrNull() ?: return null
+        val ref = args.argStr("ref")
+        return if (ref != null) snap.elements.firstOrNull { it.ref == ref } else snap.elements.firstOrNull { it.focused }
     }
 
     private suspend fun prepare(tool: AgentTool, o: JsonObject): Prep {

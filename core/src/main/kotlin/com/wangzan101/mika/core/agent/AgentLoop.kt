@@ -248,6 +248,10 @@ class AgentLoop(
         confirmations?.reset()
         utterances?.clear()
         emit(RunEvent.TaskStarted(now(), Redactor.text(task), model.name))
+        if (com.wangzan101.mika.core.compare.PriceCompareIntent.matches(task)) {
+            tools.ctx.config.priceCompare.arm()
+            tools.ctx.config.probeLog(com.wangzan101.mika.core.compare.PriceCompareLog.armed())
+        }
         var end: TaskState? = null
         replay?.reset()
         lastVerdict = null
@@ -263,6 +267,8 @@ class AgentLoop(
             throw e
         } finally {
             factsCarried = TurnFacts.fromHistory(runHistory)
+            val ledger = tools.ctx.config.priceCompare
+            if (ledger.armed) tools.ctx.config.probeLog(com.wangzan101.mika.core.compare.PriceCompareLog.summary(ledger.snapshot()))
             emit(ended(end))
             inbox?.close()
         }
@@ -839,10 +845,11 @@ class AgentLoop(
      * 否则照样交出,没对上的几处标成未确认。[facts] 是核对要看的任务情况(见 [ReviewFacts])。
      */
     private suspend fun conclude(task: String, answer: String, step: Int, facts: ReviewFacts, history: MutableList<Message>?): TaskState? {
+        val shown = com.wangzan101.mika.core.compare.PriceCompareAnswer.present(task, answer, tools.ctx.config.priceCompare.snapshot())
         if (!reviewFinalAnswer) {
             val sources = review.sourcesOnly(task, answer, media)
             if (sources.isNotEmpty()) emit(RunEvent.Sources(now(), sources))
-            return TaskState.Succeeded(answer, verified = false, sources = sources, reviewed = false)
+            return TaskState.Succeeded(shown, verified = false, sources = sources, reviewed = false)
         }
         val r = review.review(task, answer, step, facts, earlierGoals, media, earlierRead) {
             _state.value = TaskState.Running(step, VERIFYING_NOTE, reason = VERIFYING_NOTE,
@@ -857,8 +864,8 @@ class AgentLoop(
         }
         if (missing.isNotEmpty()) emit(RunEvent.Unconfirmed(now(), step, missing.map(::detail)))
         if (r.sources.isNotEmpty()) emit(RunEvent.Sources(now(), r.sources))
-        return if (missing.isEmpty()) TaskState.Succeeded(answer, r.verified, r.note, r.sources, reviewed = r.reviewed)
-        else TaskState.Succeeded(answer, verified = false, note = UNCONFIRMED_NOTE + missing.joinToString("、"), sources = r.sources, unconfirmed = missing)
+        return if (missing.isEmpty()) TaskState.Succeeded(shown, r.verified, r.note, r.sources, reviewed = r.reviewed)
+        else TaskState.Succeeded(shown, verified = false, note = UNCONFIRMED_NOTE + missing.joinToString("、"), sources = r.sources, unconfirmed = missing)
     }
 
     /**

@@ -61,4 +61,6 @@
     <string name="tool_take_mic">申请上麦</string>
     <string name="tool_leave_mic">释放麦位</string>
     <string name="tool_configure_speech">配置出声</string>
+    <string name="tool_price_compare_platforms">比价平台</string>
+    <string name="tool_price_compare_record">记下比价</string>
 </resources>
