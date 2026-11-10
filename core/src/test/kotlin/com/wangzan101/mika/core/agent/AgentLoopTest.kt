@@ -56,7 +56,8 @@ class FakeModel(vararg script: Any, private val repeatLast: Boolean = false, con
 
     override suspend fun complete(system: String, messages: List<Message>, tools: List<ToolSpec>): ModelReply {
         this.system = system
-        requests += messages
+        // 循环会继续往同一份历史里追加。这里留下发送当时的副本，否则事后读取会把整段任务算进某一次请求。
+        requests += messages.toList()
         offeredTools += tools.map { it.name }
         val next = if (repeatLast && script.size == 1) script[0] else script.removeAt(0)
         if (next is Throwable) throw next

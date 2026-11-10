@@ -31,7 +31,7 @@ class ToolRiskTest {
         "web_navigate", "web_read_page", "web_evaluate_js", "web_run_site_command", "web_tabs", "web_downloads", "web_upload",
         "web_site_mode", "web_script", "web_interact", "web_capture", "web_wait_for",
     ) + both("observe", "list_elements", "screenshot", "describe", "find_visually", "tap", "scroll", "swipe",
-        "type_text", "clear_text", "back", "press_key", "diagnose").filter { it.startsWith("web_") }
+        "type_text", "clear_text", "back", "press_key", "diagnose").filter { it.startsWith("web_") } + setOf("web_search")
     private val names = allTools().map { it.name }
 
     @Test fun writingToolsDerivedFromRisk() {
@@ -45,7 +45,12 @@ class ToolRiskTest {
     }
 
     @Test fun readCallsRefuseWhatTheOldListsRefused() = runTest {
-        val refused = oldWriting + oldSandbox + WEB_SCRIPT_TOOL + setOf("phone_listen_live", "phone_configure_live_audio", "phone_speak", "phone_take_mic", "phone_leave_mic", "phone_configure_speech", "phone_find", "phone_collect", "phone_dialog", "phone_run", "phone_system_command", "schedule_task", "spawn_agent")
+        // 屏外的读（云主机状态、DeepSeek 余额）和会改外部状态的写（工作草稿、远程命令）都不是「只读屏」调用。
+        val refused = oldWriting + oldSandbox + WEB_SCRIPT_TOOL + setOf(
+            "phone_listen_live", "phone_configure_live_audio", "phone_speak", "phone_take_mic", "phone_leave_mic", "phone_configure_speech",
+            "phone_find", "phone_collect", "phone_dialog", "phone_run", "phone_system_command", "schedule_task", "spawn_agent",
+            "vault_work_write", "cloud_host_status", "cloud_ssh_command", "cloud_background_job", "deepseek_balance",
+        )
         assertEquals(refused, allTools().filter { !it.readOnly }.map { it.name }.toSet())
         val d = toolDispatcher(FakeScreen())
         for (name in names) {
@@ -56,7 +61,8 @@ class ToolRiskTest {
 
     @Test fun externalToolsDeclareHowTheirTargetIsJudged() {
         for (t in allTools()) assertEquals(t.name, t.risk == Risk.External, t.gateTarget != null || t.approvalRisk != null)
-        assertEquals(both("tap", "type_text", "press_key", "swipe", "scroll") + setOf("web_interact", "web_upload", "schedule_task"),
+        // 远程 shell 会在用户的云主机上执行命令，按 External 并声明了审批风险，不能降成只读。
+        assertEquals(both("tap", "type_text", "press_key", "swipe", "scroll") + setOf("web_interact", "web_upload", "schedule_task", "cloud_ssh_command", "cloud_background_job"),
             allTools().filter { it.risk == Risk.External }.map { it.name }.toSet())
     }
 

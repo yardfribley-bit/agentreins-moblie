@@ -1,0 +1,1 @@
+Check the configured official DeepSeek API account balance when the user asks. This is a live read; it never exposes the API key. A network error means unknown, not zero. This does not report a third-party provider balance.

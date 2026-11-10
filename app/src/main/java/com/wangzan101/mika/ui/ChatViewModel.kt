@@ -1233,6 +1233,7 @@ class ToolLabels(private val tools: ToolIndex, private val legacy: LegacyNames =
             "查看网页收到的数据" to R.string.tool_network,
             "等网页变化" to R.string.tool_wait_page,
             "读取网页数据" to R.string.tool_read_script,
+            "搜索互联网" to R.string.tool_web_search,
             "运行站点命令" to R.string.tool_site_command,
             "上传文件" to R.string.tool_upload,
             "遇到障碍" to R.string.tool_obstacle,

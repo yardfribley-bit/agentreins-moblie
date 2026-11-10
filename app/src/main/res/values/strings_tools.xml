@@ -32,6 +32,7 @@
     <string name="tool_network">Check page network data</string>
     <string name="tool_wait_page">Wait for page change</string>
     <string name="tool_read_script">Read page data</string>
+    <string name="tool_web_search">Search the web</string>
     <string name="tool_site_command">Run site command</string>
     <string name="tool_upload">Upload file</string>
     <string name="tool_obstacle">Hit an obstacle</string>

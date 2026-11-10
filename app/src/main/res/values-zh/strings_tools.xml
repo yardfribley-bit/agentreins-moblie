@@ -32,6 +32,7 @@
     <string name="tool_network">查看网页收到的数据</string>
     <string name="tool_wait_page">等网页变化</string>
     <string name="tool_read_script">读取网页数据</string>
+    <string name="tool_web_search">搜索互联网</string>
     <string name="tool_site_command">运行站点命令</string>
     <string name="tool_upload">上传文件</string>
     <string name="tool_obstacle">遇到障碍</string>

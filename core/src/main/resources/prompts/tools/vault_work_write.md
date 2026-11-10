@@ -1,0 +1,1 @@
+Save one work-draft part in Obsidian. Create-only: existing different content is never overwritten; use a new part_id for revisions. Retrying identical content is safe. Only 1-12000 characters; never save credentials. Read it back before relying on it.
