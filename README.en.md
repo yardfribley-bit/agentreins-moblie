@@ -1,26 +1,25 @@
-# agentreins-moblie
+# X Assistant
 
-> **X Assistant standalone branch (public beta 0.1.0):** The Android package is `com.agentreins.x`, with separate installation and data from AgentReins Mobile. This branch focuses on X research, content and interaction, and does not expose command or code execution tools at runtime. The upstream documentation below is for reference; history import and topic monitoring are still in development.
-
+> Application id `com.agentreins.x`. The code namespace stays `com.wangzan101.mika` so existing configuration and data keep working. It looks things up, organizes content, and uses apps on the phone. It does not expose command or code execution tools at runtime.
 
 [简体中文](README.md) | English
 
-An Android AI assistant for app automation, browsing, files, and continuous live-stream listening followed by requested text replies.
+An Android AI assistant for apps, browsing and files. An Obsidian folder is the only long-term knowledge base.
 
-This is a customized fork of [Mika](https://github.com/wangzan101/Mika). Original copyright and Apache-2.0 notices are retained. Added features include live-audio transcription, personal OpenRouter provisioning, and standardized APK filenames. Upstream demos are not device validation of this fork.
+This is a customized fork of [Mika](https://github.com/wangzan101/Mika). Original copyright and Apache-2.0 notices are retained.
 
 ## Version and installation
 
-Current version: **0.1.14, build 15**. The product name and assistant identity are AgentReins. The Android application label (app_name) remains agentreins-moblie. The internal package remains com.wangzan101.mika for compatibility with existing configuration and data.
+Current version: **0.3.0, build 18**. The product name and Android label (app_name) are X Assistant. The application id is `com.agentreins.x`. The code namespace remains `com.wangzan101.mika`.
 
-APK filenames are generated automatically:
+APK filenames:
 
 ```text
-agentreins-moblie-v<version>-build<versionCode>-<variant>.apk
-agentreins-moblie-v0.1.14-build15-debug.apk
+agentreins-x-v<version>-build<versionCode>-<variant>.apk
+agentreins-x-v0.3.0-build18-debug.apk
 ```
 
-Public repository: [yardfribley-bit/agentreins-moblie](https://github.com/yardfribley-bit/agentreins-moblie). Personal preconfigured APKs remain local under app/build/outputs/apk/debug/ and are not uploaded because they contain personal credentials. No public APK has been released; build an ordinary version from source and enter your own key.
+Public repository: [yardfribley-bit/agentreins-moblie](https://github.com/yardfribley-bit/agentreins-moblie). The repository does not include an APK with a personal key. There may be no GitHub release marked Latest; Check for updates then reads the releases list, including pre-releases. Build from source and enter your own key on the phone.
 
 The test APK uses a debug signing key. A signature mismatch prevents replacing an upstream installation. Do not uninstall an existing installation without considering its local data.
 
@@ -29,10 +28,11 @@ The test APK uses a debug signing key. A signature mismatch prevents replacing a
 - Background app automation using a virtual display, accessibility, OCR and optional vision.
 - Built-in browser with page interaction, uploads, downloads and persistent website sessions.
 - Continuous audio capture and transcription in approximately eight-second chunks, consumed by the agent while it operates the phone.
+- An Obsidian folder is the only long-term knowledge base: read before each task, write after success, and show which notes were touched. No Obsidian plugin is required, and an existing raw/wiki layout is left in place.
 - Scheduled tasks, local preferences, execution records and task interruption or handover.
 - Local Linux sandbox for Python, Node and shell; networking is disabled by default.
 
-Installation requires Android 11+. Background phone automation requires Android 13+, with Android 14+ recommended. The sandbox requires arm64. Phone automation needs wireless-debugging pairing and accessibility; cloud models need network connectivity.
+Installation requires Android 11+. Background phone automation requires Android 13+, with Android 14+ recommended. The sandbox requires arm64. Using apps needs accessibility plus a one-time wireless-debugging pairing, because the background screen cannot be created by accessibility alone. Cloud models need network connectivity.
 
 ### Included app knowledge and skills
 
@@ -47,10 +47,14 @@ Installation requires Android 11+. Background phone automation requires Android 
 
 ## Quick start
 
-1. Install this fork's APK.
-2. Complete the phone-operation setup wizard. See the [setup guide](docs/setup-guide.en.md).
-3. Check Settings > Models. A personal build seeds the OpenRouter defaults below; ordinary builds require manually configured credentials.
-4. Try a simple phone task first, then enable live listening separately. Installing or opening the app never starts recording automatically.
+Everything is done on the phone. A model takes about 2 minutes. Using apps adds accessibility and a one-time pairing, about 10 minutes the first time.
+
+1. Install the APK.
+2. Follow the in-app guide: welcome, model, phone control, knowledge base, then one sample task you can run with a tap. Knowledge base and phone control can be skipped; the screen says what you lose.
+3. The recommended model path is DeepSeek. Open [API keys](https://platform.deepseek.com/api_keys) on the phone. Saving tries `deepseek-chat` with one tool call. A personal build may still seed its own OpenRouter model. An ordinary build contains nobody’s key.
+4. For phone control, turn on X Assistant’s accessibility first. The background screen still needs Developer options and one wireless-debugging pairing. The code expires in about a minute; if the notification does not pop up, open the notification shade. See the [setup guide](docs/setup-guide.en.md).
+5. Knowledge base: choose or create a folder. Notes are written under the AgentReins subfolder (raw/runs and wiki) and do not replace pages you already have.
+6. Speaking aloud stays off until you allow it. While it speaks you see a prompt and can stop with one tap. The entry is Speak aloud on the settings home.
 
 ## Default cloud models
 
@@ -112,7 +116,7 @@ Final-answer review is currently disabled, affecting dependent learning flows. S
 
 There is no project backend. Model requests go to configured services; with OpenRouter they are routed to the corresponding providers and billed by those services. Audio is buffered in memory without recording files; transcripts enter task history. Conversations, execution records and settings are primarily local.
 
-The inherited update checker still points to upstream Mika. There is no separate update feed for this fork; upstream releases do not contain these local changes.
+Check for updates asks this repository’s GitHub Releases. When there is no stable Latest release, it reads the releases list, including pre-releases. The app only tells you a newer version exists. It does not download or install it.
 
 The [architecture](docs/architecture.md) and [roadmap](docs/roadmap.md) primarily describe the inherited framework. Customized audio and provisioning are covered in the linked feature documents.
 

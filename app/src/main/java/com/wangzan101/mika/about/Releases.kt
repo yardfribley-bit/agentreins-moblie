@@ -36,6 +36,17 @@ object Releases {
 
     private val MIRROR_LINE = Regex("""国内备用下载.*?(https?://[^\s)>\]]+)""")
 
+    /**
+     * 读 releases 列表（含预发布，不含草稿），按版本号取最新的一条。
+     * 没有标记为 Latest 的正式版时，检查更新用这个。
+     */
+    fun newestFromList(text: String): ReleaseInfo {
+        val items = json.parseToJsonElement(text).jsonArray.map { it.jsonObject }
+            .filter { (it["draft"] as? JsonPrimitive)?.content != "true" }
+        if (items.isEmpty()) error("no releases")
+        return items.map { fromGitHub(it.toString()) }.maxWith { a, b -> AppVersion.compare(a.version, b.version) }
+    }
+
     fun fromGitHub(text: String): ReleaseInfo {
         val o = json.parseToJsonElement(text).jsonObject
         val tag = o.str("tag_name") ?: error("no tag_name")

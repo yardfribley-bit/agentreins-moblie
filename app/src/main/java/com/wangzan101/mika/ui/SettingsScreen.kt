@@ -283,22 +283,32 @@ fun SettingsContent(
                 RowValue(mainModel ?: stringResource(R.string.settings_not_set))
                 RowChevron()
             }
-            usageTokens?.let {
-                ListRow(MikaIcons.Chart, UsageCopy.TITLE, onClick = onOpenUsage) {
-                    RowValue(UsageCopy.settingsValue(it))
-                    RowChevron()
-                }
-            }
             ListRow(MikaIcons.Phone, stringResource(R.string.settings_phone_ops), onClick = onOpenPhoneOps) {
                 PhoneOpsPill(status)
                 RowChevron()
             }
-            ListRow(MikaIcons.Phone, "应用分类", "确认手机应用的用途", onClick = onOpenAppCategories) { RowChevron() }
-            ListRow(MikaIcons.Phone, "录制视频", "录制小助手界面或任务操作画面", onClick = {
-                context.startActivity(android.content.Intent(context, com.wangzan101.mika.recording.VideoRecordingActivity::class.java))
+            ListRow(MikaIcons.Book, stringResource(R.string.settings_vault), stringResource(R.string.settings_vault_sub), onClick = onOpenVault) { RowChevron() }
+            val (notifText, notifTone) = StatusCopy.notificationSummary(status.notificationOverview().summary)
+            ListRow(MikaIcons.Bell, StatusCopy.NOTIFICATIONS, stringResource(R.string.settings_notif_sub), onClick = onOpenNotifications) {
+                RowValue(notifText, notifTone)
+                RowChevron()
+            }
+            ListRow(MikaIcons.Message, stringResource(R.string.settings_speech), stringResource(R.string.settings_speech_sub), onClick = {
+                context.startActivity(android.content.Intent(context, com.wangzan101.mika.audio.SpeechActivity::class.java))
             }) { RowChevron() }
-            ListRow(MikaIcons.Globe, "云工作台", "配置自己的云主机并测试 SSH 连接", onClick = onOpenCloudHost) { RowChevron() }
-            ListRow(MikaIcons.Moon, stringResource(R.string.settings_during_work), stringResource(R.string.settings_during_work_sub), onClick = onOpenDuringWork) { RowChevron() }
+        }
+
+        GroupLabel(stringResource(R.string.settings_more))
+        GroupCard {
+            var first = true
+            fun take(): Boolean = first.also { first = false }
+            usageTokens?.let {
+                ListRow(MikaIcons.Chart, UsageCopy.TITLE, first = take(), onClick = onOpenUsage) {
+                    RowValue(UsageCopy.settingsValue(it))
+                    RowChevron()
+                }
+            }
+            ListRow(MikaIcons.Moon, stringResource(R.string.settings_during_work), stringResource(R.string.settings_during_work_sub), first = take(), onClick = onOpenDuringWork) { RowChevron() }
             ListRow(MikaIcons.Message, CapsuleSettingsCopy.TITLE, CapsuleSettingsCopy.SUBTITLE, onClick = onOpenCapsule) {
                 RowValue(CapsuleSettingsCopy.label(capsuleMode))
                 RowChevron()
@@ -307,23 +317,19 @@ fun SettingsContent(
                 RowValue(languageLabel(language))
                 RowChevron()
             }
-            val (notifText, notifTone) = StatusCopy.notificationSummary(status.notificationOverview().summary)
-            ListRow(MikaIcons.Bell, StatusCopy.NOTIFICATIONS, stringResource(R.string.settings_notif_sub), onClick = onOpenNotifications) {
-                RowValue(notifText, notifTone)
-                RowChevron()
-            }
         }
 
-        GroupLabel(stringResource(R.string.settings_privacy))
-        GroupCard {
-            var first = true
-            fun take(): Boolean = first.also { first = false }
-            onOpenMemory?.let {
-                ListRow(MikaIcons.Heart, stringResource(R.string.memory_and_skills), stringResource(R.string.settings_memory_sub), first = take(), onClick = it) { RowChevron() }
-            }
-            ListRow(MikaIcons.Book, stringResource(R.string.settings_vault), stringResource(R.string.settings_vault_sub), first = take(), onClick = onOpenVault) { RowChevron() }
-            webSitesCount?.let {
-                ListRow(MikaIcons.Globe, stringResource(R.string.settings_web_logins), first = take(), onClick = onOpenWebSites) { RowValue(trPlural(R.plurals.settings_count_sites, it)); RowChevron() }
+        if (onOpenMemory != null || webSitesCount != null) {
+            GroupLabel(stringResource(R.string.settings_privacy))
+            GroupCard {
+                var first = true
+                fun take(): Boolean = first.also { first = false }
+                onOpenMemory?.let {
+                    ListRow(MikaIcons.Heart, stringResource(R.string.memory_and_skills), stringResource(R.string.settings_memory_sub), first = take(), onClick = it) { RowChevron() }
+                }
+                webSitesCount?.let {
+                    ListRow(MikaIcons.Globe, stringResource(R.string.settings_web_logins), first = take(), onClick = onOpenWebSites) { RowValue(trPlural(R.plurals.settings_count_sites, it)); RowChevron() }
+                }
             }
         }
 
@@ -348,6 +354,11 @@ fun SettingsContent(
                 ListRow(MikaIcons.Wrench, stringResource(R.string.settings_recovery), first = take(), onClick = onOpenRecovery) { RowChevron() }
             }
             ListRow(MikaIcons.Link, stringResource(R.string.settings_hub_relay), stringResource(R.string.settings_hub_relay_sub), first = take(), onClick = onOpenHubRelay) { RowChevron() }
+            ListRow(MikaIcons.Desktop, stringResource(R.string.settings_cloud), stringResource(R.string.settings_cloud_sub), onClick = onOpenCloudHost) { RowChevron() }
+            ListRow(MikaIcons.Apps, stringResource(R.string.settings_app_categories), stringResource(R.string.settings_app_categories_sub), onClick = onOpenAppCategories) { RowChevron() }
+            ListRow(MikaIcons.Camera, stringResource(R.string.settings_record), stringResource(R.string.settings_record_sub), onClick = {
+                context.startActivity(android.content.Intent(context, com.wangzan101.mika.recording.VideoRecordingActivity::class.java))
+            }) { RowChevron() }
             if (showDeveloper) {
                 ListRow(MikaIcons.Code, stringResource(R.string.settings_developer), first = take(), onClick = onOpenDeveloper) { RowChevron() }
             }

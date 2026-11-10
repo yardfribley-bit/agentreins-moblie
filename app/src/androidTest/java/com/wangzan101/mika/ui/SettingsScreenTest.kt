@@ -51,7 +51,7 @@ class SettingsScreenTest {
                 status = status, androidRelease = "14", mainModel = mainModel, onBack = {}, onProblem = onProblem,
                 onOpenModels = { opened += "models" }, usageTokens = usageTokens, onOpenUsage = { opened += "usage" }, onOpenPhoneOps = { opened += "phone" }, onOpenDuringWork = { opened += "work" },
                 capsuleMode = CapsuleMode.DuringTasks, onOpenCapsule = { opened += "capsule" }, onOpenNotifications = { opened += "notifications" },
-                onOpenMemory = { opened += "memory" },
+                onOpenMemory = { opened += "memory" }, onOpenVault = { opened += "vault" },
                 webSitesCount = 3, onOpenWebSites = { opened += "web" },
                 sandbox = SandboxStatus.Ready(network = false), onOpenSandbox = { opened += "sandbox" },
                 routes = 8, onOpenRoutes = { opened += "routes" }, onOpenRecovery = { opened += "recovery" },
@@ -71,7 +71,7 @@ class SettingsScreenTest {
     fun homeShowsGroupsStatusAndValues() {
         home()
         compose.onNodeWithText("一切就绪").assertIsDisplayed()
-        compose.onNodeWithText("基本").assertIsDisplayed()
+        compose.onNodeWithText("常用").assertIsDisplayed()
         // 首页一屏放不下(多了「语言」一行后更长):每个值先滚进视口再看。
         // 依次是模型、手机操作、通知、网站登录、操作路线、计算环境、关于
         for (v in listOf("DeepSeek", "可用", "正常", "3 个", "8 条", "已就绪", "0.1.0")) {
@@ -84,11 +84,11 @@ class SettingsScreenTest {
     fun homeRowsOpenTheirPages() {
         val opened = mutableListOf<String>()
         home(opened = opened)
-        for (t in listOf("模型", "Token 用量", "手机操作", "干活时", "悬浮胶囊", "通知", "记忆与技能", "网站登录", "文件与计算环境", "记住的操作路线", "恢复与修复", "开发者选项", "关于 Mika")) {
+        for (t in listOf("模型", "手机操作", "知识库", "通知", "Token 用量", "干活时", "悬浮胶囊", "记忆与技能", "网站登录", "文件与计算环境", "记住的操作路线", "恢复与修复", "开发者选项", "关于 X 小助手")) {
             scrollTo(t)
             compose.onNodeWithText(t).performClick()
         }
-        assertEquals(listOf("models", "usage", "phone", "work", "capsule", "notifications", "memory", "web", "sandbox", "routes", "recovery", "dev", "about"), opened)
+        assertEquals(listOf("models", "phone", "vault", "notifications", "usage", "work", "capsule", "memory", "web", "sandbox", "routes", "recovery", "dev", "about"), opened)
     }
 
     /** 「Token 用量」写近 7 天的合计;一点没有时写「还没有」,还没统计出来时不显示这一行。 */

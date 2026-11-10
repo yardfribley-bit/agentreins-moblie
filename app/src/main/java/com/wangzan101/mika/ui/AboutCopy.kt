@@ -51,7 +51,7 @@ object AboutCopy {
     val GROUP_SHEET_SUB: String get() = tr(R.string.about_group_sheet_sub)
     val GROUP_SHEET_SUB_ID: String get() = tr(R.string.about_group_sheet_sub_id)
     val GROUP_HINT: String get() = tr(R.string.about_group_hint)
-    val GROUP_ID: String get() = tr(R.string.about_group_id, MikaLinks.AUTHOR_WECHAT_ID)
+    val GROUP_OPEN_SITE: String get() = tr(R.string.about_group_open_site)
     val GROUP_ID_HINT: String get() = tr(R.string.about_group_id_hint)
     val SAVE_QR: String get() = tr(R.string.about_save_qr)
     val QR_SAVED: String get() = tr(R.string.about_qr_saved)

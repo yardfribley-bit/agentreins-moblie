@@ -63,6 +63,8 @@ object PhoneSetupCopy {
     val ACCESSIBILITY_SKIPPED: String get() = tr(R.string.phone_a11y_skipped)
     /** 系统拦着不让打开无障碍时(没从应用商店装的 App 常见)的去处。 */
     val APP_INFO: String get() = tr(R.string.phone_app_info)
+    val A11Y_RESTRICTED: String get() = tr(R.string.phone_a11y_restricted)
+    val PAIR_RECOVER: String get() = tr(R.string.phone_pair_recover)
 
     /** 配对一步:无障碍开着时 Mika 自己读码。 */
     val AUTO_READ_HINT: String get() = tr(R.string.phone_auto_read)

@@ -69,6 +69,7 @@ import com.wangzan101.mika.ui.components.RowValue
 import com.wangzan101.mika.ui.components.ValueTone
 import com.wangzan101.mika.ui.theme.MikaTheme
 import com.wangzan101.mika.ui.theme.MikaIcons
+import com.wangzan101.mika.ui.components.StateCard
 import com.wangzan101.mika.ui.components.TileTone
 import com.wangzan101.mika.ui.components.RowChevron
 import com.wangzan101.mika.ui.components.MikaButton
@@ -399,15 +400,19 @@ private fun CurrentStepBody(
             PillButton(PhoneSetupCopy.OPEN_HEADS_UP, primary = false, tag = "setup-heads-up-open") { onOpenHeadsUp() }
         }
         if (view.autoRead) AutoReadHint() else NotifyGuide()
+        Text(PhoneSetupCopy.PAIR_RECOVER, Modifier.padding(top = 8.dp), fontSize = 13.sp, lineHeight = 18.sp, color = MikaTheme.colors.ink2)
         if (view.portFound && !view.autoRead) Text(PhoneSetupCopy.PORT_FOUND, Modifier.padding(top = 8.dp), fontSize = 13.sp, color = MikaTheme.colors.ok)
     }
-    // 无障碍一步推荐跳过:配对后 Mika 自己打开,也不会被「受限制的设置」拦住
+    // 无障碍是主路径:先去系统里打开。打不开时看受限制的设置。跳过只是这次改由通知填码。
     val a11y = step == SetupStep.Accessibility
-    if (a11y) PillButton(PhoneSetupCopy.ACCESSIBILITY_SKIP, primary = true, tag = "setup-skip-a11y", onClick = onSkipAccessibility)
     if (view.failure == null && copy.action != null) {
-        PillButton(copy.action, primary = !a11y && !fixNotificationsFirst, tag = "setup-action") { onStepAction(step) }
+        PillButton(copy.action, primary = !fixNotificationsFirst, tag = "setup-action") { onStepAction(step) }
     }
-    if (a11y && view.showAppInfo) PillButton(PhoneSetupCopy.APP_INFO, primary = false, tag = "setup-app-info", onClick = onAppInfo)
+    if (a11y) {
+        Text(PhoneSetupCopy.A11Y_RESTRICTED, Modifier.padding(top = 8.dp), fontSize = 13.sp, lineHeight = 18.sp, color = MikaTheme.colors.ink2)
+        PillButton(PhoneSetupCopy.APP_INFO, primary = false, tag = "setup-app-info", onClick = onAppInfo)
+        PillButton(PhoneSetupCopy.ACCESSIBILITY_SKIP, primary = false, tag = "setup-skip-a11y", onClick = onSkipAccessibility)
+    }
     // 读到的开关只是参考:用户说打开了就往下走,哪一步都不会卡死
     if (step in PhoneSetupFlow.CONFIRMABLE) PillButton(PhoneSetupCopy.TURNED_ON_NEXT, primary = false, tag = "setup-confirm") { onConfirmStep(step) }
     if (step == SetupStep.PairingCode) ManualCode(askPort = !view.portFound, onSubmit = onSubmit)
@@ -579,13 +584,7 @@ fun PhoneHelperSection(status: BuiltinShellStatus, onRepair: () -> Unit, onUnpai
 /** 任务要用手机而手机操作没准备好时,任务卡片下面的一行。 */
 @Composable
 fun PhoneSetupLine(onOpen: () -> Unit) {
-    val shape = MikaShapes.Card
-    Row(
-        Modifier.fillMaxWidth().padding(bottom = 12.dp).cardSurface(MikaTheme.colors, shape)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(PhoneSetupCopy.DEGRADED_LINE, Modifier.weight(1f), fontSize = 13.sp, lineHeight = 18.sp, color = MikaTheme.colors.ink2)
+    StateCard(MikaIcons.Phone, PhoneSetupCopy.DEGRADED_LINE, null, TileTone.Warn) {
         Text(
             PhoneSetupCopy.DEGRADED_ACTION, Modifier.clickable(onClick = onOpen).padding(4.dp).testTag("phone-setup-open"),
             fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MikaTheme.colors.accent,

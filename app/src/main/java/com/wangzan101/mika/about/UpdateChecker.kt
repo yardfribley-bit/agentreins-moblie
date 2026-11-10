@@ -59,6 +59,7 @@ class UpdateChecker(
     private val currentVersion: String,
     private val client: OkHttpClient = defaultClient(),
     private val releaseApi: String = MikaLinks.LATEST_RELEASE_API,
+    private val releasesApi: String = MikaLinks.RELEASES_API,
     private val now: () -> Long = System::currentTimeMillis,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
@@ -108,8 +109,17 @@ class UpdateChecker(
         }
     }
 
-    /** GitHub 上最新的发布;没查到为空。 */
-    internal fun fetchLatest(): ReleaseInfo? = runCatching { Releases.fromGitHub(get(releaseApi)) }.getOrNull()
+    /**
+     * GitHub 上最新的发布；没查到为空。
+     * `/releases/latest` 在没有正式版时会 404，这时改读包含预发布的 releases 列表。
+     */
+    internal fun fetchLatest(): ReleaseInfo? {
+        val primary = runCatching { get(releaseApi) }
+        if (primary.isSuccess) return runCatching { Releases.fromGitHub(primary.getOrThrow()) }.getOrNull()
+        if (!primary.exceptionOrNull()?.message.orEmpty().contains("HTTP 404")) return null
+        val list = runCatching { get(releasesApi) }.getOrNull() ?: return null
+        return runCatching { Releases.newestFromList(list) }.getOrNull()
+    }
 
     private fun get(url: String): String {
         val req = Request.Builder().url(url)

@@ -2,18 +2,22 @@ package com.wangzan101.mika.core.relay
 
 import java.io.IOException
 
-/** Hub 站点根。本地 Hub 可以不带 `/task`。MCP 地址由 [mcpEndpoint] 从这里或从完整 URL 推出来。 */
-const val DEFAULT_HUB_BASE = "https://www.chuhaijian.com/task"
+/**
+ * Hub 站点根。不预填任何个人或作者的地址：没填写时为空，由用户在设置里填自己的 Hub。
+ * MCP 地址由 [mcpEndpoint] 从用户填的站点根或完整 URL 推出来。
+ */
+const val DEFAULT_HUB_BASE = ""
 
-/** 和其他外部智能体一样走的 Streamable HTTP MCP。 */
-const val DEFAULT_MCP_URL = "$DEFAULT_HUB_BASE/v1/mcp"
+/** 和其他外部智能体一样走的 Streamable HTTP MCP。空白表示还没配置。 */
+const val DEFAULT_MCP_URL = ""
 
 /**
  * 设置里可以填 MCP 全址,也可以填站点根(旧的 Hub 地址)。
  * `https://host/task` 和 `https://host/task/v1/mcp` 都落到同一个端点。
  */
 fun mcpEndpoint(raw: String): String {
-    val base = raw.trim().trimEnd('/').ifBlank { DEFAULT_MCP_URL }
+    val base = raw.trim().trimEnd('/')
+    if (base.isBlank()) return ""
     return when {
         base.endsWith("/mcp") -> base
         base.endsWith("/v1") -> "$base/mcp"
@@ -21,8 +25,8 @@ fun mcpEndpoint(raw: String): String {
     }
 }
 
-const val DEFAULT_RELAY_ALIAS = "agentreins-moblie"
-const val DEFAULT_RELAY_AGENT_TYPE = "agentreins-moblie"
+const val DEFAULT_RELAY_ALIAS = "x-assistant"
+const val DEFAULT_RELAY_AGENT_TYPE = "x-assistant"
 
 /** 发给 Hub 的正文上限(协议)。 */
 const val RELAY_MAX_TEXT = 8000

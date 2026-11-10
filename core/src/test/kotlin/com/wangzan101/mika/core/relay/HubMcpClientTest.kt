@@ -299,6 +299,12 @@ class HubMcpClientTest {
         assertEquals("https://www.chuhaijian.com/task/v1/mcp", mcpEndpoint("https://www.chuhaijian.com/task"))
         assertEquals("https://www.chuhaijian.com/task/v1/mcp", mcpEndpoint("https://www.chuhaijian.com/task/v1/mcp/"))
         assertEquals(server.url("/v1/mcp").toString().trimEnd('/'), mcpEndpoint(server.url("/").toString()))
+        assertEquals("", mcpEndpoint(""))
+        assertEquals("", mcpEndpoint("   "))
+        assertFalse(DEFAULT_MCP_URL.contains("chuhaijian"))
+        assertFalse(DEFAULT_HUB_BASE.contains("chuhaijian"))
+        assertEquals("x-assistant", DEFAULT_RELAY_ALIAS)
+        assertEquals(DEFAULT_RELAY_ALIAS, DEFAULT_RELAY_AGENT_TYPE)
     }
 
     private fun arguments(request: RecordedRequest) =

@@ -25,8 +25,26 @@ import com.wangzan101.mika.ui.theme.MikaTheme
 import com.wangzan101.mika.ui.theme.MikaType
 import com.wangzan101.mika.vault.VaultNoteRow
 import com.wangzan101.mika.vault.VaultRuntime
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
+import com.wangzan101.mika.ui.components.PageBackground
+import com.wangzan101.mika.ui.components.ProgressDots
+import com.wangzan101.mika.ui.components.StateCard
+import com.wangzan101.mika.ui.components.TileTone
+import com.wangzan101.mika.ui.components.TopBar
+import com.wangzan101.mika.ui.theme.MikaIcons
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -68,7 +86,18 @@ fun VaultSettingsScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val pick = rememberLauncherForActivityResult(OpenPersistableTree()) { uri -> if (uri != null) runtime.choose(uri) }
     val chosen = prefs.treeUri != null
+    fun refuseWithoutFolder() {
+        message = context.getString(R.string.vault_switch_needs)
+    }
     PageScaffold(stringResource(R.string.vault_title), onBack) {
+        if (!chosen) {
+            StateCard(
+                MikaIcons.Book,
+                stringResource(R.string.vault_none),
+                stringResource(R.string.vault_switch_needs),
+                TileTone.Warn,
+            )
+        }
         GroupCard {
             ListRow(null, stringResource(R.string.vault_folder), if (chosen) prefs.displayName ?: stringResource(R.string.vault_picked) else stringResource(R.string.vault_none), first = true)
             ListRow(null, if (chosen) stringResource(R.string.vault_change) else stringResource(R.string.vault_pick), onClick = {
@@ -85,13 +114,13 @@ fun VaultSettingsScreen(onBack: () -> Unit) {
         GroupLabel(stringResource(R.string.memory_switches))
         GroupCard {
             SwitchRow(stringResource(R.string.vault_read), stringResource(R.string.vault_read_sub), chosen && prefs.readEnabled, true) {
-                if (chosen) runtime.settings.update { cur -> cur.copy(readEnabled = it) }
+                if (chosen) runtime.settings.update { cur -> cur.copy(readEnabled = it) } else refuseWithoutFolder()
             }
             SwitchRow(stringResource(R.string.vault_write), stringResource(R.string.vault_write_sub), chosen && prefs.writeEnabled) {
-                if (chosen) runtime.settings.update { cur -> cur.copy(writeEnabled = it) }
+                if (chosen) runtime.settings.update { cur -> cur.copy(writeEnabled = it) } else refuseWithoutFolder()
             }
             SwitchRow(stringResource(R.string.vault_log), stringResource(R.string.vault_log_sub), chosen && prefs.logEnabled) {
-                if (chosen) runtime.settings.update { cur -> cur.copy(logEnabled = it) }
+                if (chosen) runtime.settings.update { cur -> cur.copy(logEnabled = it) } else refuseWithoutFolder()
             }
         }
         GroupLabel(stringResource(R.string.vault_status))
@@ -100,7 +129,11 @@ fun VaultSettingsScreen(onBack: () -> Unit) {
             ListRow(null, stringResource(R.string.vault_last_write), statusLine(prefs.lastWriteAt, prefs.lastWriteOk, prefs.lastWriteDetail, false))
         }
         MikaButton(if (busy) stringResource(R.string.vault_testing) else stringResource(R.string.vault_test), {
-            if (!chosen || busy) return@MikaButton
+            if (!chosen) {
+                refuseWithoutFolder()
+                return@MikaButton
+            }
+            if (busy) return@MikaButton
             busy = true
             scope.launch {
                 val result = withContext(Dispatchers.IO) { runtime.probe() }
@@ -203,6 +236,48 @@ private fun groupLabel(group: String) = when (group) {
     "运行" -> stringResource(R.string.vault_group_runs)
     else -> stringResource(R.string.vault_group_other)
 }
+
+/** 首次引导里选择或新建知识库。跳过会说清后果。 */
+@Composable
+fun VaultOnboardingScreen(onBack: () -> Unit, onContinue: () -> Unit) {
+    val context = LocalContext.current
+    val runtime = remember { (context.applicationContext as MikaApp).vault }
+    val prefs by runtime.settings.state.collectAsState()
+    val pick = rememberLauncherForActivityResult(OpenPersistableTree()) { uri -> if (uri != null) runtime.choose(uri) }
+    val chosen = prefs.treeUri != null
+    val c = MikaTheme.colors
+    BackHandler(onBack = onBack)
+    PageBackground {
+        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).windowInsetsPadding(WindowInsets.navigationBars)) {
+            TopBar(stringResource(R.string.vault_onboard_title), MikaIcons.Back, onBack, stringResource(R.string.back))
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+                Text(stringResource(R.string.vault_onboard_lead), Modifier.padding(top = 4.dp, bottom = 12.dp), fontSize = 14.5.sp, lineHeight = 23.sp, color = c.ink2)
+                Text(
+                    stringResource(if (obsidianInstalled(context)) R.string.vault_onboard_obsidian else R.string.vault_onboard_no_obsidian),
+                    style = MikaType.Caption, color = c.ink2,
+                )
+                GroupCard(Modifier.padding(top = 16.dp)) {
+                    ListRow(null, stringResource(R.string.vault_folder), if (chosen) prefs.displayName ?: stringResource(R.string.vault_picked) else stringResource(R.string.vault_none), first = true)
+                }
+                MikaButton(stringResource(R.string.vault_pick), { pick.launch(prefs.treeUri?.let(Uri::parse)) }, Modifier.fillMaxWidth().padding(top = 8.dp).testTag("vault-pick"))
+                Text(stringResource(R.string.vault_onboard_create_hint), Modifier.padding(top = 8.dp), style = MikaType.Caption, color = c.ink3)
+                Text(stringResource(R.string.vault_onboard_skip_note), Modifier.padding(top = 12.dp), style = MikaType.Caption, color = c.ink2)
+            }
+            Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
+                ProgressDots(Onboarding.DOTS, Onboarding.dot(OnboardingStep.Vault), Modifier.padding(bottom = 10.dp))
+                if (chosen) MikaButton(stringResource(R.string.vault_onboard_next), onContinue, Modifier.fillMaxWidth().testTag("vault-next"))
+                MikaButton(
+                    stringResource(R.string.vault_onboard_skip), onContinue, Modifier.fillMaxWidth().testTag("vault-skip"),
+                    kind = ButtonKind.Text, size = ButtonSize.Medium,
+                )
+            }
+        }
+    }
+}
+
+@Suppress("DEPRECATION")
+internal fun obsidianInstalled(context: Context): Boolean =
+    runCatching { context.packageManager.getApplicationInfo("md.obsidian", 0) }.isSuccess
 
 /** 应用里把双链收成可读的字,文件本身仍是 Obsidian 双链。 */
 internal fun displayWiki(md: String): String = md

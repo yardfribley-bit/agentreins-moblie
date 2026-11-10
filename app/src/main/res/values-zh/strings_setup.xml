@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="welcome_title">你好,我是 X 小助手</string>
-    <string name="welcome_lead">你手机上的私人助理。\n说要做什么,我在后台替你办完。</string>
-    <string name="welcome_note">开始前需要配一个模型、打开手机操作,约 3 分钟</string>
+    <string name="welcome_lead">在手机上替你查资料、整理内容、操作 App。\n说清楚要做什么，我在后台办。</string>
+    <string name="welcome_note">配模型大约 2 分钟。要操作 App，还要打开无障碍并配对一次，第一次大约 10 分钟。也可以先跳过配对，只用聊天、上网和文件。</string>
     <string name="welcome_start">开始设置</string>
-    <string name="welcome_apps">操作 App</string>
-    <string name="welcome_apps_body">在后台的一块屏幕上点、输入、翻页,不占用你的屏幕</string>
-    <string name="welcome_web">上网查</string>
-    <string name="welcome_web_body">自带浏览器,读网页、比价、查资料</string>
-    <string name="welcome_files">处理文件</string>
-    <string name="welcome_files_body">表格、PDF、数据,在独立的环境里算和整理</string>
-    <string name="welcome_schedule">按时去做</string>
-    <string name="welcome_schedule_body">每天、每周,或者条件满足时自动去做</string>
+    <string name="welcome_apps">整理内容</string>
+    <string name="welcome_apps_body">搜索、归纳你关心的帖子和资料</string>
+    <string name="welcome_web">操作 App</string>
+    <string name="welcome_web_body">在不占用你屏幕的后台屏上点、输入。需要打开无障碍，并配对一次</string>
+    <string name="welcome_files">上网和文件</string>
+    <string name="welcome_files_body">自带浏览器；表格和 PDF 在独立环境里处理</string>
+    <string name="welcome_schedule">知识库</string>
+    <string name="welcome_schedule_body">每次任务前读你的 Obsidian 笔记，办成后写回去。你能看到读了什么、写了什么</string>
     <string name="back">返回</string>
     <string name="hide">隐藏</string>
     <string name="show">显示</string>
@@ -63,4 +63,14 @@
     <string name="model_probe_tried">试了 %1$s，都没测试通过。</string>
     <string name="model_probe_fallback">先试的 %1$s 没测试通过：%2$s。主模型用了测试通过的「%3$s」。</string>
     <string name="model_pick_main">选主模型</string>
+    <string name="model_recommend_title">推荐：DeepSeek</string>
+    <string name="model_recommend_body">国内手机上就能申请。保存时会优先试 deepseek-chat，并用一次工具调用确认它能干活，通过才设成主模型。上面的表单已经选好这家。</string>
+    <string name="model_recommend_key">去申请 API Key</string>
+    <string name="model_recommend_fail">如果失败：核对 Key 是否复制完整；到 DeepSeek 控制台确认 deepseek-chat 已开通；或点上面换一家服务商，再测试一次。</string>
+    <string name="sample_title">试一次</string>
+    <string name="sample_lead">下面这条只用模型，不操作手机，也不需要知识库。点一下就能看到 X 小助手怎么回答。</string>
+    <string name="sample_task_text">请用三句话说明你能帮我做的事。如果我还没配对手机操作、还没选择知识库，分别会怎样，也各用一句话告诉我。</string>
+    <string name="sample_note">要它操作 App 或读写笔记，做完这次后再去设置里补上。</string>
+    <string name="sample_run">试跑这条</string>
+    <string name="sample_skip">先自己写</string>
 </resources>

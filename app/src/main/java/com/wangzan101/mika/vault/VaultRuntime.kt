@@ -22,6 +22,9 @@ import kotlinx.coroutines.CancellationException
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
+/** 某一次任务读过、写过的知识库笔记。没选库时 [configured] 为假。 */
+data class VaultRunTouch(val configured: Boolean, val read: List<String>, val wrote: List<String>)
+
 /** 界面上一条库笔记。 */
 data class VaultNoteRow(
     val path: String,
@@ -203,6 +206,11 @@ class VaultRuntime(context: Context) : VaultMemory {
     fun readNote(path: String): String? = if (!configured()) null else runCatching { files.read(path) }.getOrNull()
 
     fun runPath(runId: String): String? = touches.runPath(runId)
+
+    fun runTouch(runId: String): VaultRunTouch {
+        val (read, wrote) = touches.forRun(runId)
+        return VaultRunTouch(configured(), read, wrote)
+    }
 
     fun touch(path: String) = touches.touch(path)
 

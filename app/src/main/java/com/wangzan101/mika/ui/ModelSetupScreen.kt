@@ -191,6 +191,7 @@ fun ModelSetupContent(ui: ModelSetupUi, onboarding: Boolean, actions: ModelSetup
                     if (onboarding) ModelSetupCopy.LEAD else ModelsCopy.LEAD, Modifier.padding(top = 4.dp, bottom = 12.dp),
                     fontSize = 14.5.sp, lineHeight = 23.sp, color = c.ink2,
                 )
+                if (onboarding && ui.providers.isEmpty()) RecommendPath(ui.form.test is ListState.Failed || !ui.probeNote.isNullOrBlank())
                 // 上手时先连服务商再选模型;设置里先看用途
                 if (onboarding) {
                     ProvidersSection(ui, actions)
@@ -211,6 +212,25 @@ fun ModelSetupContent(ui: ModelSetupUi, onboarding: Boolean, actions: ModelSetup
             }
         }
     }
+}
+
+/** 上手时给出一条能走通的路径：服务商、申请 Key、默认模型、失败后怎么办。 */
+@Composable
+private fun RecommendPath(failed: Boolean) {
+    val context = LocalContext.current
+    val c = MikaTheme.colors
+    GroupCard {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            Text(stringResource(R.string.model_recommend_title), style = MikaType.BodyStrong, color = c.ink)
+            Text(stringResource(R.string.model_recommend_body), Modifier.padding(top = 4.dp), style = MikaType.Caption, color = c.ink2)
+            Text(
+                stringResource(R.string.model_recommend_key),
+                Modifier.padding(top = 8.dp).clickable { openInBrowser(context, context.getString(R.string.model_recommend_url)) }.testTag("model-recommend-key"),
+                fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = c.accent,
+            )
+        }
+    }
+    if (failed) Text(stringResource(R.string.model_recommend_fail), Modifier.padding(bottom = 8.dp).testTag("model-recommend-fail"), fontSize = 13.sp, lineHeight = 18.sp, color = c.warn)
 }
 
 /** 服务商:每家一行(写明在给哪些用途干活),加「添加服务商」;没有服务商或点了添加时,表单就摊在这里。 */

@@ -58,7 +58,7 @@ class AboutScreenTest {
                 AboutScreen(
                     versionName = "0.1.0", build = "abc1234", beta = true, update = update, issueUrl = "issue://prefilled",
                     onCheck = { calls.checks++ }, onOpenUrl = { calls.urls += it },
-                    onAskMikaToJoin = { calls.asks++ }, onOpenLicense = { calls.licenses++ }, onBack = {},
+                    onOpenLicense = { calls.licenses++ }, onBack = {},
                     diagnostics = { sampleDiagnostics },
                 )
             }
@@ -138,41 +138,24 @@ class AboutScreenTest {
         assertEquals(sampleDiagnostics, clip)
     }
 
-    /** 加作者微信走微信号,不展示、也不保存还没换成 sjtdyt 的二维码。 */
+    /** 反馈里的网站入口直接打开项目网站，不展示个人微信号。 */
     @Test
-    fun feedbackWeChatOpensIdSheet() {
-        about()
+    fun feedbackSiteOpensTheProjectSite() {
+        val calls = about()
         compose.onNodeWithText("反馈问题").performClick()
         compose.awaitOne(AboutCopy.FEEDBACK_WECHAT).performClick()
-        compose.awaitOne(AboutCopy.GROUP_SHEET_TITLE)
-        compose.onNodeWithTag("wechat-qr").assertDoesNotExist()
-        compose.onNodeWithText(AboutCopy.SAVE_QR).assertDoesNotExist()
-        compose.onNodeWithTag("wechat-id").assertIsDisplayed()
-        compose.onNodeWithText(AboutCopy.GROUP_ID).assertIsDisplayed()
+        compose.onNodeWithTag("wechat-id").assertDoesNotExist()
+        assertEquals(listOf(com.wangzan101.mika.about.MikaLinks.SITE), calls.urls)
     }
 
     @Test
-    fun groupRowOpensIdSheet() {
-        about()
-        compose.onNodeWithText("加入内测群").performClick()
-        compose.awaitOne(AboutCopy.GROUP_SHEET_SUB_ID).assertIsDisplayed()
-        compose.onNodeWithTag("wechat-qr").assertDoesNotExist()
-        compose.onNodeWithText(AboutCopy.GROUP_ID).assertIsDisplayed()
-        compose.onNodeWithText(AboutCopy.GROUP_ID_HINT).assertExists()
-    }
-
-    /** 微信号下面:已经加过作者微信的,点一下让助手去发消息;连点只算一次。 */
-    @Test
-    fun groupSheetAsksMikaOnce() {
+    fun groupRowOpensSiteSheet() {
         val calls = about()
-        compose.onNodeWithText("加入内测群").performClick()
-        compose.awaitOne(AboutCopy.GROUP_SHEET_SUB_ID)
-        compose.onNodeWithText(AboutCopy.SAVE_QR).assertDoesNotExist()
-        compose.onNodeWithText(AboutCopy.GROUP_ALREADY_ADDED).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithTag("group-ask-mika").performScrollTo().assertIsDisplayed().performClick()
-        compose.waitForIdle()
-        assertEquals(1, calls.asks)
-        compose.onAllNodesWithTag("group-ask-mika").assertCountEquals(0)
+        compose.onNodeWithText(AboutCopy.GROUP).performClick()
+        compose.awaitOne(AboutCopy.GROUP_SHEET_SUB_ID).assertIsDisplayed()
+        compose.onNodeWithTag("wechat-id").assertDoesNotExist()
+        compose.onNodeWithTag("group-open-site").performClick()
+        assertEquals(listOf(com.wangzan101.mika.about.MikaLinks.SITE), calls.urls)
     }
 
     @Test

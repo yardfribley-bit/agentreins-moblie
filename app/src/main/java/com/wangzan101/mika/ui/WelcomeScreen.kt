@@ -103,9 +103,9 @@ object WelcomeCopy {
     data class Item(val icon: ImageVector, val title: String, val body: String)
 
     val FEATURES get() = listOf(
-        Item(MikaIcons.Apps, tr(R.string.welcome_apps), tr(R.string.welcome_apps_body)),
-        Item(MikaIcons.Globe, tr(R.string.welcome_web), tr(R.string.welcome_web_body)),
-        Item(MikaIcons.Doc, tr(R.string.welcome_files), tr(R.string.welcome_files_body)),
-        Item(MikaIcons.Clock, tr(R.string.welcome_schedule), tr(R.string.welcome_schedule_body)),
+        Item(MikaIcons.Spark, tr(R.string.welcome_apps), tr(R.string.welcome_apps_body)),
+        Item(MikaIcons.Apps, tr(R.string.welcome_web), tr(R.string.welcome_web_body)),
+        Item(MikaIcons.Globe, tr(R.string.welcome_files), tr(R.string.welcome_files_body)),
+        Item(MikaIcons.Book, tr(R.string.welcome_schedule), tr(R.string.welcome_schedule_body)),
     )
 }

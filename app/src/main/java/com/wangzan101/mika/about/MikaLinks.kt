@@ -14,16 +14,10 @@ object MikaLinks {
     const val NEW_ISSUE = "$REPO/issues/new"
     const val X = "https://x.com/agentreins"
     const val X_HANDLE = "@agentreins"
-    const val AUTHOR_WECHAT_ID = "sjtdyt"
 
-    /** 让 Mika 替用户发给作者的那句话。 */
-    val GROUP_REQUEST: String get() = tr(R.string.group_request)
-
-    /** 关于页「让 Mika 帮我发消息入群」交给 Mika 的原话:按微信号找作者发 [GROUP_REQUEST];找不到就说明还没加好友,不加、不发给别人。 */
-    val GROUP_TASK: String get() = tr(R.string.group_task, AUTHOR_WECHAT_ID, GROUP_REQUEST)
-
-    /** 检查更新只问 GitHub 发布页(不登录,每小时有次数限制)。 */
+    /** 检查更新先问 GitHub 的 Latest。没有正式版时改问 [RELEASES_API]（含预发布）。 */
     const val LATEST_RELEASE_API = "https://api.github.com/repos/yardfribley-bit/agentreins-moblie/releases/latest"
+    const val RELEASES_API = "https://api.github.com/repos/yardfribley-bit/agentreins-moblie/releases?per_page=20"
 
     /** 反馈时预先填进问题模板的设备与版本信息。 */
     data class Device(
